@@ -1,0 +1,2 @@
+# Run email digest agent at 7:00 AM from Monday to Friday (PST)
+0 7 * * * cd /app && /usr/local/bin/uv run main.py >> /var/log/emailagent/cron.log 2>&1

@@ -1,0 +1,23 @@
+services:
+  emailagent:
+    build: .
+    container_name: emailagent
+    restart: unless-stopped
+    environment:
+      - TZ=America/Los_Angeles  # Set timezone for accurate 7:00 AM scheduling
+    volumes:
+      # Mount credentials and tokens
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+      - ./.env:/app/.env:ro
+      # Mount logs for persistence
+      - ./logs:/var/log/emailagent
+      # Mount code directories for hot-reloading (no rebuild needed)
+      - ./main.py:/app/main.py
+      - ./config:/app/config
+      - ./gmail:/app/gmail
+      - ./processor:/app/processor
+      - ./utils:/app/utils
+      - ./test_manual.py:/app/test_manual.py
+    env_file:
+      - .env
