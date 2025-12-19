@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { RefreshCw, Mail, Linkedin, Calendar, Clock } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import { fetchLatestDigest, Digest } from "@/lib/api";
@@ -10,14 +10,21 @@ export default function Home() {
   const [digest, setDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [newContentAvailable, setNewContentAvailable] = useState(false);
+  const [lastKnownDigestId, setLastKnownDigestId] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const loadDigest = async () => {
     setLoading(true);
     setError(null);
+    setNewContentAvailable(false);
     try {
       const data = await fetchLatestDigest();
       setDigest(data);
+      if (data) {
+        setLastKnownDigestId(data.id);
+      }
       setLastRefresh(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load digest");
@@ -26,27 +33,64 @@ export default function Home() {
     }
   };
 
+  // Check for new content in the background
+  const checkForNewContent = useCallback(async () => {
+    try {
+      const data = await fetchLatestDigest();
+      if (data && lastKnownDigestId !== null && data.id !== lastKnownDigestId) {
+        setNewContentAvailable(true);
+      }
+    } catch {
+      // Silently fail on background check
+    }
+  }, [lastKnownDigestId]);
+
   useEffect(() => {
+    setMounted(true);
     loadDigest();
   }, []);
 
+  // Poll for new content every 5 minutes
+  useEffect(() => {
+    if (lastKnownDigestId === null) return;
+    
+    const interval = setInterval(checkForNewContent, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [lastKnownDigestId, checkForNewContent]);
+
   return (
     <div className="animate-fade-in space-y-8">
+      {/* New Content Banner */}
+      {newContentAvailable && (
+        <div className="animate-slide-down">
+          <button
+            onClick={loadDigest}
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-fuchsia-500/20 via-purple-500/20 to-indigo-500/20 border border-purple-500/30 px-4 py-3 text-sm font-medium text-white transition-all hover:from-fuchsia-500/30 hover:via-purple-500/30 hover:to-indigo-500/30"
+          >
+            <Bell className="h-4 w-4 text-purple-400 animate-bounce" />
+            <span>New content available!</span>
+            <span className="text-purple-400">Click to refresh</span>
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Today's Briefing</h2>
+          <h2 className="text-2xl font-bold text-white">Today's Briefing & LinkedIn</h2>
           <p className="mt-1 text-gray-400">
             AI-curated insights from your newsletters
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="h-4 w-4" />
-            <span>
-              Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
+          {mounted && lastRefresh && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Clock className="h-4 w-4" />
+              <span>
+                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          )}
           <button
             onClick={loadDigest}
             disabled={loading}

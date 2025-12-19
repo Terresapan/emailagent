@@ -63,9 +63,11 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
             className="rounded-lg bg-white/5 transition-all duration-200 hover:bg-white/10"
           >
             {/* Post Header */}
-            <button
+            <div
               onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
+              className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left"
+              role="button"
+              tabIndex={0}
             >
               <span className="text-sm font-medium text-white">
                 Post {index + 1}
@@ -91,7 +93,7 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 )}
               </div>
-            </button>
+            </div>
 
             {/* Post Content */}
             {expandedIndex === index && (

@@ -39,15 +39,22 @@ services:
       db:
         condition: service_healthy
 
-  # Next.js dashboard
+  # Next.js dashboard (with hot-reload for development)
   dashboard:
-    build: ./dashboard
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile.dev
     container_name: contentagent-dashboard
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
+    volumes:
+      # Mount source code for hot-reloading
+      - ./dashboard/src:/app/src
+      - ./dashboard/public:/app/public
     depends_on:
       - api
 
