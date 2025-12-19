@@ -1,11 +1,11 @@
 """Gmail API client with retry logic."""
 import base64
+from email.mime.text import MIMEText
 from typing import List, Dict
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from tenacity import retry, stop_after_attempt, wait_exponential
-from config.settings import MAX_RETRIES, RETRY_MIN_WAIT, RETRY_MAX_WAIT, NEWSLETTER_LABEL
-from email.mime.text import MIMEText
+from tenacity import retry, stop_after_attempt
+from config.settings import LLM_MAX_RETRIES, NEWSLETTER_LABEL
 from gmail.auth import authenticate_gmail
 from utils.logger import setup_logger
 from utils.html_parser import html_to_text
@@ -24,8 +24,7 @@ class GmailClient:
         logger.info("Gmail client initialized successfully")
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def _get_or_create_label(self, label_name: str) -> str:
         """
@@ -68,8 +67,7 @@ class GmailClient:
             raise
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def fetch_unread_emails(self, sender_configs: List[Dict[str, str]]) -> List[Dict]:
         """
@@ -171,8 +169,7 @@ class GmailClient:
         return body
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def mark_as_read(self, message_id: str):
         """
@@ -194,8 +191,7 @@ class GmailClient:
             raise
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def apply_label(self, message_id: str, label_name: str = NEWSLETTER_LABEL):
         """
@@ -220,8 +216,7 @@ class GmailClient:
             raise
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def archive_email(self, message_id: str):
         """
@@ -243,8 +238,7 @@ class GmailClient:
             raise
     
     @retry(
-        stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT)
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
     )
     def send_email(self, to: str, subject: str, body: str):
         """

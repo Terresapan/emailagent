@@ -163,6 +163,33 @@ def last_list(left: List, right: List) -> List:
     return right if right else left
 
 
+def add_unique_digests(left: List, right: List) -> List:
+    """
+    Reducer that combines EmailDigest lists while ensuring uniqueness by email_id.
+    
+    When parallel subgraphs (digest_branch, linkedin_branch) complete and merge,
+    they each return their copy of the digests list. Using the standard `add`
+    reducer would triple the list. This reducer ensures each email_id appears
+    only once.
+    
+    Args:
+        left: Previous list of EmailDigest objects
+        right: New list from parallel branch
+        
+    Returns:
+        Combined list with unique email_ids (preserves order, keeps first seen)
+    """
+    seen_ids = set()
+    result = []
+    
+    for digest in left + right:
+        if digest.email_id not in seen_ids:
+            seen_ids.add(digest.email_id)
+            result.append(digest)
+    
+    return result
+
+
 # =============================================================================
 # LangGraph State Definitions
 # =============================================================================
@@ -176,7 +203,7 @@ class ProcessorState(TypedDict):
     
     Attributes:
         emails: Input emails (last_list for parallel merge)
-        digests: Accumulated EmailDigest objects (add for combining)
+        digests: Accumulated EmailDigest objects (add_unique_digests for deduplication)
         aggregated_briefing: Raw briefing before quality check
         newsletter_summaries: Formatted summaries for content generation
         reviewed_briefing: Quality-checked briefing (final output)
@@ -185,7 +212,7 @@ class ProcessorState(TypedDict):
         errors: Accumulated error messages (add for combining)
     """
     emails: Annotated[List[Email], last_list]
-    digests: Annotated[List[EmailDigest], add]
+    digests: Annotated[List[EmailDigest], add_unique_digests]
     aggregated_briefing: Annotated[str, last_non_empty]
     newsletter_summaries: Annotated[str, last_non_empty]
     reviewed_briefing: Annotated[str, last_non_empty]

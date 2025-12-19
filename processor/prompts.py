@@ -33,11 +33,12 @@ Your task: Analyze the ENTIRE newsletter and extract the TOP 5 most important an
 
 Rules:
 - Only include a category if relevant content exists.
-- **Curate and select the TOP 5 most important/relevant points per category** (not just the first 5 you see).
+- **Curate and select the TOP 5 most important and relevant points per category** (not just the first 5 you see).
 - Each bullet must be one sentence, no more than 25 words.
 - No fluff, marketing language, or speculation.
 - Do NOT infer trends or insights that are not explicitly mentioned.
 - If content is purely promotional or lacks substance, write: "No meaningful content."
+- If content is mentioned as sponsored or "PRESENTED BY" or "FROM OUR PARTNERS", tag it as "[SPONSORED]" at the start of the bullet.
 
 Newsletter Subject: {subject}
 Newsletter From: {sender}
@@ -59,10 +60,11 @@ Your input is a set of newsletter summaries. Your goal is to identify true patte
 Create a briefing with the following two sections. Use the exact format shown below:
 
 **What's Happening in AI Today** ✨
-- Analyze all summaries and curate the TOP 5 most significant themes and patterns.
+- Analyze all summaries and curate the TOP 10 most significant themes and patterns.
 - Only use information explicitly contained in the provided summaries.
 - Short, casual, easy-to-understand language.
 - Each bullet max 25 words.
+- If content is mentioned as sponsored or "PRESENTED BY" or "FROM OUR PARTNERS", tag it as "[SPONSORED]" at the start of the bullet.
 
 **What This Means for You** ✨
 - Curate the TOP 5 most actionable takeaways for someone building AI agents for SMEs.
@@ -129,9 +131,14 @@ Evaluate the briefing below and improve it if needed. Focus on:
 4. **Structure** – Are the two sections (What's Happening, What This Means) clearly separated and logically organized?
 5. **Tone** – Is the tone casual, conversational, and concise?
 6. **Accuracy** – Does it avoid speculation, invented themes, or exaggeration?
+7. **Sponsored Content** – Are any points explicitly marked as "[SPONSORED]"? Compare with source summaries to ensure nothing was missed.
+8. **Consistency** - Does the briefing accurately reflect the input summaries?
 
 You may rewrite, reorganize, shorten, or simplify the briefing as needed.
 If it is already excellent, return it exactly as-is.
+
+Source Newsletter Summaries:
+{newsletter_summaries}
 
 Original Briefing:
 {original_briefing}

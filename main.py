@@ -79,7 +79,7 @@ def main(dry_run: bool = False):
         logger.info(f"✓ Found {len(emails_data)} unread emails")
         
         if not emails_data:
-            logger.info("No unread emails to process. Exiting.")
+            logger.info("No unread emails to process. Exiting!!!")
             return
         
         # Convert to Email objects

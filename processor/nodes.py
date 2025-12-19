@@ -16,6 +16,7 @@ Node Functions:
     - generate_linkedin_content: Creates LinkedIn post content
     - quality_check_linkedin: Reviews and improves LinkedIn content
 """
+import time
 from typing import List
 
 from langgraph.types import Send
@@ -30,9 +31,62 @@ from processor.prompts import (
     QUALITY_CHECK_DIGEST_PROMPT,
     QUALITY_CHECK_LINKEDIN_PROMPT
 )
+from config.settings import EMAIL_BODY_MAX_CHARS
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def _extract_text_content(result) -> str:
+    """
+    Extract text content from LLM response.
+    
+    GPT-5 reasoning models return content as a list with:
+    - {'type': 'reasoning', 'id': '...', 'summary': [...]} - reasoning block
+    - {'type': 'text', 'text': '...', 'annotations': [...]} - actual text block
+    
+    Args:
+        result: LLM response object with .content attribute
+        
+    Returns:
+        Extracted text content as a string
+    """
+    content = result.content
+    
+    # If content is already a string, return it
+    if isinstance(content, str):
+        return content
+    
+    # If content is a list of content blocks, extract text from each
+    if isinstance(content, list):
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict):
+                # GPT-5 format: look for 'type': 'text' blocks
+                if block.get('type') == 'text' and 'text' in block:
+                    text_parts.append(block['text'])
+                # Fallback: any dict with 'text' key (non-reasoning blocks)
+                elif 'text' in block and block.get('type') != 'reasoning':
+                    text_parts.append(block['text'])
+                elif 'content' in block:
+                    text_parts.append(block['content'])
+            elif isinstance(block, str):
+                text_parts.append(block)
+            elif hasattr(block, 'text'):
+                text_parts.append(block.text)
+            elif hasattr(block, 'content'):
+                text_parts.append(block.content)
+        
+        extracted = ''.join(text_parts)
+        if not extracted:
+            # Log warning with details about what we received
+            block_info = [(b.get('type', 'unknown') if isinstance(b, dict) else type(b).__name__) for b in content]
+            logger.warning(f"Could not extract text from content blocks. Block types: {block_info}")
+        return extracted
+    
+    # Fallback: convert to string
+    logger.warning(f"Unexpected content type: {type(content).__name__}")
+    return str(content)
 
 
 # =============================================================================
@@ -138,16 +192,31 @@ def summarize_email_logic(email, structured_llm: ChatOpenAI) -> CategorySummary:
     Returns:
         CategorySummary with industry_news, new_tools, and insights
     """
+    start_time = time.time()
+    original_len = len(email.body)
+    truncated_body = email.body[:EMAIL_BODY_MAX_CHARS]
+    truncated_len = len(truncated_body)
+    was_truncated = "YES" if original_len > EMAIL_BODY_MAX_CHARS else "NO"
+    logger.info(f"📧 Starting LLM call for email ID: {email.id} | Body: {original_len} chars → {truncated_len} chars (truncated: {was_truncated})")
+    
     prompt = ChatPromptTemplate.from_template(EMAIL_SUMMARIZATION_PROMPT)
     chain = prompt | structured_llm
     
-    result = chain.invoke({
-        "subject": email.subject,
-        "sender": email.sender,
-        "body": email.body[:10000]
-    })
-    
-    return result
+    try:
+        result = chain.invoke({
+            "subject": email.subject,
+            "sender": email.sender,
+            "body": truncated_body
+        })
+        
+        duration = time.time() - start_time
+        logger.info(f"✅ LLM call completed for ID: {email.id} in {duration:.2f}s")
+        return result
+        
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(f"❌ LLM call failed for ID: {email.id} after {duration:.2f}s: {e}")
+        raise
 
 
 def summarize_single_email(state: WorkerState, structured_llm: ChatOpenAI) -> dict:
@@ -165,7 +234,7 @@ def summarize_single_email(state: WorkerState, structured_llm: ChatOpenAI) -> di
         Dict with either 'digests' list (success) or 'errors' list (failure)
     """
     email = state["email"]
-    logger.info(f"Worker started for: {email.subject[:30]}...")
+    logger.info(f"Worker started for email ID: {email.id} - {email.subject[:30]}...")
     
     try:
         summary = summarize_email_logic(email, structured_llm)
@@ -175,7 +244,7 @@ def summarize_single_email(state: WorkerState, structured_llm: ChatOpenAI) -> di
             subject=email.subject,
             summary=summary
         )
-        logger.info(f"✓ Worker finished: {email.subject[:30]}...")
+        logger.info(f"✓ Worker finished for ID: {email.id} - {email.subject[:30]}...")
         return {"digests": [digest]}
         
     except Exception as e:
@@ -208,17 +277,21 @@ def generate_briefing(state: ProcessorState, llm: ChatOpenAI) -> dict:
     if not newsletter_summaries:
         return {"aggregated_briefing": "No emails to process."}
     
-    logger.info(f"Generating aggregated briefing from {len(state['digests'])} digests...")
+    input_chars = len(newsletter_summaries)
+    logger.info(f"🚀 [BRIEFING] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
     
     prompt = ChatPromptTemplate.from_template(DIGEST_BRIEFING_PROMPT)
     chain = prompt | llm
     
+    start_time = time.time()
     result = chain.invoke({
         "newsletter_summaries": newsletter_summaries
     })
+    duration = time.time() - start_time
     
-    briefing = result.content
-    logger.info("✓ Generated aggregated briefing")
+    briefing = _extract_text_content(result)
+    output_chars = len(briefing)
+    logger.info(f"✅ [BRIEFING] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
     
     return {"aggregated_briefing": briefing}
 
@@ -238,18 +311,24 @@ def quality_check_briefing(state: ProcessorState, llm: ChatOpenAI) -> dict:
         Dict with reviewed_briefing
     """
     original_briefing = state["aggregated_briefing"]
+    newsletter_summaries = state.get("newsletter_summaries", "")
     
-    logger.info("Running quality check on briefing...")
+    input_chars = len(original_briefing) + len(newsletter_summaries)
+    logger.info(f"🚀 [QC-BRIEFING] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
             
     prompt = ChatPromptTemplate.from_template(QUALITY_CHECK_DIGEST_PROMPT)
     chain = prompt | llm
     
+    start_time = time.time()
     result = chain.invoke({
-        "original_briefing": original_briefing
+        "original_briefing": original_briefing,
+        "newsletter_summaries": newsletter_summaries
     })
+    duration = time.time() - start_time
     
-    reviewed_briefing = result.content
-    logger.info("✓ Quality check complete")
+    reviewed_briefing = _extract_text_content(result)
+    output_chars = len(reviewed_briefing)
+    logger.info(f"✅ [QC-BRIEFING] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
     
     return {"reviewed_briefing": reviewed_briefing}
 
@@ -278,17 +357,21 @@ def generate_linkedin_content(state: ProcessorState, llm: ChatOpenAI) -> dict:
     if not newsletter_summaries:
         return {"linkedin_content": "No content available for LinkedIn posts."}
     
-    logger.info("Generating LinkedIn content...")
+    input_chars = len(newsletter_summaries)
+    logger.info(f"🚀 [LINKEDIN] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
     
     prompt = ChatPromptTemplate.from_template(LINKEDIN_CONTENT_PROMPT)
     chain = prompt | llm
     
+    start_time = time.time()
     result = chain.invoke({
         "newsletter_summaries": newsletter_summaries
     })
+    duration = time.time() - start_time
     
-    linkedin_content = result.content
-    logger.info("✓ Generated LinkedIn content")
+    linkedin_content = _extract_text_content(result)
+    output_chars = len(linkedin_content)
+    logger.info(f"✅ [LINKEDIN] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
     
     return {"linkedin_content": linkedin_content}
 
@@ -309,16 +392,20 @@ def quality_check_linkedin(state: ProcessorState, llm: ChatOpenAI) -> dict:
     """
     original_linkedin_content = state["linkedin_content"]
     
-    logger.info("Running quality check on LinkedIn content...")
+    input_chars = len(original_linkedin_content)
+    logger.info(f"🚀 [QC-LINKEDIN] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
     
     prompt = ChatPromptTemplate.from_template(QUALITY_CHECK_LINKEDIN_PROMPT)
     chain = prompt | llm
     
+    start_time = time.time()
     result = chain.invoke({
         "original_linkedin_content": original_linkedin_content
     })
+    duration = time.time() - start_time
     
-    reviewed_linkedin_content = result.content
-    logger.info("✓ LinkedIn quality check complete")
+    reviewed_linkedin_content = _extract_text_content(result)
+    output_chars = len(reviewed_linkedin_content)
+    logger.info(f"✅ [QC-LINKEDIN] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
     
     return {"reviewed_linkedin_content": reviewed_linkedin_content}

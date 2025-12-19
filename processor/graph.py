@@ -42,9 +42,14 @@ from processor.nodes import (
 )
 from config.settings import (
     OPENAI_API_KEY, 
-    LLM_MODEL, 
+    LLM_MODEL_EXTRACTION,
+    LLM_MODEL_GENERATION,
     LLM_TEMPERATURE, 
     LLM_MAX_TOKENS,
+    LLM_TIMEOUT_SECONDS,
+    LLM_MAX_RETRIES,
+    LLM_REASONING_EFFORT_EXTRACTION,
+    LLM_REASONING_EFFORT_GENERATION,
     LANGSMITH_API_KEY,
     LANGSMITH_TRACING,
     LANGSMITH_ENDPOINT,
@@ -86,24 +91,40 @@ class EmailSummarizer:
         """
         Initialize the EmailSummarizer with LLM and compiled graph.
         
-        Creates both a standard LLM for content generation and a structured
-        output LLM for email summarization with CategorySummary schema.
+        Creates two LLMs with different reasoning efforts:
+        - extraction_llm: Low effort for email summarization (faster)
+        - generation_llm: Medium effort for content generation (better quality)
         """
-        self.llm = ChatOpenAI(
-            model=LLM_MODEL,
+        # LLM for extraction tasks (email summarization) - nano model with low reasoning
+        self.extraction_llm = ChatOpenAI(
+            model=LLM_MODEL_EXTRACTION,
             temperature=LLM_TEMPERATURE,
             max_tokens=LLM_MAX_TOKENS,
-            api_key=OPENAI_API_KEY
+            api_key=OPENAI_API_KEY,
+            timeout=LLM_TIMEOUT_SECONDS,
+            max_retries=LLM_MAX_RETRIES,
+            reasoning={"effort": LLM_REASONING_EFFORT_EXTRACTION}
         )
         
-        # Create structured output LLM for category summaries
+        # LLM for content generation (briefing, LinkedIn) - mini model with medium reasoning
+        self.llm = ChatOpenAI(
+            model=LLM_MODEL_GENERATION,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+            api_key=OPENAI_API_KEY,
+            timeout=LLM_TIMEOUT_SECONDS,
+            max_retries=LLM_MAX_RETRIES,
+            reasoning={"effort": LLM_REASONING_EFFORT_GENERATION}
+        )
+        
+        # Create structured output LLM for category summaries (uses extraction LLM)
         from processor.states import CategorySummary
-        self.structured_llm = self.llm.with_structured_output(CategorySummary)
+        self.structured_llm = self.extraction_llm.with_structured_output(CategorySummary)
         
         # Build the LangGraph workflow
         self.graph = self._build_graph()
         
-        logger.info(f"Initialized EmailSummarizer with LangGraph and model: {LLM_MODEL}")
+        logger.info(f"Initialized EmailSummarizer | Extraction: {LLM_MODEL_EXTRACTION} ({LLM_REASONING_EFFORT_EXTRACTION}), Generation: {LLM_MODEL_GENERATION} ({LLM_REASONING_EFFORT_GENERATION})")
     
     def _build_digest_subgraph(self):
         """

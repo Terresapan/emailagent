@@ -36,17 +36,30 @@ NEWSLETTER_LABEL = "Newsletters"
 DIGEST_RECIPIENT_EMAIL = os.getenv("DIGEST_RECIPIENT_EMAIL", "terresap2010@gmail.com")
 
 # LLM settings
-LLM_MODEL = "gpt-5-mini-2025-08-07"
+# Use different models for different tasks:
+# - nano: Fast extraction/summarization
+# - mini: Higher quality content generation
+LLM_MODEL_EXTRACTION = "gpt-5-nano-2025-08-07"
+LLM_MODEL_GENERATION = "gpt-5-mini-2025-08-07"
 LLM_TEMPERATURE = 0.3
-LLM_MAX_TOKENS = 10000
+LLM_MAX_TOKENS = 8000  # GPT-5-mini uses reasoning tokens internally; 2000 was too low
 
-# Retry settings
-MAX_RETRIES = 3
-RETRY_MIN_WAIT = 1  # seconds
-RETRY_MAX_WAIT = 10  # seconds
+# Reasoning effort settings for GPT-5-mini
+# "low" = faster, fewer reasoning tokens (good for extraction)
+# "medium" = balanced (good for content generation)
+# "high" = slower, more reasoning tokens (good for complex analysis)
+LLM_REASONING_EFFORT_EXTRACTION = "low"  # For email summarization
+LLM_REASONING_EFFORT_GENERATION = "medium" # For briefing/LinkedIn (low prevents empty outputs with nano)
+
+# Email processing settings
+EMAIL_BODY_MAX_CHARS = 12000  # Truncate email body to this many characters (~3000 tokens)
+
+# LLM timeout and retry settings
+LLM_TIMEOUT_SECONDS = 300  # 5 minutes - prevents timeout on slow responses
+LLM_MAX_RETRIES = 0  # Disabled to prevent duplicate processing in parallel LangGraph workflow
 
 # Scheduling
-EXECUTION_TIME = "07:00"  # 7:00 AM
+EXECUTION_TIME = "08:00"  # 8:00 AM
 
 # LangSmith settings
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
