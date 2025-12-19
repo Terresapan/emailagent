@@ -1,2 +1,5 @@
-# Run email digest agent at 8:00 AM from Monday to Friday (PST)
+# Environment variables for cron job
+DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
+
+# Run email digest agent at 8:00 AM every day (PST)
 0 8 * * * cd /app && /usr/local/bin/uv run main.py >> /var/log/emailagent/cron.log 2>&1

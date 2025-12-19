@@ -113,6 +113,7 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
 /**
  * Parse LinkedIn content into individual posts.
  * Handles various formats: numbered lists, "---" separators, or "POST" headers.
+ * Filters out intro/preamble text that isn't an actual post.
  */
 function parseLinkedInPosts(content: string): string[] {
   // Try splitting by common separators
@@ -144,6 +145,25 @@ function parseLinkedInPosts(content: string): string[] {
   if (posts.length === 0) {
     posts = [content.trim()];
   }
+
+  // Filter out intro/preamble paragraphs (they typically contain meta-language about the posts)
+  const introPatterns = [
+    /here are the.*posts/i,
+    /here's the.*content/i,
+    /reviewed and.*tightened/i,
+    /optimized for/i,
+    /each post has/i,
+    /content pack/i,
+    /linkedin posts.*below/i,
+  ];
+  
+  posts = posts.filter((post) => {
+    // Check if this looks like an intro paragraph
+    const isIntro = introPatterns.some((pattern) => pattern.test(post));
+    // Also filter if it's too short to be a real post (less than 100 chars)
+    const isTooShort = post.length < 100;
+    return !isIntro && !isTooShort;
+  });
 
   // Limit to 5 posts max
   return posts.slice(0, 5);
