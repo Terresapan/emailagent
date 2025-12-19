@@ -112,7 +112,7 @@ The agent will run automatically at 7:00 AM every day.
 ## Project Structure
 
 ```
-emailagent/
+backend/
 ├── config/
 │   ├── settings.py           # Configuration management
 │   └── sender_whitelist.json # Newsletter senders

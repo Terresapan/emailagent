@@ -1,23 +1,74 @@
 services:
+  # Email processor (existing - runs at 7am via cron)
   emailagent:
-    build: .
+    build: ./backend
     container_name: emailagent
     restart: unless-stopped
     environment:
-      - TZ=America/Los_Angeles  # Set timezone for accurate 7:00 AM scheduling
+      - TZ=America/Los_Angeles
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
     volumes:
       # Mount credentials and tokens
-      - ./credentials.json:/app/credentials.json:ro
-      - ./token.json:/app/token.json
-      - ./.env:/app/.env:ro
+      - ./backend/credentials.json:/app/credentials.json:ro
+      - ./backend/token.json:/app/token.json
+      - ./backend/.env:/app/.env:ro
       # Mount logs for persistence
-      - ./logs:/var/log/emailagent
-      # Mount code directories for hot-reloading (no rebuild needed)
-      - ./main.py:/app/main.py
-      - ./config:/app/config
-      - ./gmail:/app/gmail
-      - ./processor:/app/processor
-      - ./utils:/app/utils
-      - ./test_manual.py:/app/test_manual.py
+      - ./backend/logs:/var/log/emailagent
+      # Mount code directories for hot-reloading
+      - ./backend/main.py:/app/main.py
+      - ./backend/config:/app/config
+      - ./backend/gmail:/app/gmail
+      - ./backend/processor:/app/processor
+      - ./backend/utils:/app/utils
     env_file:
-      - .env
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # FastAPI backend
+  api:
+    build: ./backend/api
+    container_name: contentagent-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Next.js dashboard
+  dashboard:
+    build: ./dashboard
+    container_name: contentagent-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+
+  # PostgreSQL database
+  db:
+    image: postgres:15
+    container_name: contentagent-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=contentagent
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contentagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

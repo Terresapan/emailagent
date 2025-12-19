@@ -1,41 +1,36 @@
-# Python
+# Dependencies
+node_modules/
+.venv/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-ENV/
-env/
-.venv
+*.pyc
 
-# Environment variables
+# Build outputs
+.next/
+.vercel/
+dist/
+build/
+
+# Environment files
 .env
-
-# Google OAuth
-credentials.json
-token.json
-
-# Logs
+.env.local
 *.log
-logs/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
-*.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# UV
-.uv/
-uv.lock
+# Docker
+postgres_data/
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+# Credentials (keep these private!)
+credentials.json
+token.json
+
+# Logs
+logs/
+*.log

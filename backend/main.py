@@ -7,6 +7,7 @@ from processor.states import Email
 from processor.graph import EmailSummarizer
 from processor.prompts import DIGEST_EMAIL_TEMPLATE, LINKEDIN_EMAIL_TEMPLATE
 from utils.logger import setup_logger
+from utils.database import save_to_database
 
 logger = setup_logger(__name__)
 
@@ -124,6 +125,12 @@ def main(dry_run: bool = False):
             except Exception as e:
                 logger.error(f"Error processing email {email.id}: {e}")
                 continue
+        
+        # Save to database (for dashboard)
+        logger.info("Saving digest and raw emails to database...")
+        digest_id = save_to_database(emails, daily_digest)
+        if digest_id:
+            logger.info(f"✓ Saved to database with digest ID: {digest_id}")
         
         # Send digest emails
         logger.info(f"Sending newsletter digest to {DIGEST_RECIPIENT_EMAIL}...")
