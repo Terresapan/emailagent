@@ -1,30 +1,40 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell } from "lucide-react";
+import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell, BookOpen, Sparkles } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
+import DeepDiveCard from "@/components/DeepDiveCard";
 import { fetchLatestDigest, Digest } from "@/lib/api";
 
+type ViewType = "daily" | "weekly";
+
 export default function Home() {
-  const [digest, setDigest] = useState<Digest | null>(null);
+  const [activeView, setActiveView] = useState<ViewType>("daily");
+  const [dailyDigest, setDailyDigest] = useState<Digest | null>(null);
+  const [weeklyDigest, setWeeklyDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [newContentAvailable, setNewContentAvailable] = useState(false);
-  const [lastKnownDigestId, setLastKnownDigestId] = useState<number | null>(null);
+  const [lastKnownDailyId, setLastKnownDailyId] = useState<number | null>(null);
+  const [lastKnownWeeklyId, setLastKnownWeeklyId] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const loadDigest = async () => {
+  const loadDigests = async () => {
     setLoading(true);
     setError(null);
     setNewContentAvailable(false);
     try {
-      const data = await fetchLatestDigest();
-      setDigest(data);
-      if (data) {
-        setLastKnownDigestId(data.id);
-      }
+      // Load both daily and weekly digests in parallel
+      const [daily, weekly] = await Promise.all([
+        fetchLatestDigest("daily"),
+        fetchLatestDigest("weekly"),
+      ]);
+      setDailyDigest(daily);
+      setWeeklyDigest(weekly);
+      if (daily) setLastKnownDailyId(daily.id);
+      if (weekly) setLastKnownWeeklyId(weekly.id);
       setLastRefresh(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load digest");
@@ -36,27 +46,36 @@ export default function Home() {
   // Check for new content in the background
   const checkForNewContent = useCallback(async () => {
     try {
-      const data = await fetchLatestDigest();
-      if (data && lastKnownDigestId !== null && data.id !== lastKnownDigestId) {
+      const [daily, weekly] = await Promise.all([
+        fetchLatestDigest("daily"),
+        fetchLatestDigest("weekly"),
+      ]);
+      if (
+        (daily && lastKnownDailyId !== null && daily.id !== lastKnownDailyId) ||
+        (weekly && lastKnownWeeklyId !== null && weekly.id !== lastKnownWeeklyId)
+      ) {
         setNewContentAvailable(true);
       }
     } catch {
       // Silently fail on background check
     }
-  }, [lastKnownDigestId]);
+  }, [lastKnownDailyId, lastKnownWeeklyId]);
 
   useEffect(() => {
     setMounted(true);
-    loadDigest();
+    loadDigests();
   }, []);
 
   // Poll for new content every 5 minutes
   useEffect(() => {
-    if (lastKnownDigestId === null) return;
+    if (lastKnownDailyId === null && lastKnownWeeklyId === null) return;
     
-    const interval = setInterval(checkForNewContent, 5 * 60 * 1000); // 5 minutes
+    const interval = setInterval(checkForNewContent, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [lastKnownDigestId, checkForNewContent]);
+  }, [lastKnownDailyId, lastKnownWeeklyId, checkForNewContent]);
+
+  // Get current digest based on active view
+  const currentDigest = activeView === "daily" ? dailyDigest : weeklyDigest;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -64,7 +83,7 @@ export default function Home() {
       {newContentAvailable && (
         <div className="animate-slide-down">
           <button
-            onClick={loadDigest}
+            onClick={loadDigests}
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-fuchsia-500/20 via-purple-500/20 to-indigo-500/20 border border-purple-500/30 px-4 py-3 text-sm font-medium text-white transition-all hover:from-fuchsia-500/30 hover:via-purple-500/30 hover:to-indigo-500/30"
           >
             <Bell className="h-4 w-4 text-purple-400 animate-bounce" />
@@ -74,13 +93,33 @@ export default function Home() {
         </div>
       )}
 
-      {/* Page Header */}
+      {/* View Toggle Tabs */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Today's Briefing & LinkedIn</h2>
-          <p className="mt-1 text-gray-400">
-            AI-curated insights from your newsletters
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="flex rounded-lg bg-white/5 p-1">
+            <button
+              onClick={() => setActiveView("daily")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                activeView === "daily"
+                  ? "bg-gradient-to-r from-fuchsia-500 to-fuchsia-600 text-white"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              Daily Briefing
+            </button>
+            <button
+              onClick={() => setActiveView("weekly")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                activeView === "weekly"
+                  ? "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              Weekly Deep Dive
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           {mounted && lastRefresh && (
@@ -92,7 +131,7 @@ export default function Home() {
             </div>
           )}
           <button
-            onClick={loadDigest}
+            onClick={loadDigests}
             disabled={loading}
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
           >
@@ -102,12 +141,24 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Page Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-white">
+          {activeView === "daily" ? "Today's Briefing & LinkedIn" : "Weekly Deep Dive"}
+        </h2>
+        <p className="mt-1 text-gray-400">
+          {activeView === "daily"
+            ? "AI-curated insights from your daily newsletters"
+            : "Strategic analysis from expert essays"}
+        </p>
+      </div>
+
       {/* Error State */}
       {error && (
         <div className="glass-card rounded-xl p-4 text-center">
           <p className="text-red-400">{error}</p>
           <button
-            onClick={loadDigest}
+            onClick={loadDigests}
             className="mt-2 text-sm text-purple-400 hover:text-purple-300"
           >
             Try again
@@ -116,26 +167,40 @@ export default function Home() {
       )}
 
       {/* Loading State */}
-      {loading && !digest && (
+      {loading && !currentDigest && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="glass-card h-96 animate-pulse rounded-xl" />
-          <div className="glass-card h-96 animate-pulse rounded-xl" />
+          {activeView === "daily" && (
+            <div className="glass-card h-96 animate-pulse rounded-xl" />
+          )}
         </div>
       )}
 
       {/* Empty State */}
-      {!loading && !digest && !error && (
+      {!loading && !currentDigest && !error && (
         <div className="glass-card rounded-xl p-12 text-center">
-          <Mail className="mx-auto h-12 w-12 text-gray-600" />
-          <h3 className="mt-4 text-lg font-medium text-white">No digests yet</h3>
-          <p className="mt-2 text-gray-400">
-            Your AI briefings will appear here after the next email processing run.
-          </p>
+          {activeView === "daily" ? (
+            <>
+              <Mail className="mx-auto h-12 w-12 text-gray-600" />
+              <h3 className="mt-4 text-lg font-medium text-white">No daily digests yet</h3>
+              <p className="mt-2 text-gray-400">
+                Your daily briefings will appear here after the next email processing run.
+              </p>
+            </>
+          ) : (
+            <>
+              <BookOpen className="mx-auto h-12 w-12 text-gray-600" />
+              <h3 className="mt-4 text-lg font-medium text-white">No weekly deep dives yet</h3>
+              <p className="mt-2 text-gray-400">
+                Your weekly strategic briefings will appear here after Sunday's processing run.
+              </p>
+            </>
+          )}
         </div>
       )}
 
-      {/* Content Cards */}
-      {digest && (
+      {/* Content Cards - Daily View */}
+      {currentDigest && activeView === "daily" && (
         <>
           {/* Stats Bar */}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -146,7 +211,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Date</p>
-                  <p className="font-medium text-white">{digest.date}</p>
+                  <p className="font-medium text-white">{currentDigest.date}</p>
                 </div>
               </div>
             </div>
@@ -158,7 +223,7 @@ export default function Home() {
                 <div>
                   <p className="text-sm text-gray-400">Emails Processed</p>
                   <p className="font-medium text-white">
-                    {digest.emails_processed?.length || 0}
+                    {currentDigest.emails_processed?.length || 0}
                   </p>
                 </div>
               </div>
@@ -178,19 +243,75 @@ export default function Home() {
 
           {/* Main Content Grid */}
           <div className="grid gap-6 lg:grid-cols-2">
-            <BriefingCard briefing={digest.briefing} />
-            <LinkedInCard content={digest.linkedin_content} />
+            <BriefingCard briefing={currentDigest.briefing} />
+            <LinkedInCard content={currentDigest.linkedin_content} />
           </div>
 
           {/* Processed Emails List */}
-          {digest.emails_processed && digest.emails_processed.length > 0 && (
+          {currentDigest.emails_processed && currentDigest.emails_processed.length > 0 && (
             <div className="glass-card rounded-xl p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
                 <Mail className="h-5 w-5 text-purple-400" />
                 Processed Newsletters
               </h3>
               <ul className="space-y-2">
-                {digest.emails_processed.map((email, index) => (
+                {currentDigest.emails_processed.map((email, index) => (
+                  <li
+                    key={index}
+                    className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
+                  >
+                    {email}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Content Cards - Weekly View */}
+      {currentDigest && activeView === "weekly" && (
+        <>
+          {/* Stats Bar */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="glass-card rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-indigo-500/20 p-2">
+                  <Calendar className="h-5 w-5 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Week of</p>
+                  <p className="font-medium text-white">{currentDigest.date}</p>
+                </div>
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-purple-500/20 p-2">
+                  <BookOpen className="h-5 w-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Essays Analyzed</p>
+                  <p className="font-medium text-white">
+                    {currentDigest.emails_processed?.length || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Deep Dive Content - Full Width */}
+          <DeepDiveCard briefing={currentDigest.briefing} />
+
+          {/* Processed Essays List */}
+          {currentDigest.emails_processed && currentDigest.emails_processed.length > 0 && (
+            <div className="glass-card rounded-xl p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+                <BookOpen className="h-5 w-5 text-indigo-400" />
+                Analyzed Essays
+              </h3>
+              <ul className="space-y-2">
+                {currentDigest.emails_processed.map((email, index) => (
                   <li
                     key={index}
                     className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"

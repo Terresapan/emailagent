@@ -84,19 +84,30 @@ docker-compose up -d --build
 ### Manual Email Processing
 
 ```bash
-# Run email processor manually (production)
-docker exec emailagent uv run python main.py
+# Daily digest (default) - newsletters → briefing + LinkedIn
+docker exec emailagent uv run python main.py --type dailydigest
 
-# Dry run (preview without sending emails)
+# Weekly deep dive - expert essays → strategic briefing (no LinkedIn)
+docker exec emailagent uv run python main.py --type weeklydeepdives
+
+# Dry run (preview without sending/archiving)
 docker exec emailagent uv run python main.py --dry-run
+docker exec emailagent uv run python main.py --type weeklydeepdives --dry-run
 ```
+
+### CLI Options
+
+| Option | Values | Description |
+|--------|--------|-------------|
+| `--type` | `dailydigest` (default), `weeklydeepdives` | Type of emails to process |
+| `--dry-run` | - | Preview output without modifying emails or sending |
 
 ### Database Commands
 
 ```bash
-# View all digests
+# View all digests (with type)
 docker exec contentagent-db psql -U postgres -d contentagent \
-  -c "SELECT id, date, created_at FROM digests ORDER BY created_at DESC;"
+  -c "SELECT id, date, digest_type, created_at FROM digests ORDER BY created_at DESC;"
 
 # View email count
 docker exec contentagent-db psql -U postgres -d contentagent \
@@ -116,8 +127,15 @@ docker exec -it contentagent-db psql -U postgres -d contentagent
 # Check API health
 curl http://localhost:8000/api/health
 
-# Get latest digest
+# Get latest daily digest
 curl http://localhost:8000/api/digest/latest
+
+# Get latest weekly deep dive
+curl "http://localhost:8000/api/digest/latest?digest_type=weekly"
+
+# Get digest history by type
+curl "http://localhost:8000/api/digest/history?digest_type=daily"
+curl "http://localhost:8000/api/digest/history?digest_type=weekly"
 ```
 
 ### Troubleshooting
@@ -140,12 +158,30 @@ docker exec emailagent cat /etc/cron.d/emailagent-cron
 
 ## Cron Schedule
 
-The email processor runs automatically at **8:00 AM (PST)** every day.
+| Type | Schedule | Time |
+|------|----------|------|
+| Daily Digest | Mon-Fri | 8:00 AM PST |
+| Weekly Deep Dive | Sunday | 8:00 AM PST |
 
-To modify the schedule, edit `backend/scripts/crontab` and rebuild:
+To modify, edit `backend/scripts/crontab` and rebuild:
 
 ```bash
 docker-compose up -d --build emailagent
+```
+
+### Mac Wake Schedule
+
+To wake your Mac for scheduled processing:
+
+```bash
+# Install wake schedule -- every day at 7:58 AM
+sudo pmset repeat wakeorpoweron MTWRFSU 07:58:00
+
+# Verify schedule
+pmset -g sched
+
+# Cancel schedule
+sudo pmset repeat cancel
 ```
 
 ---

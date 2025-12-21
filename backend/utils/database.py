@@ -24,6 +24,7 @@ class DigestModel(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, index=True)
+    digest_type = Column(String(20), default="daily", nullable=False, index=True)  # 'daily' or 'weekly'
     briefing = Column(Text)
     linkedin_content = Column(Text)
     newsletter_summaries = Column(Text)
@@ -49,13 +50,14 @@ class EmailModel(Base):
     digest = relationship("DigestModel", back_populates="emails")
 
 
-def save_to_database(emails: List, daily_digest) -> Optional[int]:
+def save_to_database(emails: List, digest, digest_type: str = "daily") -> Optional[int]:
     """
     Save raw emails and processed digest to PostgreSQL database.
     
     Args:
         emails: List of Email objects (raw emails)
-        daily_digest: DailyDigest object with processed content
+        digest: DailyDigest or WeeklyDeepDive object with processed content
+        digest_type: Either 'daily' or 'weekly'
         
     Returns:
         Digest ID if saved successfully, None otherwise
@@ -72,13 +74,18 @@ def save_to_database(emails: List, daily_digest) -> Optional[int]:
         session = Session()
         
         try:
+            # Handle both DailyDigest (newsletter_summaries) and WeeklyDeepDive (deepdive_summaries)
+            summaries = getattr(digest, 'newsletter_summaries', None) or getattr(digest, 'deepdive_summaries', '')
+            linkedin = getattr(digest, 'linkedin_content', None) or ''
+            
             # Create digest record
             digest_record = DigestModel(
-                date=datetime.fromisoformat(daily_digest.date).date(),
-                briefing=daily_digest.aggregated_briefing,
-                linkedin_content=daily_digest.linkedin_content,
-                newsletter_summaries=daily_digest.newsletter_summaries,
-                emails_processed=daily_digest.emails_processed,
+                date=datetime.fromisoformat(digest.date).date(),
+                digest_type=digest_type,
+                briefing=digest.aggregated_briefing,
+                linkedin_content=linkedin,
+                newsletter_summaries=summaries,
+                emails_processed=digest.emails_processed,
             )
             session.add(digest_record)
             session.flush()  # Get the ID
@@ -95,7 +102,7 @@ def save_to_database(emails: List, daily_digest) -> Optional[int]:
                 session.add(email_record)
             
             session.commit()
-            logger.info(f"✓ Saved digest (ID: {digest_record.id}) and {len(emails)} emails to database")
+            logger.info(f"✓ Saved {digest_type} digest (ID: {digest_record.id}) and {len(emails)} emails to database")
             return digest_record.id
             
         except Exception as e:
@@ -108,3 +115,4 @@ def save_to_database(emails: List, daily_digest) -> Optional[int]:
     except Exception as e:
         logger.error(f"Failed to save to database: {e}")
         return None
+

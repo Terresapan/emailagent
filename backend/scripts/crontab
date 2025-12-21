@@ -1,5 +1,8 @@
 # Environment variables for cron job
 DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
 
-# Run email digest agent at 8:00 AM every day (PST)
-0 8 * * * cd /app && /usr/local/bin/uv run main.py >> /var/log/emailagent/cron.log 2>&1
+# Run daily email digest at 8:00 AM Monday-Friday (PST)
+0 8 * * 1-5 cd /app && /usr/local/bin/uv run main.py --type dailydigest >> /var/log/emailagent/cron.log 2>&1
+
+# Run weekly deep dives at 8:00 AM every Sunday (PST)
+0 8 * * 0 cd /app && /usr/local/bin/uv run main.py --type weeklydeepdives >> /var/log/emailagent/cron.log 2>&1

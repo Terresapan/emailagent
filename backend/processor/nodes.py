@@ -15,6 +15,13 @@ Node Functions:
     - quality_check_briefing: Reviews and improves the briefing
     - generate_linkedin_content: Creates LinkedIn post content
     - quality_check_linkedin: Reviews and improves LinkedIn content
+    
+Deep Dive Node Functions (Weekly):
+    - summarize_deepdive_logic: Core LLM call for essay summarization
+    - summarize_single_deepdive: Worker node for individual essay processing
+    - prepare_deepdive_content: Synchronization point, formats essay summaries
+    - generate_deepdive_briefing: Creates strategic weekly briefing
+    - quality_check_deepdive: Reviews and improves the briefing
 """
 import time
 from typing import List
@@ -23,13 +30,19 @@ from langgraph.types import Send
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-from processor.states import ProcessorState, WorkerState, EmailDigest, CategorySummary
+from processor.states import (
+    ProcessorState, WorkerState, EmailDigest, CategorySummary,
+    DeepDiveProcessorState, DeepDiveDigest, DeepDiveSummary
+)
 from processor.prompts import (
     EMAIL_SUMMARIZATION_PROMPT, 
     DIGEST_BRIEFING_PROMPT,
     LINKEDIN_CONTENT_PROMPT,
     QUALITY_CHECK_DIGEST_PROMPT,
-    QUALITY_CHECK_LINKEDIN_PROMPT
+    QUALITY_CHECK_LINKEDIN_PROMPT,
+    DEEPDIVE_SUMMARIZATION_PROMPT,
+    DEEPDIVE_BRIEFING_PROMPT,
+    QUALITY_CHECK_DEEPDIVE_PROMPT
 )
 from config.settings import EMAIL_BODY_MAX_CHARS
 from utils.logger import setup_logger
@@ -409,3 +422,223 @@ def quality_check_linkedin(state: ProcessorState, llm: ChatOpenAI) -> dict:
     logger.info(f"✅ [QC-LINKEDIN] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
     
     return {"reviewed_linkedin_content": reviewed_linkedin_content}
+
+
+# =============================================================================
+# Deep Dive Nodes (Weekly)
+# =============================================================================
+
+def summarize_deepdive_logic(email, structured_llm: ChatOpenAI) -> DeepDiveSummary:
+    """
+    Core LLM call for deep dive essay summarization with structured output.
+    
+    Uses structured output to ensure consistent DeepDiveSummary format.
+    Email body is truncated to 12,000 characters to fit context limits.
+    
+    Args:
+        email: Email object with subject, sender, and body
+        structured_llm: ChatOpenAI with structured output for DeepDiveSummary
+        
+    Returns:
+        DeepDiveSummary with core_thesis, key_concepts, arguments, evidence, implications
+    """
+    start_time = time.time()
+    original_len = len(email.body)
+    truncated_body = email.body[:EMAIL_BODY_MAX_CHARS]
+    truncated_len = len(truncated_body)
+    was_truncated = "YES" if original_len > EMAIL_BODY_MAX_CHARS else "NO"
+    logger.info(f"📖 Starting DEEPDIVE LLM call for ID: {email.id} | Body: {original_len} chars → {truncated_len} chars (truncated: {was_truncated})")
+    
+    prompt = ChatPromptTemplate.from_template(DEEPDIVE_SUMMARIZATION_PROMPT)
+    chain = prompt | structured_llm
+    
+    try:
+        result = chain.invoke({
+            "subject": email.subject,
+            "sender": email.sender,
+            "body": truncated_body
+        })
+        
+        duration = time.time() - start_time
+        logger.info(f"✅ DEEPDIVE LLM call completed for ID: {email.id} in {duration:.2f}s")
+        return result
+        
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(f"❌ DEEPDIVE LLM call failed for ID: {email.id} after {duration:.2f}s: {e}")
+        raise
+
+
+def summarize_single_deepdive(state: WorkerState, structured_llm: ChatOpenAI) -> dict:
+    """
+    Worker node that processes a single deep dive essay.
+    
+    Called in parallel for each essay via the Send pattern.
+    Returns either a digest on success or an error message on failure.
+    
+    Args:
+        state: WorkerState containing single email/essay
+        structured_llm: LLM with structured output (injected via functools.partial)
+        
+    Returns:
+        Dict with either 'digests' list (success) or 'errors' list (failure)
+    """
+    email = state["email"]
+    logger.info(f"📖 DeepDive worker started for ID: {email.id} - {email.subject[:30]}...")
+    
+    try:
+        summary = summarize_deepdive_logic(email, structured_llm)
+        digest = DeepDiveDigest(
+            email_id=email.id,
+            sender=email.sender,
+            subject=email.subject,
+            summary=summary
+        )
+        logger.info(f"✓ DeepDive worker finished for ID: {email.id} - {email.subject[:30]}...")
+        return {"digests": [digest]}
+        
+    except Exception as e:
+        error_msg = f"Failed to summarize deep dive '{email.subject}': {e}"
+        logger.error(error_msg)
+        return {"errors": [error_msg]}
+
+
+def map_deepdives(state: DeepDiveProcessorState) -> List[Send]:
+    """
+    Conditional edge function that creates parallel workers for each essay.
+    
+    Args:
+        state: Current processor state containing emails list
+        
+    Returns:
+        List of Send objects, one per email
+    """
+    emails = state["emails"]
+    return [Send("summarize_single_deepdive", {"email": email}) for email in emails]
+
+
+def prepare_deepdive_content(state: DeepDiveProcessorState) -> dict:
+    """
+    Synchronization node between essay summarization and briefing generation.
+    
+    Formats the deep dive summaries so the briefing node has access.
+    
+    Args:
+        state: Current processor state with completed digests
+        
+    Returns:
+        Dict containing formatted deepdive_summaries
+    """
+    digests = state["digests"]
+    logger.info(f"📖 All {len(digests)} essays summarized. Preparing deep dive content...")
+    
+    # Format essay summaries for briefing
+    summaries_text = []
+    for digest in digests:
+        summary_parts = [f"**{digest.subject}** (by {digest.sender})"]
+        
+        if digest.summary.core_thesis:
+            summary_parts.append(f"Core Thesis: {digest.summary.core_thesis}")
+        
+        if digest.summary.key_concepts:
+            summary_parts.append("Key Concepts:")
+            for item in digest.summary.key_concepts:
+                summary_parts.append(f"  - {item}")
+        
+        if digest.summary.primary_arguments:
+            summary_parts.append("Primary Arguments:")
+            for item in digest.summary.primary_arguments:
+                summary_parts.append(f"  - {item}")
+        
+        if digest.summary.evidence:
+            summary_parts.append("Evidence/Examples:")
+            for item in digest.summary.evidence:
+                summary_parts.append(f"  - {item}")
+        
+        if digest.summary.implications:
+            summary_parts.append("Implications:")
+            for item in digest.summary.implications:
+                summary_parts.append(f"  - {item}")
+        
+        summaries_text.append("\n".join(summary_parts))
+    
+    deepdive_summaries = "\n\n---\n\n".join(summaries_text)
+    
+    return {"deepdive_summaries": deepdive_summaries}
+
+
+def generate_deepdive_briefing(state: DeepDiveProcessorState, llm: ChatOpenAI) -> dict:
+    """
+    Generate the weekly strategic briefing from essay summaries.
+    
+    Creates a high-level briefing with:
+    - "Big Ideas This Week" - top 7 ideas
+    - "Where Experts Agree" - convergences
+    - "Where the Real Bottlenecks Are" - constraints
+    - "What This Changes for Builders" - actionable implications
+    
+    Args:
+        state: DeepDiveProcessorState with deepdive_summaries
+        llm: ChatOpenAI instance (injected via functools.partial)
+        
+    Returns:
+        Dict with aggregated_briefing
+    """
+    deepdive_summaries = state["deepdive_summaries"]
+    
+    if not deepdive_summaries:
+        return {"aggregated_briefing": "No essays to process."}
+    
+    input_chars = len(deepdive_summaries)
+    logger.info(f"🚀 [DEEPDIVE-BRIEFING] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
+    
+    prompt = ChatPromptTemplate.from_template(DEEPDIVE_BRIEFING_PROMPT)
+    chain = prompt | llm
+    
+    start_time = time.time()
+    result = chain.invoke({
+        "deepdive_summaries": deepdive_summaries
+    })
+    duration = time.time() - start_time
+    
+    briefing = _extract_text_content(result)
+    output_chars = len(briefing)
+    logger.info(f"✅ [DEEPDIVE-BRIEFING] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
+    
+    return {"aggregated_briefing": briefing}
+
+
+def quality_check_deepdive(state: DeepDiveProcessorState, llm: ChatOpenAI) -> dict:
+    """
+    Quality check and improve the weekly deep dive briefing.
+    
+    Reviews for clarity, accuracy, curation, structure, actionability, and tone.
+    
+    Args:
+        state: DeepDiveProcessorState with aggregated_briefing
+        llm: ChatOpenAI instance (injected via functools.partial)
+        
+    Returns:
+        Dict with reviewed_briefing
+    """
+    original_briefing = state["aggregated_briefing"]
+    deepdive_summaries = state.get("deepdive_summaries", "")
+    
+    input_chars = len(original_briefing) + len(deepdive_summaries)
+    logger.info(f"🚀 [QC-DEEPDIVE] Starting LLM call | Input: ~{input_chars} chars (~{input_chars//4} tokens)")
+            
+    prompt = ChatPromptTemplate.from_template(QUALITY_CHECK_DEEPDIVE_PROMPT)
+    chain = prompt | llm
+    
+    start_time = time.time()
+    result = chain.invoke({
+        "original_briefing": original_briefing,
+        "deepdive_summaries": deepdive_summaries
+    })
+    duration = time.time() - start_time
+    
+    reviewed_briefing = _extract_text_content(result)
+    output_chars = len(reviewed_briefing)
+    logger.info(f"✅ [QC-DEEPDIVE] Completed in {duration:.2f}s | Output: ~{output_chars} chars (~{output_chars//4} tokens)")
+    
+    return {"reviewed_briefing": reviewed_briefing}

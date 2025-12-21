@@ -52,7 +52,7 @@ LLM_REASONING_EFFORT_EXTRACTION = "low"  # For email summarization
 LLM_REASONING_EFFORT_GENERATION = "medium" # For briefing/LinkedIn (low prevents empty outputs with nano)
 
 # Email processing settings
-EMAIL_BODY_MAX_CHARS = 12000  # Truncate email body to this many characters (~3000 tokens)
+EMAIL_BODY_MAX_CHARS = 15000  # Truncate email body to this many characters (~3000 tokens)
 
 # LLM timeout and retry settings
 LLM_TIMEOUT_SECONDS = 300  # 5 minutes - prevents timeout on slow responses
@@ -72,6 +72,20 @@ def load_sender_whitelist():
     """Load the sender whitelist from JSON file."""
     with open(SENDER_WHITELIST_PATH, "r") as f:
         return json.load(f)
+
+
+def load_sender_whitelist_by_type(email_type: str = "dailydigest"):
+    """
+    Load the sender whitelist filtered by email type.
+    
+    Args:
+        email_type: Either 'dailydigest' or 'weeklydeepdives'
+        
+    Returns:
+        List of sender configs matching the specified type
+    """
+    all_senders = load_sender_whitelist()
+    return [s for s in all_senders if s.get("type") == email_type]
 
 
 def validate_config():

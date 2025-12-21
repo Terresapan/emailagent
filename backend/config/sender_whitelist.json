@@ -1,26 +1,57 @@
 [
   {
     "name": "The Neuron",
+    "type": "dailydigest",
     "email": "theneuron@newsletter.theneurondaily.com"
   },
   {
     "name": "The Rundown AI",
+    "type": "dailydigest",
     "email": "news@daily.therundown.ai"
   },
   {
     "name": "ben's bites",
+    "type": "dailydigest",
     "email": "bensbites@substack.com"
   },
   {
     "name": "Dr. Alex Wissner-Gross from The Innermost Loop",
+    "type": "dailydigest",
     "email": "theinnermostloop@substack.com"
   },
   {
     "name": "Benedict Evans",
+    "type": "dailydigest",
     "email": "list@ben-evans.com"
   },
   {
-    "name": "The Batch @ DeepLearning.AI",
-    "email": "thebatch@deeplearning.ai"
+    "name": "DeepLearning.AI",
+    "type": "dailydigest",
+    "email": "hello@deeplearning.ai"
+  },
+  {
+    "name": "Blogtrottr",
+    "type": "weeklydeepdives",
+    "email": "busybee@blogtrottr.com"
+  },
+  {
+    "name": "Ethan Mollick from One Useful Thing",
+    "type": "weeklydeepdives",
+    "email": "oneusefulthing@substack.com"
+  },
+  {
+    "name": "Contrary Research",
+    "type": "weeklydeepdives",
+    "email": "contraryresearch@substack.com"
+  },
+  {
+    "name": "Clouded Judgement by Jamin Ball",
+    "type": "weeklydeepdives",
+    "email": "cloudedjudgement@substack.com"
+  },
+  {
+    "name": "a16z",
+    "type": "weeklydeepdives",
+    "email": "a16z@substack.com"
   }
 ]

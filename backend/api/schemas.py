@@ -26,6 +26,7 @@ class EmailResponse(EmailBase):
 class DigestBase(BaseModel):
     """Base digest schema."""
     date: date
+    digest_type: Optional[str] = "daily"  # 'daily' or 'weekly'
     briefing: Optional[str] = None
     linkedin_content: Optional[str] = None
     newsletter_summaries: Optional[str] = None

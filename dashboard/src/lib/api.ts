@@ -7,6 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface Digest {
   id: number;
   date: string;
+  digest_type: "daily" | "weekly";
   briefing: string | null;
   linkedin_content: string | null;
   newsletter_summaries: string | null;
@@ -33,9 +34,10 @@ export interface HealthStatus {
 
 /**
  * Fetch the latest digest from the API.
+ * @param digestType - Either 'daily' or 'weekly'
  */
-export async function fetchLatestDigest(): Promise<Digest | null> {
-  const response = await fetch(`${API_URL}/api/digest/latest`, {
+export async function fetchLatestDigest(digestType: "daily" | "weekly" = "daily"): Promise<Digest | null> {
+  const response = await fetch(`${API_URL}/api/digest/latest?digest_type=${digestType}`, {
     cache: "no-store",
   });
 
@@ -48,16 +50,34 @@ export async function fetchLatestDigest(): Promise<Digest | null> {
 }
 
 /**
+ * Fetch the latest daily digest.
+ */
+export async function fetchLatestDailyDigest(): Promise<Digest | null> {
+  return fetchLatestDigest("daily");
+}
+
+/**
+ * Fetch the latest weekly deep dive.
+ */
+export async function fetchLatestWeeklyDeepDive(): Promise<Digest | null> {
+  return fetchLatestDigest("weekly");
+}
+
+/**
  * Fetch digest history with pagination.
+ * @param digestType - Optional filter by 'daily' or 'weekly'
  */
 export async function fetchDigestHistory(
   limit = 10,
-  offset = 0
+  offset = 0,
+  digestType?: "daily" | "weekly"
 ): Promise<Digest[]> {
-  const response = await fetch(
-    `${API_URL}/api/digest/history?limit=${limit}&offset=${offset}`,
-    { cache: "no-store" }
-  );
+  let url = `${API_URL}/api/digest/history?limit=${limit}&offset=${offset}`;
+  if (digestType) {
+    url += `&digest_type=${digestType}`;
+  }
+  
+  const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch history: ${response.statusText}`);

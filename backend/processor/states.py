@@ -124,6 +124,95 @@ class DailyDigest(BaseModel):
 
 
 # =============================================================================
+# Deep Dive Pydantic Models (Weekly)
+# =============================================================================
+
+class DeepDiveSummary(BaseModel):
+    """
+    Structured output for deep dive essay summarization.
+    
+    Used with ChatOpenAI.with_structured_output() for essays.
+    
+    Attributes:
+        core_thesis: Author's central argument (1-2 sentences)
+        key_concepts: Named concepts or frameworks from the essay
+        primary_arguments: Top arguments supporting the thesis
+        evidence: Concrete examples or cases used
+        implications: Stated implications for work/tech/AI
+    """
+    core_thesis: str = Field(
+        default="",
+        description="1-2 sentences stating the author's central argument"
+    )
+    key_concepts: List[str] = Field(
+        default_factory=list,
+        description="Up to 5 named concepts or frameworks from the essay"
+    )
+    primary_arguments: List[str] = Field(
+        default_factory=list,
+        description="Top 5 arguments supporting the thesis"
+    )
+    evidence: List[str] = Field(
+        default_factory=list,
+        description="Up to 5 concrete examples or cases"
+    )
+    implications: List[str] = Field(
+        default_factory=list,
+        description="Up to 5 implications the author states"
+    )
+
+
+class DeepDiveDigest(BaseModel):
+    """
+    Summary of a single processed deep dive essay.
+    
+    Attributes:
+        email_id: Original email ID for tracking
+        sender: Email sender (author) for attribution
+        subject: Email/essay subject for reference
+        summary: Structured summary of the essay
+    """
+    email_id: str
+    sender: str
+    subject: str
+    summary: DeepDiveSummary
+
+
+class WeeklyDeepDive(BaseModel):
+    """
+    Complete output of the weekly deep dive processing pipeline.
+    
+    This is the final result returned by DeepDiveSummarizer.process_emails().
+    Contains all processed content ready for email delivery.
+    No LinkedIn content - deep dives are strategic, not social.
+    
+    Attributes:
+        date: Processing date (auto-generated)
+        emails_processed: List of "sender: subject" strings
+        digests: Individual DeepDiveDigest for each essay
+        aggregated_briefing: Quality-checked strategic briefing
+        deepdive_summaries: Raw formatted essay summaries
+    """
+    date: str = Field(default_factory=lambda: date.today().isoformat())
+    emails_processed: List[str] = Field(
+        default_factory=list,
+        description="List of essays processed"
+    )
+    digests: List[DeepDiveDigest] = Field(
+        default_factory=list,
+        description="Individual essay digests"
+    )
+    aggregated_briefing: str = Field(
+        default="",
+        description="Strategic weekly briefing"
+    )
+    deepdive_summaries: str = Field(
+        default="",
+        description="Raw text of all essay summaries"
+    )
+
+
+# =============================================================================
 # Reducer Functions for Parallel State Merging
 # =============================================================================
 
@@ -232,3 +321,25 @@ class WorkerState(TypedDict):
         email: Single Email object to process
     """
     email: Email
+
+
+class DeepDiveProcessorState(TypedDict):
+    """
+    Workflow state for the deep dive processing graph.
+    
+    Simpler than ProcessorState - no LinkedIn content generation.
+    
+    Attributes:
+        emails: Input emails/essays
+        digests: Accumulated DeepDiveDigest objects
+        aggregated_briefing: Raw briefing before quality check
+        deepdive_summaries: Formatted essay summaries
+        reviewed_briefing: Quality-checked briefing (final output)
+        errors: Accumulated error messages
+    """
+    emails: Annotated[List[Email], last_list]
+    digests: Annotated[List[DeepDiveDigest], add_unique_digests]
+    aggregated_briefing: Annotated[str, last_non_empty]
+    deepdive_summaries: Annotated[str, last_non_empty]
+    reviewed_briefing: Annotated[str, last_non_empty]
+    errors: Annotated[List[str], add]

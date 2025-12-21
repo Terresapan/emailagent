@@ -11,6 +11,7 @@ class Digest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, index=True)
+    digest_type = Column(String(20), default="daily", nullable=False, index=True)  # 'daily' or 'weekly'
     briefing = Column(Text)
     linkedin_content = Column(Text)
     newsletter_summaries = Column(Text)

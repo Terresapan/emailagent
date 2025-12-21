@@ -57,9 +57,17 @@ async def health_check(db: Session = Depends(get_db)):
 
 
 @app.get("/api/digest/latest", response_model=Optional[DigestWithEmails])
-async def get_latest_digest(db: Session = Depends(get_db)):
-    """Get the most recent digest with associated emails."""
-    digest = db.query(Digest).order_by(desc(Digest.created_at)).first()
+async def get_latest_digest(
+    digest_type: str = "daily",
+    db: Session = Depends(get_db)
+):
+    """Get the most recent digest with associated emails, filtered by type."""
+    digest = (
+        db.query(Digest)
+        .filter(Digest.digest_type == digest_type)
+        .order_by(desc(Digest.created_at))
+        .first()
+    )
     
     if not digest:
         return None
@@ -71,11 +79,17 @@ async def get_latest_digest(db: Session = Depends(get_db)):
 async def get_digest_history(
     limit: int = 10,
     offset: int = 0,
+    digest_type: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get paginated digest history."""
+    """Get paginated digest history, optionally filtered by type."""
+    query = db.query(Digest)
+    
+    if digest_type:
+        query = query.filter(Digest.digest_type == digest_type)
+    
     digests = (
-        db.query(Digest)
+        query
         .order_by(desc(Digest.created_at))
         .offset(offset)
         .limit(limit)
