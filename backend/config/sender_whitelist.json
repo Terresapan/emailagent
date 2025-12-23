@@ -15,6 +15,16 @@
     "email": "bensbites@substack.com"
   },
   {
+    "name": "AINews",
+    "type": "dailydigest",
+    "email": "news@smol.ai"
+  },
+  {
+    "name": "TLDR",
+    "type": "dailydigest",
+    "email": "dan@tldrnewsletter.com"
+  },
+  {
     "name": "Dr. Alex Wissner-Gross from The Innermost Loop",
     "type": "dailydigest",
     "email": "theinnermostloop@substack.com"

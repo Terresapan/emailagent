@@ -56,7 +56,7 @@ EMAIL_BODY_MAX_CHARS = 15000  # Truncate email body to this many characters (~30
 
 # LLM timeout and retry settings
 LLM_TIMEOUT_SECONDS = 300  # 5 minutes - prevents timeout on slow responses
-LLM_MAX_RETRIES = 0  # Disabled to prevent duplicate processing in parallel LangGraph workflow
+LLM_MAX_RETRIES = 3  # Disabled to prevent duplicate processing in parallel LangGraph workflow
 
 # Scheduling
 EXECUTION_TIME = "08:00"  # 8:00 AM

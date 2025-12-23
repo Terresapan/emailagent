@@ -17,7 +17,7 @@ emailagent/                    # Monorepo root
 
 ---
 
-## Current Progress (December 2024)
+## Current Progress (December 2025)
 
 ### ✅ Completed
 
@@ -74,12 +74,6 @@ emailagent/                    # Monorepo root
 
 ---
 
-### Phase 2: Google Sheets Staging ⏭️ SKIPPED
-
-**Decision**: Went straight to PostgreSQL database. Google Sheets may be added later for human-readable exports.
-
----
-
 ### Phase 3: Database Foundation ✅ COMPLETE
 
 **Implemented:**
@@ -87,87 +81,6 @@ emailagent/                    # Monorepo root
 - SQLAlchemy models: `Digest`, `Email`
 - Raw email body storage for future re-processing
 - FastAPI endpoints for dashboard
-
-**Schema:**
-```sql
-CREATE TABLE digests (
-    id SERIAL PRIMARY KEY,
-    date DATE NOT NULL,
-    digest_type VARCHAR(20),  -- 'daily' or 'weekly'
-    briefing TEXT,
-    linkedin_content TEXT,
-    newsletter_summaries TEXT,
-    emails_processed JSON,
-    created_at TIMESTAMP
-);
-
-CREATE TABLE emails (
-    id SERIAL PRIMARY KEY,
-    gmail_id VARCHAR(255) UNIQUE,
-    sender VARCHAR(255),
-    subject TEXT,
-    body TEXT,  -- Raw content stored!
-    digest_id INTEGER REFERENCES digests(id),
-    processed_at TIMESTAMP
-);
-```
-
----
-
-### Phase 4: Product Hunt Integration 🔜 NEXT
-
-**Goal**: Add automated AI tool discovery from Product Hunt.
-
-**Why (a16z)**: Multi-source workflow. Newsletters are curated but delayed; Product Hunt provides real-time tool launches.
-
-**Implementation Plan:**
-```python
-# backend/sources/product_hunt.py
-def fetch_daily_launches() -> list[dict]:
-    query = """
-    query {
-      posts(first: 20, topic: "artificial-intelligence") {
-        edges {
-          node {
-            name, tagline, description, votesCount, createdAt
-            topics { name }
-          }
-        }
-      }
-    }
-    """
-```
-
-**Database Addition:**
-```sql
-CREATE TABLE product_hunt_items (
-    id SERIAL PRIMARY KEY,
-    ph_id VARCHAR(255) UNIQUE,
-    name VARCHAR(255),
-    tagline TEXT,
-    description TEXT,
-    votes_count INTEGER,
-    topics TEXT[],
-    launched_at TIMESTAMP,
-    fetched_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-### Phase 4.5: Vector Embeddings 📅 AFTER STABILITY
-
-**Goal**: Enable semantic search across all stored content.
-
-**When**: After 2-3 weeks of stable daily/weekly digest runs.
-
-**Implementation:**
-1. Switch Docker image: `postgres:15` → `pgvector/pgvector:pg15`
-2. Add embedding column: `ALTER TABLE emails ADD COLUMN embedding vector(1536)`
-3. Embed on save: Generate embedding when storing new content
-4. Backfill: Embed all historical content in one batch
-
-**Cost**: ~$0.10/year at current usage (essentially free)
 
 ---
 
@@ -179,52 +92,94 @@ CREATE TABLE product_hunt_items (
 - Daily/Weekly toggle with tabs
 - `BriefingCard`, `LinkedInCard`, `DeepDiveCard` components
 - Real-time polling for new content notifications
-- Responsive mobile layout
-
-**Dashboard Views (Current):**
-| View | Status |
-|------|--------|
-| Daily Briefing + LinkedIn | ✅ |
-| Weekly Deep Dive | ✅ |
-| Processed emails list | ✅ |
-| New content notifications | ✅ |
-
-**Dashboard Views (Future):**
-| View | Phase |
-|------|-------|
-| Semantic search | Phase 4.5 |
-| Product Hunt feed | Phase 4 |
-| Action Queue (approve/reject) | Phase 6 |
-| Performance tracking | Phase 7 |
 
 ---
 
-### Phase 6: Multi-Agent Architecture 📅 Q1 2025
+### Phase 4: Product Hunt Integration 🔜 NEXT
 
-**Goal**: Evolve from single graph to specialized agent collaboration.
+**Goal**: Add automated AI tool discovery from Product Hunt.
 
+**Execution**: Once daily (fetch yesterday's top 20-50 products).
+
+**Why**: Catch trend NO.1 on that day to collect product ideas and create "Top AI Tools" content.
+
+**Implementation Plan:**
+```python
+# backend/sources/product_hunt.py
+# GraphQL API - 500 requests/day (Free)
+def fetch_daily_launches() -> list[dict]:
+    # Query posts tagged 'artificial-intelligence' ranked by votes
 ```
-┌──────────────────────────────────────────────────────┐
-│                 AGENT ORCHESTRATOR                   │
-└──────────────────────────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-   CURATOR AGENT     ANALYST AGENT    CREATOR AGENT
-   (Ingest/Extract)  (Trend/Score)    (Draft/Generate)
-```
-
-**Future Protocol**: Consider A2A (Google's Agent-to-Agent Protocol) for external interoperability.
 
 ---
 
-### Phase 7: Feedback Loop 📅 Q2 2025
+### Phase 4a: Video Platform Trending (YouTube & TikTok) 🔜 NEXT
 
-**Goal**: Close the loop between published content and future suggestions.
+**Goal**: Discover viral topics programmatically from YouTube and TikTok.
 
-```
-[Publish Content] → [Track Engagement] → [Learn What Works] → [Improve Suggestions]
-```
+**Why**: Identify what's actually getting views vs just what's being written about.
+
+**Capabilities:**
+- **YouTube Trending**: Use YouTube Data API v3 (`mostPopular`, `videoCategoryId=28`) to find trending tech/AI videos.
+- **TikTok Trends**: Use TikTok Research API or 3rd-party scrapers for trending hashtags and hooks.
+
+---
+
+### Phase 4b: Hacker News Integration 🔜 NEXT
+
+**Goal**: Technical deep dives and developer sentiment.
+
+**Execution**: Once weekly (or daily filter for high-signal stories).
+
+**Why**: HN is where developers discuss technical depth and model releases (GPT-5, Claude, etc.) honestly.
+
+**Filter Strategy**:
+- Min score: 100+ (community consensus)
+- Keywords: AI, LLM, GPT, Agents, Automation
+
+---
+
+### Phase 4.5: Vector Embeddings 📅 AFTER DATA SOURCES
+
+**Goal**: Enable semantic search across all stored content (Newsletters + PH + YT + HN).
+
+**Implementation:**
+- Switch to `pgvector/pgvector:pg15` Docker image.
+- Add vector columns to unified `content_items` table.
+- Implement monthly embedding cost control (~$0.01/mo).
+
+---
+
+### Phase 4.6: Google Trends Validation 📅 FINAL DATA STEP
+
+**Goal**: Validate topics from all sources against general public search interest.
+
+**Strategy**: Validation layer, not discovery. Use to prioritize topics for content creation.
+
+---
+
+### Phase 6: Multi-Agent Architecture 📅 Q1 2026
+
+**Goal**: Evolve from single graph to specialized agent collaboration (Curator, Analyst, Creator).
+
+---
+
+### Phase 7: Feedback Loop 📅 Q2 2026
+
+**Goal**: Track platform engagement (LinkedIn, TikTok, YT) to improve content suggestions.
+
+---
+
+### Phase 8: ChatGPT App Integration 📅 Q1 2026
+
+**Goal**: Publish EmailAgent as a ChatGPT App.
+
+**Enhanced Strategy**: Build the multi-source foundation (PH, YT, HN) FIRST to provide a superior "Know/Do/Show" experience beyond just newsletters.
+
+**Updated Capabilities:**
+- `get_trending_ai_tools`: From Product Hunt daily launches.
+- `get_platform_trends`: YouTube and TikTok viral hooks.
+- `get_validated_insights`: Newsletters + Google Trends validation.
 
 ---
 
@@ -234,27 +189,15 @@ CREATE TABLE product_hunt_items (
 | Component | Technology |
 |-----------|------------|
 | Agent Framework | LangGraph |
-| LLM (Extraction) | OpenAI o4-mini (low reasoning) |
-| LLM (Generation) | OpenAI o4-mini (medium reasoning) |
-| Database | PostgreSQL 15 (Docker) |
-| Vector Search | pgvector (planned) |
+| LLM | OpenAI o4-mini |
+| Database | PostgreSQL 15 + pgvector (planned) |
 | API | FastAPI |
-| Observability | LangSmith |
 
 ### Frontend
 | Component | Technology |
 |-----------|------------|
 | Framework | Next.js 14 (App Router) |
 | Styling | Tailwind CSS |
-| State | React hooks + fetch |
-| Deployment | Docker (local) |
-
-### Infrastructure
-| Component | Technology |
-|-----------|------------|
-| Orchestration | Docker Compose |
-| Scheduling | cron (macOS launchd) |
-| Development | Docker Desktop |
 
 ---
 
@@ -264,24 +207,8 @@ CREATE TABLE product_hunt_items (
 |---------|------|
 | OpenAI LLM (GPT-4o-mini) | ~$0.25 |
 | OpenAI Embeddings (future) | ~$0.01 |
-| PostgreSQL | Free (Docker local) |
-| Product Hunt API | Free |
+| Data Source APIs | Free (PH, HN, YT Data API) |
 | **Total** | **~$0.30/month** |
-
----
-
-## Inspirational Goal: Content Intelligence API
-
-Once stable, this system can be productized:
-
-```
-GET /trending-topics        → Curated, validated topics with trend scores
-GET /content-opportunities  → Draft content with confidence scores
-POST /feedback              → Client reports what performed
-GET /search?q=AI+agents     → Semantic search across knowledge base
-```
-
-**This is the "rebundling" opportunity** per a16z: become the data layer for other content tools.
 
 ---
 
@@ -289,22 +216,11 @@ GET /search?q=AI+agents     → Semantic search across knowledge base
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| PostgreSQL over MongoDB | Simpler, SQL familiarity, pgvector compatible | Dec 2024 |
-| Skip Google Sheets | Went straight to database | Dec 2024 |
-| Skip X/Twitter | $100/month API; newsletters have same signal | Dec 2024 |
-| Local Docker over Supabase | Personal use, keep data local | Dec 2024 |
-| pgvector over Chroma/Qdrant | Already have PostgreSQL, one less service | Dec 2024 |
-| Embeddings after stability | Finalize schema first, batch backfill later | Dec 2024 |
+| Multi-Source Foundation First | Enhance ChatGPT App value with tools, video trends, and dev signals | Dec 2025 |
+| Skip Reddit | Too noisy; HN + PH provide higher signal for builder/creator needs | Dec 2025 |
+| HN Once Weekly/Daily | Balance signal vs noise; personal use vs content creation | Dec 2025 |
+| YouTube Trending Daily | High-value signal for SME/Founder content creation | Dec 2025 |
 
 ---
 
-## Next Steps (Priority Order)
-
-1. **Stabilize digests** – Run daily/weekly for 1-2 weeks, fix edge cases
-2. **Product Hunt integration** – Add tool discovery data source
-3. **pgvector + embeddings** – Enable semantic search (Week 4+)
-4. **Google Trends validation** – Add trend scoring to topics
-
----
-
-*Last Updated: December 21, 2024*
+*Last Updated: December 22, 2025*
