@@ -28,6 +28,7 @@ class DigestModel(Base):
     briefing = Column(Text)
     linkedin_content = Column(Text)
     newsletter_summaries = Column(Text)
+    structured_digests = Column(JSON)
     emails_processed = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -85,21 +86,30 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
                 briefing=digest.aggregated_briefing,
                 linkedin_content=linkedin,
                 newsletter_summaries=summaries,
+                structured_digests=[d.model_dump() for d in digest.digests],
                 emails_processed=digest.emails_processed,
             )
             session.add(digest_record)
             session.flush()  # Get the ID
             
-            # Save raw emails
+            # Save raw emails (handle duplicates)
             for email in emails:
-                email_record = EmailModel(
-                    gmail_id=email.id,
-                    sender=email.sender,
-                    subject=email.subject,
-                    body=email.body,
-                    digest_id=digest_record.id,
-                )
-                session.add(email_record)
+                # Check if email already exists
+                existing_email = session.query(EmailModel).filter_by(gmail_id=email.id).first()
+                if existing_email:
+                    # Update existing email to point to new digest
+                    logger.info(f"Duplicate email found ({email.id}), linking to new digest")
+                    existing_email.digest_id = digest_record.id
+                else:
+                    # Create new email record
+                    email_record = EmailModel(
+                        gmail_id=email.id,
+                        sender=email.sender,
+                        subject=email.subject,
+                        body=email.body,
+                        digest_id=digest_record.id,
+                    )
+                    session.add(email_record)
             
             session.commit()
             logger.info(f"✓ Saved {digest_type} digest (ID: {digest_record.id}) and {len(emails)} emails to database")

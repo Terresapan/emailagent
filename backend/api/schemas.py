@@ -30,6 +30,7 @@ class DigestBase(BaseModel):
     briefing: Optional[str] = None
     linkedin_content: Optional[str] = None
     newsletter_summaries: Optional[str] = None
+    structured_digests: Optional[List[dict]] = None
     emails_processed: Optional[List[str]] = None
 
 

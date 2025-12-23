@@ -5,6 +5,7 @@ import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell, BookOpen, Sparkles } 
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
+import NewsletterItem from "@/components/NewsletterItem";
 import { fetchLatestDigest, Digest } from "@/lib/api";
 
 type ViewType = "daily" | "weekly";
@@ -254,16 +255,24 @@ export default function Home() {
                 <Mail className="h-5 w-5 text-purple-400" />
                 Processed Newsletters
               </h3>
-              <ul className="space-y-2">
-                {currentDigest.emails_processed.map((email, index) => (
-                  <li
-                    key={index}
-                    className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
-                  >
-                    {email}
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-3">
+                {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 ? (
+                  currentDigest.structured_digests.map((emailDigest, index) => (
+                    <NewsletterItem key={index} digest={emailDigest} />
+                  ))
+                ) : (
+                  <ul className="space-y-2">
+                    {currentDigest.emails_processed?.map((email, index) => (
+                      <li
+                        key={index}
+                        className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
+                      >
+                        {email}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -310,16 +319,24 @@ export default function Home() {
                 <BookOpen className="h-5 w-5 text-indigo-400" />
                 Analyzed Essays
               </h3>
-              <ul className="space-y-2">
-                {currentDigest.emails_processed.map((email, index) => (
-                  <li
-                    key={index}
-                    className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
-                  >
-                    {email}
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-3">
+                {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 ? (
+                  currentDigest.structured_digests.map((emailDigest, index) => (
+                    <NewsletterItem key={index} digest={emailDigest} />
+                  ))
+                ) : (
+                  <ul className="space-y-2">
+                    {currentDigest.emails_processed?.map((email, index) => (
+                      <li
+                        key={index}
+                        className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
+                      >
+                        {email}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
         </>

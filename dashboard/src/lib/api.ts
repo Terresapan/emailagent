@@ -4,6 +4,24 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export interface CategorySummary {
+  industry_news: string[];
+  new_tools: string[];
+  insights: string[];
+  core_thesis?: string;
+  key_concepts?: string[];
+  primary_arguments?: string[];
+  evidence?: string[];
+  implications?: string[];
+}
+
+export interface EmailDigest {
+  email_id: string;
+  sender: string;
+  subject: string;
+  summary: CategorySummary;
+}
+
 export interface Digest {
   id: number;
   date: string;
@@ -11,6 +29,7 @@ export interface Digest {
   briefing: string | null;
   linkedin_content: string | null;
   newsletter_summaries: string | null;
+  structured_digests: EmailDigest[] | null;
   emails_processed: string[] | null;
   created_at: string;
 }

@@ -15,6 +15,7 @@ class Digest(Base):
     briefing = Column(Text)
     linkedin_content = Column(Text)
     newsletter_summaries = Column(Text)
+    structured_digests = Column(JSON)  # List of serialized EmailDigest objects
     emails_processed = Column(JSON)  # List of "sender: subject" strings
     created_at = Column(DateTime, default=datetime.utcnow)
 
