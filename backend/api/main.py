@@ -1,4 +1,8 @@
 """FastAPI backend for Content Agent dashboard."""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException

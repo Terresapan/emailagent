@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell, BookOpen, Sparkles } from "lucide-react";
+import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell, BookOpen, ArrowRight } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
@@ -27,7 +27,6 @@ export default function Home() {
     setError(null);
     setNewContentAvailable(false);
     try {
-      // Load both daily and weekly digests in parallel
       const [daily, weekly] = await Promise.all([
         fetchLatestDigest("daily"),
         fetchLatestDigest("weekly"),
@@ -44,7 +43,6 @@ export default function Home() {
     }
   };
 
-  // Check for new content in the background
   const checkForNewContent = useCallback(async () => {
     try {
       const [daily, weekly] = await Promise.all([
@@ -67,280 +65,182 @@ export default function Home() {
     loadDigests();
   }, []);
 
-  // Poll for new content every 5 minutes
   useEffect(() => {
     if (lastKnownDailyId === null && lastKnownWeeklyId === null) return;
-    
     const interval = setInterval(checkForNewContent, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [lastKnownDailyId, lastKnownWeeklyId, checkForNewContent]);
 
-  // Get current digest based on active view
   const currentDigest = activeView === "daily" ? dailyDigest : weeklyDigest;
 
   return (
-    <div className="animate-fade-in space-y-8">
-      {/* New Content Banner */}
-      {newContentAvailable && (
-        <div className="animate-slide-down">
-          <button
-            onClick={loadDigests}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-fuchsia-500/20 via-purple-500/20 to-indigo-500/20 border border-purple-500/30 px-4 py-3 text-sm font-medium text-white transition-all hover:from-fuchsia-500/30 hover:via-purple-500/30 hover:to-indigo-500/30"
-          >
-            <Bell className="h-4 w-4 text-purple-400 animate-bounce" />
-            <span>New content available!</span>
-            <span className="text-purple-400">Click to refresh</span>
-          </button>
-        </div>
-      )}
-
-      {/* View Toggle Tabs */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex rounded-lg bg-white/5 p-1">
+    <div className="animate-fade-in min-h-screen">
+      
+      {/* Editorial Navigation / View Toggle */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/5 pb-6 mb-12">
+        <div className="space-y-4">
+          <div className="flex gap-8">
             <button
               onClick={() => setActiveView("daily")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`pb-1 text-sm font-medium tracking-widest uppercase transition-all ${
                 activeView === "daily"
-                  ? "bg-gradient-to-r from-fuchsia-500 to-fuchsia-600 text-white"
-                  : "text-gray-400 hover:text-white"
+                  ? "text-brand-fuchsia border-b border-brand-fuchsia"
+                  : "text-gray-500 hover:text-white"
               }`}
             >
-              <Sparkles className="h-4 w-4" />
-              Daily Briefing
+              The Daily Briefing
             </button>
             <button
               onClick={() => setActiveView("weekly")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`pb-1 text-sm font-medium tracking-widest uppercase transition-all ${
                 activeView === "weekly"
-                  ? "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white"
-                  : "text-gray-400 hover:text-white"
+                  ? "text-brand-indigo border-b border-brand-indigo"
+                  : "text-gray-500 hover:text-white"
               }`}
             >
-              <BookOpen className="h-4 w-4" />
               Weekly Deep Dive
             </button>
           </div>
+          <h2 className="font-serif text-4xl md:text-5xl font-bold text-white tracking-tight">
+            {activeView === "daily" ? "Today's Insights" : "Strategic Analysis"}
+          </h2>
         </div>
-        <div className="flex items-center gap-4">
-          {mounted && lastRefresh && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Clock className="h-4 w-4" />
-              <span>
-                Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
+
+        <div className="flex items-center gap-6 mt-6 md:mt-0">
+          {newContentAvailable && (
+             <button
+             onClick={loadDigests}
+             className="flex items-center gap-2 text-brand-purple text-sm font-medium animate-pulse"
+           >
+             <Bell className="h-4 w-4" />
+             <span>New Intelligence Ready</span>
+           </button>
           )}
-          <button
-            onClick={loadDigests}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+          
+          <div className="flex items-center gap-3 text-gray-500 text-xs tracking-wider uppercase">
+             {mounted && lastRefresh && (
+                <span>
+                  Last Sync: {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+             )}
+             <button onClick={loadDigests} disabled={loading} className="hover:text-white transition-colors">
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+             </button>
+          </div>
         </div>
       </div>
 
-      {/* Page Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white">
-          {activeView === "daily" ? "Today's Briefing & LinkedIn" : "Weekly Deep Dive"}
-        </h2>
-        <p className="mt-1 text-gray-400">
-          {activeView === "daily"
-            ? "AI-curated insights from your daily newsletters"
-            : "Strategic analysis from expert essays"}
-        </p>
+      {/* Main Content Grid - Newspaper Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        {/* Left Column (Main Story) - Spans 8 cols */}
+        <div className="lg:col-span-8 space-y-12">
+          
+          {error && (
+            <div className="p-4 border border-red-900/50 bg-red-900/10 text-red-200 text-sm font-serif">
+              Error: {error}
+            </div>
+          )}
+
+          {loading && !currentDigest && (
+             <div className="space-y-4 animate-pulse">
+                <div className="h-8 w-3/4 bg-white/5 rounded" />
+                <div className="h-96 bg-white/5 rounded" />
+             </div>
+          )}
+
+          {!loading && !currentDigest && !error && (
+            <div className="py-20 text-center border-y border-white/5">
+              <p className="font-serif text-xl text-gray-400 italic">
+                "Silence is also information."
+              </p>
+              <p className="mt-2 text-sm text-gray-600 uppercase tracking-widest">
+                No digests available for this period.
+              </p>
+            </div>
+          )}
+
+          {currentDigest && (
+            <>
+              {/* Primary Article */}
+              <section>
+                 {activeView === "daily" ? (
+                    <BriefingCard briefing={currentDigest.briefing} />
+                 ) : (
+                    <DeepDiveCard briefing={currentDigest.briefing} />
+                 )}
+              </section>
+
+              {/* Secondary Articles (Digests) */}
+              {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 && (
+                <section className="border-t border-white/5 pt-12">
+                  <h3 className="font-serif text-2xl text-white mb-8">Source Material</h3>
+                  <div className="grid gap-6">
+                    {currentDigest.structured_digests.map((emailDigest, index) => (
+                      <NewsletterItem key={index} digest={emailDigest} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Right Column (Sidebar) - Spans 4 cols */}
+        <div className="lg:col-span-4 space-y-8">
+           
+           {/* Sidebar: Metadata / Stats */}
+           {currentDigest && (
+             <div className="p-6 bg-editorial-card border border-white/5">
+                <h4 className="font-sans text-xs font-bold uppercase tracking-widest text-gray-500 mb-6">
+                  At a Glance
+                </h4>
+                
+                <div className="space-y-6">
+                  <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                     <div className="flex items-center gap-3">
+                        <Calendar className="h-4 w-4 text-brand-fuchsia" />
+                        <span className="text-sm text-gray-300">Edition Date</span>
+                     </div>
+                     <span className="font-serif text-white">{currentDigest.date}</span>
+                  </div>
+
+                  <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                     <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-brand-purple" />
+                        <span className="text-sm text-gray-300">Sources Analyzed</span>
+                     </div>
+                     <span className="font-serif text-white">{currentDigest.emails_processed?.length || 0}</span>
+                  </div>
+
+                  <div className="flex items-start justify-between">
+                     <div className="flex items-center gap-3">
+                        <Clock className="h-4 w-4 text-brand-indigo" />
+                        <span className="text-sm text-gray-300">Reading Time</span>
+                     </div>
+                     <span className="font-serif text-white">~5 min</span>
+                  </div>
+                </div>
+             </div>
+           )}
+
+           {/* Sidebar: LinkedIn (Only on Daily) */}
+           {currentDigest && activeView === "daily" && (
+             <div className="group relative">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-fuchsia to-brand-purple opacity-20 blur transition group-hover:opacity-40" />
+                <div className="relative">
+                  <LinkedInCard content={currentDigest.linkedin_content} />
+                </div>
+             </div>
+           )}
+
+           {/* Sidebar: Quote or Filler */}
+           <div className="p-6 border-l-2 border-brand-purple/50 pl-6 italic font-serif text-gray-400">
+              "The goal is not to read more, but to understand better."
+           </div>
+
+        </div>
       </div>
-
-      {/* Error State */}
-      {error && (
-        <div className="glass-card rounded-xl p-4 text-center">
-          <p className="text-red-400">{error}</p>
-          <button
-            onClick={loadDigests}
-            className="mt-2 text-sm text-purple-400 hover:text-purple-300"
-          >
-            Try again
-          </button>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && !currentDigest && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="glass-card h-96 animate-pulse rounded-xl" />
-          {activeView === "daily" && (
-            <div className="glass-card h-96 animate-pulse rounded-xl" />
-          )}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && !currentDigest && !error && (
-        <div className="glass-card rounded-xl p-12 text-center">
-          {activeView === "daily" ? (
-            <>
-              <Mail className="mx-auto h-12 w-12 text-gray-600" />
-              <h3 className="mt-4 text-lg font-medium text-white">No daily digests yet</h3>
-              <p className="mt-2 text-gray-400">
-                Your daily briefings will appear here after the next email processing run.
-              </p>
-            </>
-          ) : (
-            <>
-              <BookOpen className="mx-auto h-12 w-12 text-gray-600" />
-              <h3 className="mt-4 text-lg font-medium text-white">No weekly deep dives yet</h3>
-              <p className="mt-2 text-gray-400">
-                Your weekly strategic briefings will appear here after Sunday's processing run.
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Content Cards - Daily View */}
-      {currentDigest && activeView === "daily" && (
-        <>
-          {/* Stats Bar */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-fuchsia-500/20 p-2">
-                  <Calendar className="h-5 w-5 text-fuchsia-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Date</p>
-                  <p className="font-medium text-white">{currentDigest.date}</p>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-purple-500/20 p-2">
-                  <Mail className="h-5 w-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Emails Processed</p>
-                  <p className="font-medium text-white">
-                    {currentDigest.emails_processed?.length || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-500/20 p-2">
-                  <Linkedin className="h-5 w-5 text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">LinkedIn Posts</p>
-                  <p className="font-medium text-white">3 ready</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <BriefingCard briefing={currentDigest.briefing} />
-            <LinkedInCard content={currentDigest.linkedin_content} />
-          </div>
-
-          {/* Processed Emails List */}
-          {currentDigest.emails_processed && currentDigest.emails_processed.length > 0 && (
-            <div className="glass-card rounded-xl p-6">
-              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-                <Mail className="h-5 w-5 text-purple-400" />
-                Processed Newsletters
-              </h3>
-              <div className="space-y-3">
-                {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 ? (
-                  currentDigest.structured_digests.map((emailDigest, index) => (
-                    <NewsletterItem key={index} digest={emailDigest} />
-                  ))
-                ) : (
-                  <ul className="space-y-2">
-                    {currentDigest.emails_processed?.map((email, index) => (
-                      <li
-                        key={index}
-                        className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
-                      >
-                        {email}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Content Cards - Weekly View */}
-      {currentDigest && activeView === "weekly" && (
-        <>
-          {/* Stats Bar */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-500/20 p-2">
-                  <Calendar className="h-5 w-5 text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Week of</p>
-                  <p className="font-medium text-white">{currentDigest.date}</p>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-purple-500/20 p-2">
-                  <BookOpen className="h-5 w-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Essays Analyzed</p>
-                  <p className="font-medium text-white">
-                    {currentDigest.emails_processed?.length || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Deep Dive Content - Full Width */}
-          <DeepDiveCard briefing={currentDigest.briefing} />
-
-          {/* Processed Essays List */}
-          {currentDigest.emails_processed && currentDigest.emails_processed.length > 0 && (
-            <div className="glass-card rounded-xl p-6">
-              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-                <BookOpen className="h-5 w-5 text-indigo-400" />
-                Analyzed Essays
-              </h3>
-              <div className="space-y-3">
-                {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 ? (
-                  currentDigest.structured_digests.map((emailDigest, index) => (
-                    <NewsletterItem key={index} digest={emailDigest} />
-                  ))
-                ) : (
-                  <ul className="space-y-2">
-                    {currentDigest.emails_processed?.map((email, index) => (
-                      <li
-                        key={index}
-                        className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300"
-                      >
-                        {email}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }

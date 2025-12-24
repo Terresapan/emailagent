@@ -8,19 +8,31 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['var(--font-playfair)', 'serif'],
+        sans: ['var(--font-dm-sans)', 'sans-serif'],
+      },
       colors: {
         brand: {
           fuchsia: '#d946ef',
           purple: '#a855f7',
           indigo: '#6366f1',
         },
+        editorial: {
+          bg: '#05050A', // Almost black, hint of indigo
+          card: '#0F1016', // Darker card
+          surface: '#181824', // Lighter surface
+          text: '#E2E2E2',
+          muted: '#888899',
+        }
       },
       backgroundImage: {
         'gradient-brand': 'linear-gradient(to right, #d946ef, #a855f7, #6366f1)',
+        'gradient-editorial': 'linear-gradient(to bottom right, #0F1016, #05050A)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-out',
-        'slide-up': 'slideUp 0.5s ease-out',
+        'fade-in': 'fadeIn 0.7s ease-out',
+        'slide-up': 'slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
         fadeIn: {
@@ -34,5 +46,7 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
