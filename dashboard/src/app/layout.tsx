@@ -28,7 +28,7 @@ export default function RootLayout({
     <html lang="en" className={`dark ${playfair.variable} ${dmSans.variable}`}>
       <body className="font-sans antialiased bg-editorial-bg text-editorial-text selection:bg-brand-purple/30">
         {/* Editorial Header */}
-        <header className="sticky top-0 z-50 border-b border-white/5 bg-editorial-bg/95 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-white/5 bg-editorial-bg/60 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-20 items-center justify-between">
               <div className="flex items-center gap-4">
