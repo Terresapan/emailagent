@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Mail, Linkedin, Calendar, Clock, Bell, BookOpen, ArrowRight } from "lucide-react";
+import { RefreshCw, Bell } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
 import NewsletterItem from "@/components/NewsletterItem";
 import { fetchLatestDigest, Digest } from "@/lib/api";
+import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 type ViewType = "daily" | "weekly";
 
@@ -63,7 +66,7 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
     loadDigests();
-  }, []);
+  },[]);
 
   useEffect(() => {
     if (lastKnownDailyId === null && lastKnownWeeklyId === null) return;
@@ -74,67 +77,71 @@ export default function Home() {
   const currentDigest = activeView === "daily" ? dailyDigest : weeklyDigest;
 
   return (
-    <div className="animate-fade-in min-h-screen">
+    <div className="min-h-screen pb-20">
       
-      {/* Editorial Navigation / View Toggle */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/5 pb-6 mb-12">
-        <div className="space-y-4">
+      {/* Giant Typography Header */}
+      <MotionOrchestrator className="mb-20">
+        <MotionItem className="relative z-10 -ml-2 lg:-ml-4">
+          <h1 className="font-serif text-giant font-bold text-white tracking-tighter leading-[0.8] select-none text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50">
+            {activeView === "daily" ? "DAILY INSIGHTS" : "WEEKLY INTELLIGENCE"}
+          </h1>
+        </MotionItem>
+        {/* Navigation - Added z-index to ensure clickability over giant type */}
+        <MotionItem className="relative z-20 flex items-center justify-between border-b border-white/10 pb-6 mt-4">
           <div className="flex gap-8">
             <button
               onClick={() => setActiveView("daily")}
-              className={`pb-1 text-sm font-medium tracking-widest uppercase transition-all ${
+              className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "daily"
-                  ? "text-brand-fuchsia border-b border-brand-fuchsia"
-                  : "text-gray-500 hover:text-white"
+                  ? "text-brand-fuchsia"
+                  : "text-muted-foreground hover:text-white"
               }`}
             >
-              The Daily Briefing
+              Intelligence
             </button>
             <button
               onClick={() => setActiveView("weekly")}
-              className={`pb-1 text-sm font-medium tracking-widest uppercase transition-all ${
+              className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "weekly"
-                  ? "text-brand-indigo border-b border-brand-indigo"
-                  : "text-gray-500 hover:text-white"
+                  ? "text-brand-indigo"
+                  : "text-muted-foreground hover:text-white"
               }`}
             >
-              Weekly Deep Dive
+              Strategy
             </button>
           </div>
-          <h2 className="font-serif text-4xl md:text-5xl font-bold text-white tracking-tight">
-            {activeView === "daily" ? "Today's Insights" : "Strategic Analysis"}
-          </h2>
-        </div>
 
-        <div className="flex items-center gap-6 mt-6 md:mt-0">
-          {newContentAvailable && (
-             <button
-             onClick={loadDigests}
-             className="flex items-center gap-2 text-brand-purple text-sm font-medium animate-pulse"
-           >
-             <Bell className="h-4 w-4" />
-             <span>New Intelligence Ready</span>
-           </button>
-          )}
-          
-          <div className="flex items-center gap-3 text-gray-500 text-xs tracking-wider uppercase">
-             {mounted && lastRefresh && (
-                <span>
-                  Last Sync: {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+          <div className="flex items-center gap-6">
+             {newContentAvailable && (
+               <Button
+               variant="ghost"
+               onClick={loadDigests}
+               className="text-brand-fuchsia animate-pulse gap-2"
+             >
+               <Bell className="h-4 w-4" />
+               New Reports
+             </Button>
              )}
-             <button onClick={loadDigests} disabled={loading} className="hover:text-white transition-colors">
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-             </button>
+             
+             <div className="flex items-center gap-3 text-muted-foreground text-xs tracking-widest uppercase">
+                {mounted && lastRefresh && (
+                   <span>
+                     {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                   </span>
+                )}
+                <Button variant="ghost" size="icon" onClick={loadDigests} disabled={loading} className="hover:text-white hover:bg-white/5">
+                   <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                </Button>
+             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Main Content Grid - Newspaper Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        </MotionItem>
+      </MotionOrchestrator>
+      
+      {/* Main Content Grid */}
+      <MotionOrchestrator className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         
-        {/* Left Column (Main Story) - Spans 8 cols */}
-        <div className="lg:col-span-8 space-y-12">
+        {/* Left Column (Main Story) */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
           
           {error && (
             <div className="p-4 border border-red-900/50 bg-red-900/10 text-red-200 text-sm font-serif">
@@ -144,18 +151,14 @@ export default function Home() {
 
           {loading && !currentDigest && (
              <div className="space-y-4 animate-pulse">
-                <div className="h-8 w-3/4 bg-white/5 rounded" />
-                <div className="h-96 bg-white/5 rounded" />
+                <div className="h-96 bg-white/5 rounded-lg border border-white/5" />
              </div>
           )}
 
           {!loading && !currentDigest && !error && (
-            <div className="py-20 text-center border-y border-white/5">
-              <p className="font-serif text-xl text-gray-400 italic">
+            <div className="py-32 text-center border border-dashed border-white/10 rounded-lg">
+              <p className="font-serif text-3xl text-muted-foreground italic">
                 "Silence is also information."
-              </p>
-              <p className="mt-2 text-sm text-gray-600 uppercase tracking-widest">
-                No digests available for this period.
               </p>
             </div>
           )}
@@ -163,84 +166,85 @@ export default function Home() {
           {currentDigest && (
             <>
               {/* Primary Article */}
-              <section>
+              <MotionItem className="h-full">
                  {activeView === "daily" ? (
                     <BriefingCard briefing={currentDigest.briefing} />
                  ) : (
                     <DeepDiveCard briefing={currentDigest.briefing} />
                  )}
-              </section>
+              </MotionItem>
 
-              {/* Secondary Articles (Digests) */}
+              {/* Source Material (Digests) */}
               {currentDigest.structured_digests && currentDigest.structured_digests.length > 0 && (
-                <section className="border-t border-white/5 pt-12">
-                  <h3 className="font-serif text-2xl text-white mb-8">Source Material</h3>
+                <MotionItem className="pt-12">
+                  <div className="flex items-center gap-4 mb-8">
+                    <Separator className="flex-1 bg-white/10" />
+                    <h3 className="font-serif text-2xl text-white italic">Source Intercepts</h3>
+                    <Separator className="flex-1 bg-white/10" />
+                  </div>
                   <div className="grid gap-6">
                     {currentDigest.structured_digests.map((emailDigest, index) => (
                       <NewsletterItem key={index} digest={emailDigest} />
                     ))}
                   </div>
-                </section>
+                </MotionItem>
               )}
             </>
           )}
         </div>
 
-        {/* Right Column (Sidebar) - Spans 4 cols */}
-        <div className="lg:col-span-4 space-y-8">
+        {/* Right Column (Sidebar) */}
+        <div className="lg:col-span-4 flex flex-col gap-8 h-fit lg:sticky lg:top-8">
            
-           {/* Sidebar: Metadata / Stats */}
+           {/* Metadata / Stats */}
            {currentDigest && (
-             <div className="p-6 bg-editorial-card border border-white/5">
-                <h4 className="font-sans text-xs font-bold uppercase tracking-widest text-gray-500 mb-6">
-                  At a Glance
-                </h4>
-                
-                <div className="space-y-6">
-                  <div className="flex items-start justify-between pb-4 border-b border-white/5">
-                     <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-brand-fuchsia" />
-                        <span className="text-sm text-gray-300">Edition Date</span>
-                     </div>
-                     <span className="font-serif text-white">{currentDigest.date}</span>
-                  </div>
+             <MotionItem>
+               <div className="p-6 bg-card/30 backdrop-blur-md border border-white/5 rounded-lg">
+                  <h4 className="font-sans text-xs font-bold uppercase tracking-widest text-muted-foreground mb-6">
+                    Metadata
+                  </h4>
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                       <span className="text-sm text-gray-400">Date</span>
+                       <span className="font-serif text-white">{currentDigest.date}</span>
+                    </div>
 
-                  <div className="flex items-start justify-between pb-4 border-b border-white/5">
-                     <div className="flex items-center gap-3">
-                        <Mail className="h-4 w-4 text-brand-purple" />
-                        <span className="text-sm text-gray-300">Sources Analyzed</span>
-                     </div>
-                     <span className="font-serif text-white">{currentDigest.emails_processed?.length || 0}</span>
-                  </div>
+                    <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                       <span className="text-sm text-gray-400">Sources</span>
+                       <span className="font-serif text-white">{currentDigest.emails_processed?.length || 0}</span>
+                    </div>
 
-                  <div className="flex items-start justify-between">
-                     <div className="flex items-center gap-3">
-                        <Clock className="h-4 w-4 text-brand-indigo" />
-                        <span className="text-sm text-gray-300">Reading Time</span>
-                     </div>
-                     <span className="font-serif text-white">~5 min</span>
+                    <div className="flex items-start justify-between">
+                       <span className="text-sm text-gray-400">Est. Read</span>
+                       <span className="font-serif text-white">~5 min</span>
+                    </div>
                   </div>
-                </div>
-             </div>
+               </div>
+             </MotionItem>
            )}
 
-           {/* Sidebar: LinkedIn (Only on Daily) */}
+           {/* LinkedIn (Only on Daily) */}
            {currentDigest && activeView === "daily" && (
-             <div className="group relative">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-fuchsia to-brand-purple opacity-20 blur transition group-hover:opacity-40" />
-                <div className="relative">
-                  <LinkedInCard content={currentDigest.linkedin_content} />
+             <MotionItem>
+                <div className="relative group">
+                   <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-fuchsia to-brand-purple opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
+                   <div className="relative">
+                     <LinkedInCard content={currentDigest.linkedin_content} />
+                   </div>
                 </div>
-             </div>
+             </MotionItem>
            )}
 
-           {/* Sidebar: Quote or Filler */}
-           <div className="p-6 border-l-2 border-brand-purple/50 pl-6 italic font-serif text-gray-400">
-              "The goal is not to read more, but to understand better."
-           </div>
+           {/* Quote */}
+           <MotionItem>
+             <div className="p-6 border-l-2 border-brand-purple/50 pl-6 italic font-serif text-muted-foreground text-lg">
+                "The goal is not to read more, but to understand better."
+             </div>
+           </MotionItem>
 
         </div>
-      </div>
+      </MotionOrchestrator>
     </div>
   );
 }

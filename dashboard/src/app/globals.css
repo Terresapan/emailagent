@@ -2,128 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 226, 226, 226;
-  --background-start-rgb: 5, 5, 10;
-  --background-end-rgb: 5, 5, 10;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 33% 3%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 33% 3%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 33% 3%;
+    --primary: 271 91% 65%; /* Brand Purple */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 19% 96%;
+    --secondary-foreground: 240 33% 3%;
+    --muted: 240 19% 96%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 19% 96%;
+    --accent-foreground: 240 33% 3%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 271 91% 65%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 240 33% 3%; /* #05050A */
+    --foreground: 0 0% 89%; /* #E2E2E2 */
+    
+    --card: 231 19% 7%; /* #0F1016 */
+    --card-foreground: 0 0% 89%;
+    
+    --popover: 231 19% 7%;
+    --popover-foreground: 0 0% 89%;
+    
+    --primary: 271 91% 65%; /* #a855f7 */
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 231 15% 12%; /* Slightly lighter than card */
+    --secondary-foreground: 0 0% 89%;
+    
+    --muted: 231 15% 12%;
+    --muted-foreground: 240 5% 65%; /* #a1a1aa */
+    
+    --accent: 271 91% 65%; /* Brand Purple as accent */
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 100%; /* White */
+    --input: 231 15% 12%;
+    
+    --ring: 271 91% 65%;
+    
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: #05050A;
-  min-height: 100vh;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-/* Custom scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #333344;
+  background: hsl(var(--muted-foreground) / 0.3);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #555566;
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Editorial Card Styles */
-.journal-card, .glass-card {
-  background: #0F1016;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.journal-card::before, .glass-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.3), transparent);
-  opacity: 0.5;
-}
-
-.journal-card:hover, .glass-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(168, 85, 247, 0.2);
-  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
-}
-
-/* Prose overrides for Editorial Theme */
-.prose-dark {
-  color: #a1a1aa;
-}
-
-.prose-dark h1,
-.prose-dark h2,
-.prose-dark h3,
-.prose-dark h4 {
-  font-family: var(--font-playfair), serif;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.prose-dark h2 {
-  font-size: 1.5rem;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.prose-dark p {
-  line-height: 1.8;
-  font-family: var(--font-dm-sans), sans-serif;
-  margin-bottom: 1.25em;
-}
-
-.prose-dark strong {
-  color: #fff;
-  font-weight: 600;
-}
-
-.prose-dark ul {
-  list-style-type: none;
-  padding-left: 0;
-}
-
-.prose-dark li {
-  position: relative;
-  padding-left: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.prose-dark li::before {
-  content: "—";
-  position: absolute;
-  left: 0;
-  color: #a855f7; /* Brand purple */
-}
-
-/* Animations */
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
+/* Neu-Editorial Utilities */
+@layer utilities {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-md border border-white/5;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .text-giant {
+    font-size: clamp(4rem, 15vw, 12rem);
+    line-height: 0.8;
+    letter-spacing: -0.04em;
+  }
+
+  /* Magnetic & Hover Effects */
+  .hover-glow {
+    transition: all 0.3s ease;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.3);
+    border-color: hsl(var(--primary) / 0.3);
   }
 }
-
-.animate-slide-down {
-  animation: slide-down 0.4s ease-out;
-}
-

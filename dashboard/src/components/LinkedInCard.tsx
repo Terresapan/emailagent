@@ -2,24 +2,30 @@
 
 import { useState } from "react";
 import { Linkedin, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface LinkedInCardProps {
   content: string | null;
+  className?: string;
 }
 
-export default function LinkedInCard({ content }: LinkedInCardProps) {
+export default function LinkedInCard({ content, className }: LinkedInCardProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   if (!content) {
     return (
-      <div className="journal-card flex flex-col p-6 rounded-none border-l-4 border-l-brand-indigo/20">
-        <div className="mb-4 flex items-center gap-2">
+      <Card className={cn("bg-card/50 backdrop-blur-sm border-white/5", className)}>
+        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
           <Linkedin className="h-4 w-4 text-brand-indigo" />
-          <h3 className="font-serif font-bold text-white">LinkedIn Drafts</h3>
-        </div>
-        <p className="text-sm text-gray-500 italic">No drafts generated.</p>
-      </div>
+          <CardTitle className="text-base font-serif font-bold text-white">LinkedIn Drafts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground italic">No drafts generated.</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -36,28 +42,33 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
   };
 
   return (
-    <div className="journal-card flex flex-col p-6 transition-all duration-300 animate-slide-up">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between border-b border-white/5 pb-4">
+    <Card className={cn("bg-card/50 backdrop-blur-sm border-white/5 overflow-hidden transition-all duration-300", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-white/5 pb-4">
         <div className="flex items-center gap-2">
           <Linkedin className="h-4 w-4 text-brand-indigo" />
-          <h3 className="font-serif font-bold text-white">LinkedIn Drafts</h3>
+          {/* Increased tracking as requested */}
+          <CardTitle className="text-base font-serif font-bold text-white tracking-wider">LinkedIn Drafts</CardTitle>
         </div>
-        <span className="font-mono text-xs text-brand-indigo">
-          {posts.length} READY
+        <span className="font-mono text-xs text-brand-indigo font-medium bg-brand-indigo/10 px-2 py-1 rounded">
+          {posts.length > 0 ? posts.length - 1 : 0} DRAFTS
         </span>
-      </div>
+      </CardHeader>
 
-      {/* Posts */}
-      <div className="space-y-4">
-        {posts.map((post, index) => (
+      <CardContent className="space-y-4 pt-6">
+        {posts.map((post, index) => {
+          // Logic: First item is "Topics", rest are "Drafts"
+          const isTopics = index === 0;
+          const label = isTopics ? "LinkedIn Topics" : `Draft #${index}`;
+          
+          return (
           <div
             key={index}
-            className={`group rounded-lg border transition-all duration-200 ${
-               expandedIndex === index 
+            className={cn(
+              "group rounded-lg border transition-all duration-300",
+              expandedIndex === index 
                ? "border-brand-indigo/30 bg-brand-indigo/5" 
                : "border-white/5 bg-white/5 hover:border-white/10"
-            }`}
+            )}
           >
             {/* Post Header */}
             <div
@@ -66,16 +77,22 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
               role="button"
               tabIndex={0}
             >
-              <span className={`text-sm font-medium ${expandedIndex === index ? "text-white" : "text-gray-400 group-hover:text-gray-300"}`}>
-                Draft #{index + 1}
+              <span className={cn(
+                "text-sm font-medium transition-colors uppercase tracking-wider", // Added uppercase and tracking
+                expandedIndex === index ? "text-white" : "text-muted-foreground group-hover:text-foreground",
+                isTopics && "text-brand-fuchsia" // Highlight Topics
+              )}>
+                {label}
               </span>
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleCopy(post, index);
                   }}
-                  className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
                   title="Copy to clipboard"
                 >
                   {copiedIndex === index ? (
@@ -83,27 +100,28 @@ export default function LinkedInCard({ content }: LinkedInCardProps) {
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                </button>
+                </Button>
                 {expandedIndex === index ? (
-                  <ChevronUp className="h-4 w-4 text-gray-400" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Post Content */}
             {expandedIndex === index && (
-              <div className="border-t border-brand-indigo/10 px-4 py-4">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300 font-sans">
+              <div className="border-t border-brand-indigo/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground font-sans">
                   {post}
                 </p>
               </div>
             )}
           </div>
-        ))}
-      </div>
-    </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }
 

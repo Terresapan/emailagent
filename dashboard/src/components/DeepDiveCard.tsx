@@ -2,74 +2,82 @@
 
 import { BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface DeepDiveCardProps {
   briefing: string | null;
+  className?: string;
 }
 
-export default function DeepDiveCard({ briefing }: DeepDiveCardProps) {
+export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps) {
   if (!briefing) {
     return (
-      <div className="journal-card flex h-full min-h-[400px] flex-col p-8">
-        <div className="mb-6 flex items-center gap-3">
-          <BookOpen className="h-5 w-5 text-brand-indigo" />
-          <h3 className="font-serif text-xl font-bold text-white tracking-wide">Deep Dive Analysis</h3>
-        </div>
-        <div className="flex flex-1 items-center justify-center border-t border-dashed border-white/10">
-          <p className="font-serif italic text-gray-500">No analysis available.</p>
-        </div>
-      </div>
+      <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-brand-indigo" />
+            <CardTitle className="font-serif text-2xl tracking-wide text-white">Deep Dive Analysis</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-1 items-center justify-center">
+          <p className="font-serif italic text-muted-foreground">No analysis available.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="journal-card flex h-full min-h-[400px] flex-col p-8 transition-all duration-300 animate-slide-up">
-      {/* Header */}
-      <div className="mb-8 flex items-center gap-3 border-b border-white/10 pb-4">
-        <BookOpen className="h-5 w-5 text-brand-indigo" />
-        <h3 className="font-serif text-xl font-bold text-white tracking-wide">Deep Dive Analysis</h3>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        <div className="prose-dark max-w-none">
-          <ReactMarkdown
-            components={{
-              h2: ({ children }) => (
-                <h2 className="mt-10 first:mt-0 mb-6 text-2xl font-serif font-bold text-white">
-                  {children}
-                </h2>
-              ),
-              h3: ({ children }) => (
-                <h3 className="mt-8 mb-3 text-lg font-bold text-brand-indigo font-sans tracking-wide uppercase">
-                  {children}
-                </h3>
-              ),
-              ul: ({ children }) => (
-                <ul className="space-y-2 my-4">
-                  {children}
-                </ul>
-              ),
-              li: ({ children }) => (
-                <li className="text-gray-300 leading-relaxed pl-4 border-l-2 border-brand-indigo/30">
-                  {children}
-                </li>
-              ),
-              strong: ({ children }) => (
-                <strong className="text-white font-bold">{children}</strong>
-              ),
-              p: ({ children }) => (
-                <p className="text-gray-300 leading-7 my-4 font-sans text-lg">{children}</p>
-              ),
-              hr: () => (
-                <hr className="my-8 border-white/10" />
-              ),
-            }}
-          >
-            {briefing}
-          </ReactMarkdown>
+    <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5 overflow-hidden", className)}>
+      <CardHeader className="border-b border-white/5 pb-6">
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-5 w-5 text-brand-indigo" />
+          <CardTitle className="font-serif text-2xl tracking-wide text-white">Deep Dive Analysis</CardTitle>
         </div>
-      </div>
-    </div>
+      </CardHeader>
+
+      <ScrollArea className="flex-1">
+        <CardContent className="pt-6 pr-6">
+          <div className="prose prose-invert prose-p:font-sans prose-headings:font-serif max-w-none">
+            <ReactMarkdown
+              components={{
+                h2: ({ children }) => (
+                  <h2 className="mt-10 first:mt-0 mb-6 text-3xl font-serif font-bold text-white">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="mt-8 mb-3 text-lg font-bold text-brand-indigo font-sans tracking-wide uppercase">
+                    {children}
+                  </h3>
+                ),
+                ul: ({ children }) => (
+                  <ul className="space-y-3 my-4">
+                    {children}
+                  </ul>
+                ),
+                li: ({ children }) => (
+                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-brand-indigo/30">
+                    {children}
+                  </li>
+                ),
+                strong: ({ children }) => (
+                  <strong className="text-white font-bold">{children}</strong>
+                ),
+                p: ({ children }) => (
+                  <p className="text-muted-foreground leading-7 my-4 font-sans text-lg">{children}</p>
+                ),
+                hr: () => (
+                  <hr className="my-8 border-white/10" />
+                ),
+              }}
+            >
+              {briefing}
+            </ReactMarkdown>
+          </div>
+        </CardContent>
+      </ScrollArea>
+    </Card>
   );
 }
