@@ -88,6 +88,10 @@ If a UI library (e.g., Shadcn UI, Radix, MUI) is detected or active in the proje
 
 ### Typography
 
+Choose fonts that are beautiful, unique, and interesting. 
+Opt for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. 
+Pair a distinctive display font with a refined body font.
+
 **AVOID (Generic AI Slop):**
 - Inter, Roboto, Arial, system fonts, Open Sans
 
@@ -99,8 +103,6 @@ If a UI library (e.g., Shadcn UI, Radix, MUI) is detected or active in the proje
 | Pixel/Retro | Press Start 2P, VT323, Silkscreen |
 | Elegant | Playfair Display, Cormorant, Libre Baskerville |
 
-Pair a distinctive display font with a refined body font.
-
 ### Color & Theme
 
 **AVOID:**
@@ -111,7 +113,7 @@ Pair a distinctive display font with a refined body font.
 **USE INSTEAD:**
 - Dominant colors with sharp accents
 - Custom HSL-derived schemes
-- Curated palettes: Nord, Catppuccin, Rosé Pine, or fully custom
+- Curated palettes: Nord, Catppuccin, Rosé Pine (remixed or twisted), or fully custom
 - CSS variables for consistency
 
 ### Motion & Animation
@@ -125,13 +127,18 @@ Pair a distinctive display font with a refined body font.
 
 ### Spatial Composition
 
+**AVOID:**
+- Predictable layouts and component patterns
+- Cookie-cutter design that lacks context-specific character.
+
+**USE INSTEAD:**
 - Unexpected layouts, asymmetry, overlap, diagonal flow
 - Grid-breaking elements
 - Generous negative space OR controlled density (pick one and commit)
 
 ### Backgrounds & Visual Details
 
-Create atmosphere and depth—never default to solid colors:
+Create atmosphere and depth—never default to solid colors: Add contextual effects and textures that match the overall aesthetic
 - Gradient meshes
 - Noise textures & grain overlays
 - Geometric patterns
@@ -199,7 +206,7 @@ The hero section uses a 3-layer gradient system:
 Before coding, understand the context and commit to a **BOLD** aesthetic direction:
 
 1. **Purpose:** What problem does this interface solve? Who uses it?
-2. **Tone:** Pick an extreme—commit to one:
+2. **Tone:** There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction. Pick an extreme—commit to one:
    - Brutally minimal
    - Maximalist chaos
    - Retro-futuristic
@@ -244,6 +251,8 @@ Elegance comes from executing the vision well.
 
 > **You are capable of extraordinary creative work. Don't hold back—show what can truly be created when thinking outside the box and committing fully to a distinctive vision.**
 
-No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices across generations.
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices across generations.
+
+IMPORTANT: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
 
 **If your web app looks simple and basic, you have FAILED.**
