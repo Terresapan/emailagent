@@ -43,7 +43,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
             <ReactMarkdown
               components={{
                 h2: ({ children }) => (
-                  <h2 className="mt-10 first:mt-0 mb-6 text-3xl font-serif font-bold text-white">
+                  <h2 className="mt-10 first:mt-0 mb-6 text-2xl font-serif font-bold text-white">
                     {children}
                   </h2>
                 ),
@@ -58,7 +58,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-brand-indigo/30">
+                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 transition-colors duration-300 hover:text-gray-200 hover:border-brand-indigo text-base">
                     {children}
                   </li>
                 ),
@@ -66,7 +66,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   <strong className="text-white font-bold">{children}</strong>
                 ),
                 p: ({ children }) => (
-                  <p className="text-muted-foreground leading-7 my-4 font-sans text-lg">{children}</p>
+                  <p className="text-muted-foreground leading-7 my-4 font-sans text-lg transition-colors duration-300 hover:text-gray-200">{children}</p>
                 ),
                 hr: () => (
                   <hr className="my-8 border-white/10" />

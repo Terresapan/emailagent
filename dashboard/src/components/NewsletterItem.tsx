@@ -58,7 +58,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
             
             {/* Core Thesis (Weekly Only usually) */}
             {summary.core_thesis && (
-              <div className="rounded-lg bg-brand-indigo/10 border-l-2 border-brand-indigo p-4 italic text-indigo-100 text-sm font-serif">
+              <div className="rounded-lg bg-brand-indigo/10 border-l-2 border-brand-indigo p-4 italic text-indigo-100 text-lg tracking-wide font-serif">
                 "{summary.core_thesis}"
               </div>
             )}
@@ -72,7 +72,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
                 </div>
                 <ul className="space-y-2">
                   {summary.industry_news.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-fuchsia/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-fuchsia/50 transition-colors">
                       {item}
                     </li>
                   ))}
@@ -89,7 +89,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
                 </div>
                 <ul className="space-y-2">
                   {summary.new_tools.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-purple/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-purple/50 transition-colors">
                       {item}
                     </li>
                   ))}
@@ -106,7 +106,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
                 </div>
                 <ul className="space-y-2">
                   {summary.insights.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-indigo/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-brand-indigo/50 transition-colors">
                       {item}
                     </li>
                   ))}
@@ -119,7 +119,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
               <section className="pt-2">
                 <div className="flex flex-wrap gap-2">
                   {summary.key_concepts.map((concept, i) => (
-                    <span key={i} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-wider text-gray-400 font-medium">
+                    <span key={i} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-gray-400 font-medium">
                       {concept}
                     </span>
                   ))}

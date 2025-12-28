@@ -43,7 +43,7 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
             <ReactMarkdown
               components={{
                 h2: ({ children }) => (
-                  <h2 className="mt-8 first:mt-0 mb-4 text-xl font-serif font-bold text-white border-b border-brand-purple/20 pb-2">
+                  <h2 className="mt-8 first:mt-0 mb-4 text-2xl font-serif font-bold text-white border-b border-brand-purple/20 pb-2">
                     {children}
                   </h2>
                 ),
@@ -53,7 +53,7 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-brand-fuchsia/50 transition-colors">
+                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-brand-fuchsia/50 transition-colors duration-300 hover:text-gray-200 text-base">
                     {children}
                   </li>
                 ),
@@ -61,7 +61,7 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
                   <strong className="text-white font-semibold font-serif">{children}</strong>
                 ),
                 p: ({ children }) => (
-                  <p className="text-muted-foreground leading-relaxed my-3 font-sans">{children}</p>
+                  <p className="text-muted-foreground leading-relaxed my-3 font-sans transition-colors duration-300 hover:text-gray-200 text-lg">{children}</p>
                 ),
               }}
             >
