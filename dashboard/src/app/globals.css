@@ -102,7 +102,7 @@
   
   .text-giant {
     font-size: clamp(4rem, 15vw, 12rem);
-    line-height: 0.8;
+    line-height: 0.9;
     letter-spacing: -0.04em;
   }
 
