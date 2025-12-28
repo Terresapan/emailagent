@@ -31,10 +31,10 @@ module.exports = {
   				indigo: '#6366f1'
   			},
   			editorial: {
-  				bg: '#05050A',
-  				card: '#0F1016',
-  				surface: '#181824',
-  				text: '#E2E2E2',
+  				bg: '#0F0F16', // Deep Cool Black
+  				card: '#1A1A24', // Lighter cool black
+  				surface: '#252533', // Even lighter cool black
+  				text: '#F2E9E4', // Gallery White
   				muted: '#888899'
   			},
   			background: 'hsl(var(--background))',

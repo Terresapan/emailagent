@@ -32,20 +32,20 @@
   }
 
   .dark {
-    --background: 240 33% 3%; /* #05050A */
-    --foreground: 0 0% 89%; /* #E2E2E2 */
+    --background: 240 19% 7%; /* #0F0F16 - Deep Cool Black */
+    --foreground: 21 28% 92%; /* #F2E9E4 - Gallery White */
     
-    --card: 231 19% 7%; /* #0F1016 */
-    --card-foreground: 0 0% 89%;
+    --card: 240 16% 12%; /* #1A1A24 - Slightly lighter cool black */
+    --card-foreground: 21 28% 92%;
     
-    --popover: 231 19% 7%;
-    --popover-foreground: 0 0% 89%;
+    --popover: 240 16% 12%;
+    --popover-foreground: 21 28% 92%;
     
     --primary: 271 91% 65%; /* #a855f7 */
     --primary-foreground: 0 0% 98%;
     
-    --secondary: 231 15% 12%; /* Slightly lighter than card */
-    --secondary-foreground: 0 0% 89%;
+    --secondary: 240 14% 16%; /* #252530 - Surface color */
+    --secondary-foreground: 21 28% 92%;
     
     --muted: 231 15% 12%;
     --muted-foreground: 240 5% 65%; /* #a1a1aa */
