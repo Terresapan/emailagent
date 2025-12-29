@@ -14,7 +14,7 @@ import {
   Zap,
   Menu
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/", label: "Briefing", icon: Newspaper },
@@ -26,6 +26,22 @@ const navItems = [
 export function IntelligenceRail() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+      }
+    };
+    
+    // Initial check
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <aside className={cn(
@@ -65,7 +81,7 @@ export function IntelligenceRail() {
               const isActive = pathname === item.href;
               const Icon = item.icon;
               return (
-                <Link key={item.href} href={item.href}>
+                <Link key={item.href} href={item.href} onClick={() => setIsCollapsed(true)}>
                   <Button
                     variant="ghost"
                     className={cn(

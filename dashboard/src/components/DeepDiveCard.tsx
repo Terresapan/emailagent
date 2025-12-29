@@ -39,7 +39,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
 
       <ScrollArea className="flex-1">
         <CardContent className="pt-6 pr-6">
-          <div className="prose prose-invert prose-p:font-sans prose-headings:font-serif max-w-none">
+          <div className="prose prose-invert prose-p:font-sans prose-headings:font-serif max-w-none break-words [overflow-wrap:anywhere]">
             <ReactMarkdown
               components={{
                 h2: ({ children }) => (

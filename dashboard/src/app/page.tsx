@@ -82,7 +82,7 @@ export default function Home() {
       {/* Giant Typography Header */}
       <MotionOrchestrator className="mb-20">
         <MotionItem className="relative z-10 -ml-2 lg:-ml-4">
-          <h1 className="font-serif text-giant font-bold tracking-tighter leading-[0.8] select-none text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground">
+          <h1 className="font-serif text-giant font-bold tracking-tighter leading-[0.8] select-none text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground break-words">
             {activeView === "daily" ? "DAILY INSIGHTS" : "WEEKLY INTELLIGENCE"}
           </h1>
         </MotionItem>
