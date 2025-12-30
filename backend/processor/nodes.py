@@ -46,6 +46,7 @@ from processor.prompts import (
 )
 from config.settings import EMAIL_BODY_MAX_CHARS
 from utils.logger import setup_logger
+from utils.callbacks import TimingCallbackHandler
 
 logger = setup_logger(__name__)
 
@@ -220,7 +221,7 @@ def summarize_email_logic(email, structured_llm: ChatOpenAI) -> CategorySummary:
             "subject": email.subject,
             "sender": email.sender,
             "body": truncated_body
-        })
+        }, config={"callbacks": [TimingCallbackHandler(f"EMAIL-{email.id[:4]}")]})
         
         duration = time.time() - start_time
         logger.info(f"✅ LLM call completed for ID: {email.id} in {duration:.2f}s")
@@ -299,7 +300,7 @@ def generate_briefing(state: ProcessorState, llm: ChatOpenAI) -> dict:
     start_time = time.time()
     result = chain.invoke({
         "newsletter_summaries": newsletter_summaries
-    })
+    }, config={"callbacks": [TimingCallbackHandler("BRIEFING")]})
     duration = time.time() - start_time
     
     briefing = _extract_text_content(result)
@@ -336,7 +337,7 @@ def quality_check_briefing(state: ProcessorState, llm: ChatOpenAI) -> dict:
     result = chain.invoke({
         "original_briefing": original_briefing,
         "newsletter_summaries": newsletter_summaries
-    })
+    }, config={"callbacks": [TimingCallbackHandler("QC-BRIEFING")]})
     duration = time.time() - start_time
     
     reviewed_briefing = _extract_text_content(result)
@@ -379,7 +380,7 @@ def generate_linkedin_content(state: ProcessorState, llm: ChatOpenAI) -> dict:
     start_time = time.time()
     result = chain.invoke({
         "newsletter_summaries": newsletter_summaries
-    })
+    }, config={"callbacks": [TimingCallbackHandler("LINKEDIN")]})
     duration = time.time() - start_time
     
     linkedin_content = _extract_text_content(result)
@@ -414,7 +415,7 @@ def quality_check_linkedin(state: ProcessorState, llm: ChatOpenAI) -> dict:
     start_time = time.time()
     result = chain.invoke({
         "original_linkedin_content": original_linkedin_content
-    })
+    }, config={"callbacks": [TimingCallbackHandler("QC-LINKEDIN")]})
     duration = time.time() - start_time
     
     reviewed_linkedin_content = _extract_text_content(result)

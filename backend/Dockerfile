@@ -3,12 +3,15 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies and uv
+# Install system dependencies, uv, and tzdata
 RUN apt-get update && \
-    apt-get install -y cron && \
+    apt-get install -y cron tzdata && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir uv
+
+# Set timezone
+ENV TZ=America/Los_Angeles
 
 # Copy project files
 COPY pyproject.toml .
