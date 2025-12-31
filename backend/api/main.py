@@ -142,19 +142,75 @@ async def get_email_by_id(email_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/process", response_model=ProcessResponse)
-async def trigger_process():
+async def trigger_process(
+    digest_type: str = "dailydigest",
+    dry_run: bool = False
+):
     """
     Manually trigger email processing.
     
-    Note: In production, this would call the emailagent processing logic.
-    For now, returns a placeholder response.
+    Args:
+        digest_type: Either 'dailydigest' or 'weeklydeepdives'
+        dry_run: If True, preview only without modifying emails
+        
+    Returns:
+        ProcessResponse with status and message
     """
-    # TODO: Integrate with emailagent main.py processing
-    return ProcessResponse(
-        status="pending",
-        message="Manual processing not yet implemented. Use the cron scheduler.",
-        digest_id=None,
-    )
+    import docker
+    import threading
+    
+    if digest_type not in ["dailydigest", "weeklydeepdives"]:
+        return ProcessResponse(
+            status="error",
+            message=f"Invalid digest_type: {digest_type}. Use 'dailydigest' or 'weeklydeepdives'",
+            digest_id=None,
+        )
+    
+    # Build command - redirect output to cron.log so manual runs are logged same as scheduled
+    cmd = f"uv run python main.py --type {digest_type}"
+    if dry_run:
+        cmd += " --dry-run"
+    # Append output to cron.log (same as cron job)
+    cmd += " >> /var/log/emailagent/cron.log 2>&1"
+    
+    try:
+        # Connect to Docker daemon via mounted socket
+        client = docker.from_env()
+        container = client.containers.get("emailagent")
+        
+        # Run command in background thread (non-blocking)
+        # Use /bin/bash -c to handle the shell redirect properly
+        def run_exec():
+            try:
+                result = container.exec_run(
+                    f"/bin/bash -c '{cmd}'",
+                    detach=False
+                )
+                print(f"Process completed with exit code: {result.exit_code}")
+            except Exception as e:
+                print(f"Exec error: {e}")
+        
+        thread = threading.Thread(target=run_exec)
+        thread.start()
+        
+        return ProcessResponse(
+            status="started",
+            message=f"Processing {digest_type} started. Check dashboard in ~2-3 minutes.",
+            digest_id=None,
+        )
+        
+    except docker.errors.NotFound:
+        return ProcessResponse(
+            status="error",
+            message="emailagent container not found. Is it running?",
+            digest_id=None,
+        )
+    except Exception as e:
+        return ProcessResponse(
+            status="error",
+            message=f"Failed to start processing: {str(e)}",
+            digest_id=None,
+        )
 
 
 if __name__ == "__main__":

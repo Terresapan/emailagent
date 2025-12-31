@@ -150,3 +150,33 @@ export async function checkHealth(): Promise<HealthStatus> {
 
   return response.json();
 }
+
+export interface ProcessResponse {
+  status: string;
+  message: string;
+  digest_id: number | null;
+}
+
+/**
+ * Manually trigger email processing.
+ * @param digestType - Either 'dailydigest' or 'weeklydeepdives'
+ * @param dryRun - If true, preview only without modifying emails
+ */
+export async function triggerProcess(
+  digestType: "dailydigest" | "weeklydeepdives" = "dailydigest",
+  dryRun: boolean = false
+): Promise<ProcessResponse> {
+  const response = await fetch(
+    `${API_URL}/api/process?digest_type=${digestType}&dry_run=${dryRun}`,
+    {
+      method: "POST",
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to trigger process: ${response.statusText}`);
+  }
+
+  return response.json();
+}

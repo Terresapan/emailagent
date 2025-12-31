@@ -10,13 +10,15 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir uv
 
-# Set timezone
+# Set timezone properly (ENV alone doesn't work for cron daemon)
 ENV TZ=America/Los_Angeles
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Copy project files
 COPY pyproject.toml .
 COPY main.py .
 COPY config/ ./config/
+COPY db/ ./db/
 COPY gmail/ ./gmail/
 COPY processor/ ./processor/
 COPY utils/ ./utils/

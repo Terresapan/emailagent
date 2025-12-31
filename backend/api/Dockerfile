@@ -2,13 +2,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Install Python dependencies including docker SDK
 RUN pip install --no-cache-dir \
     fastapi==0.115.0 \
     uvicorn==0.30.6 \
     sqlalchemy==2.0.35 \
     psycopg2-binary==2.9.9 \
-    pydantic==2.9.2
+    pydantic==2.9.2 \
+    docker==7.1.0
 
 # Copy API code
 COPY . .

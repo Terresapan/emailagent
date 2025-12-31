@@ -33,7 +33,8 @@ GMAIL_SCOPES = [
 NEWSLETTER_LABEL = "Newsletters"
 
 # Email settings
-DIGEST_RECIPIENT_EMAIL = os.getenv("DIGEST_RECIPIENT_EMAIL", "terresap2010@gmail.com")
+# Supports multiple recipients as comma-separated values, e.g., "user1@example.com,user2@example.com"
+DIGEST_RECIPIENT_EMAIL = os.getenv("DIGEST_RECIPIENT_EMAIL")
 
 # LLM settings
 # Use different models for different tasks:
@@ -94,6 +95,9 @@ def validate_config():
     
     if not OPENAI_API_KEY:
         errors.append("OPENAI_API_KEY not set in environment variables")
+    
+    if not DIGEST_RECIPIENT_EMAIL:
+        errors.append("DIGEST_RECIPIENT_EMAIL not set in environment variables")
     
     if not os.path.exists(CREDENTIALS_PATH):
         errors.append(f"Gmail credentials not found at {CREDENTIALS_PATH}")

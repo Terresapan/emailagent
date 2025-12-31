@@ -1,59 +1,22 @@
-"""Database utilities for saving digests and emails."""
-import os
+"""Database utilities for saving digests and emails.
+
+This module uses the shared db package for models and session management.
+"""
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Date, ForeignKey, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-
+from db import Digest as DigestModel, Email as EmailModel, get_session
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-
-# Check if database is configured
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Define models inline (same schema as api/models.py)
-Base = declarative_base()
-
-
-class DigestModel(Base):
-    """Processed digest containing briefing and LinkedIn content."""
-    __tablename__ = "digests"
-
-    id = Column(Integer, primary_key=True, index=True)
-    date = Column(Date, nullable=False, index=True)
-    digest_type = Column(String(20), default="daily", nullable=False, index=True)  # 'daily' or 'weekly'
-    briefing = Column(Text)
-    linkedin_content = Column(Text)
-    newsletter_summaries = Column(Text)
-    structured_digests = Column(JSON)
-    emails_processed = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    emails = relationship("EmailModel", back_populates="digest")
-
-
-class EmailModel(Base):
-    """Raw email storage for future analysis."""
-    __tablename__ = "emails"
-
-    id = Column(Integer, primary_key=True, index=True)
-    gmail_id = Column(String(255), unique=True, nullable=False, index=True)
-    sender = Column(String(255), nullable=False)
-    subject = Column(Text, nullable=False)
-    body = Column(Text, nullable=False)
-    received_at = Column(DateTime)
-    processed_at = Column(DateTime, default=datetime.utcnow)
-    digest_id = Column(Integer, ForeignKey("digests.id"))
-
-    digest = relationship("DigestModel", back_populates="emails")
 
 
 def save_to_database(emails: List, digest, digest_type: str = "daily") -> Optional[int]:
     """
     Save raw emails and processed digest to PostgreSQL database.
+    
+    Uses UPSERT logic for digests: if a digest already exists for the same
+    date and type, it will be updated instead of creating a duplicate.
     
     Args:
         emails: List of Email objects (raw emails)
@@ -63,43 +26,56 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
     Returns:
         Digest ID if saved successfully, None otherwise
     """
-    if not DATABASE_URL:
-        logger.warning("DATABASE_URL not set, skipping database save")
-        return None
-    
     try:
         logger.info("Connecting to database...")
-        engine = create_engine(DATABASE_URL)
-        Base.metadata.create_all(bind=engine)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_session()
         
         try:
             # Handle both DailyDigest (newsletter_summaries) and WeeklyDeepDive (deepdive_summaries)
             summaries = getattr(digest, 'newsletter_summaries', None) or getattr(digest, 'deepdive_summaries', '')
             linkedin = getattr(digest, 'linkedin_content', None) or ''
+            digest_date = datetime.fromisoformat(digest.date).date()
             
-            # Create digest record
-            digest_record = DigestModel(
-                date=datetime.fromisoformat(digest.date).date(),
-                digest_type=digest_type,
-                briefing=digest.aggregated_briefing,
-                linkedin_content=linkedin,
-                newsletter_summaries=summaries,
-                structured_digests=[d.model_dump() for d in digest.digests],
-                emails_processed=digest.emails_processed,
-            )
-            session.add(digest_record)
-            session.flush()  # Get the ID
+            # UPSERT: Check if digest already exists for this date and type
+            existing_digest = session.query(DigestModel).filter_by(
+                date=digest_date,
+                digest_type=digest_type
+            ).first()
             
-            # Save raw emails (handle duplicates)
+            if existing_digest:
+                # Update existing digest
+                logger.info(f"Updating existing {digest_type} digest for {digest_date} (ID: {existing_digest.id})")
+                existing_digest.briefing = digest.aggregated_briefing
+                existing_digest.linkedin_content = linkedin
+                existing_digest.newsletter_summaries = summaries
+                existing_digest.structured_digests = [d.model_dump() for d in digest.digests]
+                existing_digest.emails_processed = digest.emails_processed
+                existing_digest.created_at = datetime.utcnow()  # Update timestamp
+                digest_record = existing_digest
+            else:
+                # Create new digest record
+                logger.info(f"Creating new {digest_type} digest for {digest_date}")
+                digest_record = DigestModel(
+                    date=digest_date,
+                    digest_type=digest_type,
+                    briefing=digest.aggregated_briefing,
+                    linkedin_content=linkedin,
+                    newsletter_summaries=summaries,
+                    structured_digests=[d.model_dump() for d in digest.digests],
+                    emails_processed=digest.emails_processed,
+                )
+                session.add(digest_record)
+                session.flush()  # Get the ID
+            
+            # Save raw emails (handle duplicates by gmail_id)
+            new_emails_count = 0
+            updated_emails_count = 0
             for email in emails:
-                # Check if email already exists
                 existing_email = session.query(EmailModel).filter_by(gmail_id=email.id).first()
                 if existing_email:
-                    # Update existing email to point to new digest
-                    logger.info(f"Duplicate email found ({email.id}), linking to new digest")
+                    # Update existing email to point to current digest
                     existing_email.digest_id = digest_record.id
+                    updated_emails_count += 1
                 else:
                     # Create new email record
                     email_record = EmailModel(
@@ -110,9 +86,13 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
                         digest_id=digest_record.id,
                     )
                     session.add(email_record)
+                    new_emails_count += 1
             
             session.commit()
-            logger.info(f"✓ Saved {digest_type} digest (ID: {digest_record.id}) and {len(emails)} emails to database")
+            logger.info(
+                f"✓ Saved {digest_type} digest (ID: {digest_record.id}) | "
+                f"Emails: {new_emails_count} new, {updated_emails_count} linked"
+            )
             return digest_record.id
             
         except Exception as e:
@@ -125,4 +105,3 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
     except Exception as e:
         logger.error(f"Failed to save to database: {e}")
         return None
-

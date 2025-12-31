@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Bell } from "lucide-react";
+import { RefreshCw, Bell, Play } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
 import NewsletterItem from "@/components/NewsletterItem";
-import { fetchLatestDigest, Digest } from "@/lib/api";
+import { fetchLatestDigest, triggerProcess, Digest } from "@/lib/api";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -24,6 +24,8 @@ export default function Home() {
   const [lastKnownDailyId, setLastKnownDailyId] = useState<number | null>(null);
   const [lastKnownWeeklyId, setLastKnownWeeklyId] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [processMessage, setProcessMessage] = useState<string | null>(null);
 
   const loadDigests = async () => {
     setLoading(true);
@@ -121,6 +123,70 @@ export default function Home() {
                <Bell className="h-4 w-4" />
                New Reports
              </Button>
+             )}
+
+             {/* Run Now Button - Enhanced UX */}
+             <Button
+               variant="default"
+               size="sm"
+               disabled={processing}
+               onClick={async () => {
+                 setProcessing(true);
+                 setProcessMessage("⏳ Processing started... (~2-3 min)");
+                 try {
+                   const digestType = activeView === "daily" ? "dailydigest" : "weeklydeepdives";
+                   const currentId = activeView === "daily" ? lastKnownDailyId : lastKnownWeeklyId;
+                   await triggerProcess(digestType);
+                   
+                   // Poll for new content every 15 seconds for up to 5 minutes
+                   // Check created_at timestamp (not ID) because upsert updates same ID
+                   let attempts = 0;
+                   const maxAttempts = 20;
+                   const startTime = new Date().toISOString();
+                   const pollInterval = setInterval(async () => {
+                     attempts++;
+                     setProcessMessage(`⏳ Processing... (${attempts * 15}s)`);
+                     
+                     try {
+                       const latest = await fetchLatestDigest(activeView);
+                       // Check if created_at is newer than when we started
+                       if (latest && latest.created_at > startTime) {
+                         // New/updated content found!
+                         clearInterval(pollInterval);
+                         setProcessMessage("✅ Complete! Refreshing...");
+                         await loadDigests();
+                         setTimeout(() => setProcessMessage(null), 2000);
+                         setProcessing(false);
+                       } else if (attempts >= maxAttempts) {
+                         // Timeout
+                         clearInterval(pollInterval);
+                         setProcessMessage("⏰ Timed out. Click refresh to check manually.");
+                         setProcessing(false);
+                       }
+                     } catch {
+                       // Silently continue polling on error
+                     }
+                   }, 15000);
+                   
+                 } catch (err) {
+                   setProcessMessage(err instanceof Error ? err.message : "Failed to start");
+                   setProcessing(false);
+                 }
+               }}
+               className="gap-2 bg-gradient-to-r from-brand-fuchsia to-brand-purple hover:opacity-90 text-white border-0 shadow-lg shadow-brand-fuchsia/20"
+             >
+               <Play className={`h-3 w-3 ${processing ? "animate-spin" : ""}`} />
+               {processing ? "Processing..." : "Run Now"}
+             </Button>
+
+             {processMessage && (
+               <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                 processMessage.includes("✅") ? "bg-green-500/20 text-green-400" :
+                 processMessage.includes("Failed") || processMessage.includes("Timed") ? "bg-red-500/20 text-red-400" :
+                 "bg-brand-fuchsia/20 text-brand-fuchsia"
+               }`}>
+                 {processMessage}
+               </span>
              )}
              
              <div className="flex items-center gap-3 text-muted-foreground text-xs tracking-widest uppercase">

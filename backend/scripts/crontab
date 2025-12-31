@@ -1,8 +1,9 @@
 # Environment variables for cron job
 DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
 
-# Run daily email digest at 8:00 AM Monday-Friday (PST)
-0 8 * * 1-5 cd /app && /usr/local/bin/uv run main.py --type dailydigest >> /var/log/emailagent/cron.log 2>&1
+# Run daily email digest at 8:20 AM Monday-Friday (PST)
+# Mac wakes at 8:00 AM, giving 20 min buffer for Docker to fully start
+20 8 * * 1-5 cd /app && /usr/local/bin/uv run main.py --type dailydigest >> /var/log/emailagent/cron.log 2>&1
 
-# Run weekly deep dives at 8:00 AM every Sunday (PST)
-0 8 * * 0 cd /app && /usr/local/bin/uv run main.py --type weeklydeepdives >> /var/log/emailagent/cron.log 2>&1
+# Run weekly deep dives at 8:20 AM every Sunday (PST)
+20 8 * * 0 cd /app && /usr/local/bin/uv run main.py --type weeklydeepdives >> /var/log/emailagent/cron.log 2>&1
