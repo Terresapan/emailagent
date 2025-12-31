@@ -18,7 +18,17 @@ from schemas import (
     EmailResponse,
     HealthResponse,
     ProcessResponse,
+    ProcessStatusResponse,
 )
+
+# In-memory process status tracking
+process_status = {
+    "status": "idle",
+    "started_at": None,
+    "completed_at": None,
+    "emails_found": None,
+    "message": None,
+}
 
 app = FastAPI(
     title="Content Agent API",
@@ -178,16 +188,52 @@ async def trigger_process(
         client = docker.from_env()
         container = client.containers.get("emailagent")
         
+        # Update status to running
+        process_status["status"] = "running"
+        process_status["started_at"] = datetime.utcnow()
+        process_status["completed_at"] = None
+        process_status["emails_found"] = None
+        process_status["message"] = f"Processing {digest_type}..."
+        
         # Run command in background thread (non-blocking)
         # Use /bin/bash -c to handle the shell redirect properly
         def run_exec():
             try:
+                # Run the command and capture output for status detection
                 result = container.exec_run(
                     f"/bin/bash -c '{cmd}'",
                     detach=False
                 )
-                print(f"Process completed with exit code: {result.exit_code}")
+                
+                # Check log file for result (last few lines)
+                log_result = container.exec_run(
+                    "tail -20 /var/log/emailagent/cron.log"
+                )
+                log_output = log_result.output.decode('utf-8') if log_result.output else ""
+                
+                # Parse log for email count
+                import re
+                no_emails = "No unread" in log_output or "Found 0 unread" in log_output
+                email_match = re.search(r'Found (\d+) unread emails', log_output)
+                emails_found = int(email_match.group(1)) if email_match else 0
+                
+                # Update status
+                process_status["completed_at"] = datetime.utcnow()
+                process_status["emails_found"] = emails_found
+                
+                if no_emails or emails_found == 0:
+                    process_status["status"] = "no_emails"
+                    process_status["message"] = "No unread emails found to process"
+                else:
+                    process_status["status"] = "completed"
+                    process_status["message"] = f"Processed {emails_found} emails successfully"
+                
+                print(f"Process completed: {process_status['status']} ({emails_found} emails)")
+                
             except Exception as e:
+                process_status["status"] = "error"
+                process_status["completed_at"] = datetime.utcnow()
+                process_status["message"] = str(e)
                 print(f"Exec error: {e}")
         
         thread = threading.Thread(target=run_exec)
@@ -213,6 +259,13 @@ async def trigger_process(
         )
 
 
+@app.get("/api/process/status", response_model=ProcessStatusResponse)
+async def get_process_status():
+    """Get the status of the last/current process run."""
+    return ProcessStatusResponse(**process_status)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

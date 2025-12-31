@@ -60,3 +60,12 @@ class ProcessResponse(BaseModel):
     status: str
     message: str
     digest_id: Optional[int] = None
+
+
+class ProcessStatusResponse(BaseModel):
+    """Status of the last process run."""
+    status: str  # 'idle', 'running', 'completed', 'no_emails'
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    emails_found: Optional[int] = None
+    message: Optional[str] = None

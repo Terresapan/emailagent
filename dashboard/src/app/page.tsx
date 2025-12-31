@@ -6,7 +6,7 @@ import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
 import NewsletterItem from "@/components/NewsletterItem";
-import { fetchLatestDigest, triggerProcess, Digest } from "@/lib/api";
+import { fetchLatestDigest, triggerProcess, getProcessStatus, Digest } from "@/lib/api";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -138,27 +138,32 @@ export default function Home() {
                    const currentId = activeView === "daily" ? lastKnownDailyId : lastKnownWeeklyId;
                    await triggerProcess(digestType);
                    
-                   // Poll for new content every 15 seconds for up to 5 minutes
-                   // Check created_at timestamp (not ID) because upsert updates same ID
+                   // Poll process status every 5 seconds
                    let attempts = 0;
-                   const maxAttempts = 20;
-                   const startTime = new Date().toISOString();
+                   const maxAttempts = 60; // 5 minutes at 5s intervals
                    const pollInterval = setInterval(async () => {
                      attempts++;
-                     setProcessMessage(`⏳ Processing... (${attempts * 15}s)`);
+                     setProcessMessage(`⏳ Processing... (${attempts * 5}s)`);
                      
                      try {
-                       const latest = await fetchLatestDigest(activeView);
-                       // Check if created_at is newer than when we started
-                       if (latest && latest.created_at > startTime) {
-                         // New/updated content found!
+                       const status = await getProcessStatus();
+                       
+                       if (status.status === "completed") {
                          clearInterval(pollInterval);
-                         setProcessMessage("✅ Complete! Refreshing...");
+                         setProcessMessage(`✅ Complete! Processed ${status.emails_found} emails`);
                          await loadDigests();
-                         setTimeout(() => setProcessMessage(null), 2000);
+                         setTimeout(() => setProcessMessage(null), 3000);
+                         setProcessing(false);
+                       } else if (status.status === "no_emails") {
+                         clearInterval(pollInterval);
+                         setProcessMessage("📭 No new emails to process");
+                         setTimeout(() => setProcessMessage(null), 5000);
+                         setProcessing(false);
+                       } else if (status.status === "error") {
+                         clearInterval(pollInterval);
+                         setProcessMessage(`❌ Error: ${status.message}`);
                          setProcessing(false);
                        } else if (attempts >= maxAttempts) {
-                         // Timeout
                          clearInterval(pollInterval);
                          setProcessMessage("⏰ Timed out. Click refresh to check manually.");
                          setProcessing(false);
@@ -166,7 +171,7 @@ export default function Home() {
                      } catch {
                        // Silently continue polling on error
                      }
-                   }, 15000);
+                   }, 5000);
                    
                  } catch (err) {
                    setProcessMessage(err instanceof Error ? err.message : "Failed to start");

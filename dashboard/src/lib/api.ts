@@ -180,3 +180,27 @@ export async function triggerProcess(
 
   return response.json();
 }
+
+export interface ProcessStatus {
+  status: "idle" | "running" | "completed" | "no_emails" | "error";
+  started_at: string | null;
+  completed_at: string | null;
+  emails_found: number | null;
+  message: string | null;
+}
+
+/**
+ * Get the status of the current/last process run.
+ */
+export async function getProcessStatus(): Promise<ProcessStatus> {
+  const response = await fetch(`${API_URL}/api/process/status`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get process status: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
