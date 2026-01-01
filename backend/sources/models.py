@@ -40,6 +40,7 @@ class HackerNewsStory(BaseModel):
     comments: list[str] = []  # Top 3 root comments
     verdict: Optional[str] = None  # LLM-generated community consensus (e.g. "Skeptical")
     sentiment: Optional[str] = None  # Emoji badge (e.g. "⚠️")
+    github_stars: Optional[int] = None  # Star count if URL is a GitHub repo
 
 
 class HackerNewsInsight(BaseModel):

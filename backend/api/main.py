@@ -225,6 +225,7 @@ async def get_latest_hackernews_insight(
             by=s.get("by"),
             verdict=s.get("verdict"),
             sentiment=s.get("sentiment"),
+            github_stars=s.get("github_stars"),
         )
         for s in (insight.stories_json or [])
     ]

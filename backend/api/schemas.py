@@ -105,6 +105,7 @@ class HackerNewsStoryResponse(BaseModel):
     by: Optional[str] = None
     verdict: Optional[str] = None
     sentiment: Optional[str] = None
+    github_stars: Optional[int] = None
 
 
 class HackerNewsInsightResponse(BaseModel):

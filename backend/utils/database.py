@@ -144,6 +144,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
                 "comments": getattr(s, 'comments', []),
                 "verdict": getattr(s, 'verdict', None),
                 "sentiment": getattr(s, 'sentiment', None),
+                "github_stars": getattr(s, 'github_stars', None),
             }
             for s in insight.stories
         ]

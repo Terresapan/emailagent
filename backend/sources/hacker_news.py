@@ -14,6 +14,46 @@ class HackerNewsClient:
     def __init__(self):
         self.session = requests.Session()
     
+    def _fetch_github_stars(self, url: Optional[str]) -> Optional[int]:
+        """
+        If URL is a GitHub repo, fetch and return its star count.
+        
+        Args:
+            url: The story URL to check
+            
+        Returns:
+            Star count if GitHub repo, None otherwise
+        """
+        if not url or 'github.com' not in url:
+            return None
+            
+        try:
+            # Extract owner/repo from URL like https://github.com/owner/repo/...
+            parts = url.replace('https://', '').replace('http://', '').split('/')
+            if len(parts) < 3 or parts[0] != 'github.com':
+                return None
+                
+            owner, repo = parts[1], parts[2].split('?')[0].split('#')[0]
+            if not owner or not repo:
+                return None
+                
+            # Call GitHub API (unauthenticated - 60 req/hr limit, but fine for ~20 stories)
+            api_url = f"https://api.github.com/repos/{owner}/{repo}"
+            response = self.session.get(api_url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                stars = data.get('stargazers_count')
+                logger.debug(f"GitHub stars for {owner}/{repo}: {stars}")
+                return stars
+            else:
+                logger.debug(f"GitHub API returned {response.status_code} for {owner}/{repo}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Failed to fetch GitHub stars for {url}: {e}")
+            return None
+    
     def _fetch_comments(self, comment_ids: List[int], limit: int = 3) -> List[str]:
         """
         Fetch text content of top root comments.
@@ -69,16 +109,21 @@ class HackerNewsClient:
             comments = []
             if 'kids' in data:
                 comments = self._fetch_comments(data['kids'], limit=3)
+            
+            # Fetch GitHub stars if URL is a GitHub repo
+            story_url = data.get('url')
+            github_stars = self._fetch_github_stars(story_url)
                 
             return HackerNewsStory(
                 id=str(data.get('id')),
                 title=data.get('title', 'Untitled'),
-                url=data.get('url'),
+                url=story_url,
                 score=data.get('score', 0),
                 comments_count=data.get('descendants', 0),
                 by=data.get('by', 'unknown'),
                 time=data.get('time'),
-                comments=comments
+                comments=comments,
+                github_stars=github_stars
             )
         except Exception as e:
             logger.warning(f"Failed to fetch HN story {story_id}: {e}")

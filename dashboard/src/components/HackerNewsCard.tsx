@@ -111,6 +111,11 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>{story.score} pts</span>
                           <span>{story.comments_count} comments</span>
+                          {story.github_stars && (
+                            <span className="flex items-center gap-1 text-amber-400">
+                              ⭐ {story.github_stars >= 1000 ? `${(story.github_stars / 1000).toFixed(1)}k` : story.github_stars}
+                            </span>
+                          )}
                           {story.by && <span>by {story.by}</span>}
                         </div>
                         

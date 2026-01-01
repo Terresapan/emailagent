@@ -248,6 +248,7 @@ export interface HackerNewsStory {
   by?: string;
   verdict?: string;
   sentiment?: string;
+  github_stars?: number;
 }
 
 export interface HackerNewsInsight {
