@@ -157,10 +157,14 @@ async def get_email_by_id(email_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/tools/latest", response_model=Optional[ProductHuntInsightResponse])
-async def get_latest_tools_insight(db: Session = Depends(get_db)):
-    """Get the most recent Product Hunt insight for AI tools."""
+async def get_latest_tools_insight(
+    period: str = "daily",
+    db: Session = Depends(get_db)
+):
+    """Get the most recent Product Hunt insight for AI tools, filtered by period."""
     insight = (
         db.query(ProductHuntInsightDB)
+        .filter(ProductHuntInsightDB.period == period)
         .order_by(ProductHuntInsightDB.created_at.desc())
         .first()
     )
@@ -193,12 +197,16 @@ async def get_latest_tools_insight(db: Session = Depends(get_db)):
 
 
 @app.get("/api/hackernews/latest", response_model=Optional[HackerNewsInsightResponse])
-async def get_latest_hackernews_insight(db: Session = Depends(get_db)):
-    """Get the most recent Hacker News insight."""
+async def get_latest_hackernews_insight(
+    period: str = "daily",
+    db: Session = Depends(get_db)
+):
+    """Get the most recent Hacker News insight, filtered by period."""
     from db import HackerNewsInsightDB
     
     insight = (
         db.query(HackerNewsInsightDB)
+        .filter(HackerNewsInsightDB.period == period)
         .order_by(HackerNewsInsightDB.created_at.desc())
         .first()
     )

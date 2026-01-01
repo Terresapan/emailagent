@@ -127,7 +127,7 @@ class EmailSummarizer:
         )
         
         # Create structured output LLM for category summaries (uses extraction LLM)
-        from processor.states import CategorySummary
+        from processor.email.states import CategorySummary
         self.structured_llm = self.extraction_llm.with_structured_output(CategorySummary)
         
         # Build the LangGraph workflow
