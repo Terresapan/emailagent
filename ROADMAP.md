@@ -125,6 +125,17 @@ emailagent/                    # Monorepo root
 
 ---
 
+#### Phase 4d: The Weekly Rewind (Weekly Aggregation) ✅ COMPLETE
+
+**Goal**: Create a strategic weekly rollup from daily data.
+
+**Features:**
+- **Hacker News**: Aggregates last 7 days of DB insights. Deduplicates stories. LLM synthesized "Meta-Themes".
+- **Product Hunt**: Standard API query for "Last 7 Days" (better for accumulating votes).
+- **Automation**: 
+  - True 7-Day Coverage enabled (Mon-Sat Cron + Sun Concurrent Fetch).
+  - "Weekly HN Rewind" ensures full context with persisted comments.
+
 #### Phase 4c: Video Platform Trending (YouTube & TikTok) 🔜 THIRD
 
 **Goal**: Discover viral topics programmatically from video platforms.

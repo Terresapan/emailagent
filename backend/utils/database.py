@@ -141,6 +141,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
                 "score": s.score,
                 "comments_count": s.comments_count,
                 "by": s.by,
+                "comments": getattr(s, 'comments', []),
                 "verdict": getattr(s, 'verdict', None),
                 "sentiment": getattr(s, 'sentiment', None),
             }

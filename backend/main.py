@@ -301,14 +301,26 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
                 future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
                 concurrent.futures.wait([future_digest, future_ph, future_hn])
             logger.info("All daily processors completed")
-        elif email_type == "all_weekly" or email_type == "weekly_all":
             # Run weekly deep dive and weekly product hunt in parallel
-            logger.info("Running all WEEKLY processors in parallel...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            # Also run daily Hacker News fetch to ensure Sunday's data is captured for the weekly rollup
+            logger.info("Running all WEEKLY processors in parallel (sequencing HN daily->weekly)...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # independent tasks
                 future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
-                future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
-                future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
-                concurrent.futures.wait([future_digest, future_ph, future_hn])
+                future_ph_weekly = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
+                future_ph_daily = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
+                
+                # Run Daily HN first
+                future_hn_daily = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
+                
+                # Wait for Daily HN to complete so DB is populated
+                concurrent.futures.wait([future_hn_daily])
+                
+                # Run Weekly HN (aggregates the data just saved)
+                future_hn_weekly = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
+                
+                # Wait for everything else
+                concurrent.futures.wait([future_digest, future_ph_weekly, future_ph_daily, future_hn_weekly])
             logger.info("All weekly processors completed")
         elif email_type == "hackernews":
             main_hacker_news(gmail_client, dry_run, timeframe=timeframe)
