@@ -2,7 +2,8 @@
 LangGraph-based Hacker News analyzer.
 Fetches top stories and identifies developer trends/culture.
 """
-from datetime import datetime
+from datetime import datetime, timezone
+import time
 from typing import TypedDict, List, Optional
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
@@ -133,10 +134,13 @@ class HackerNewsAnalyzer:
         
         final = self.graph.invoke(state)
         
+        # Use local time (respects TZ environment variable)
+        local_now = datetime.now()
+        
         return HackerNewsInsight(
-            date=datetime.utcnow(),
+            date=local_now,
             stories=final.get("stories", [])[:10], # Keep top 10 for dashboard
             summary=final.get("summary", ""),
             top_themes=final.get("top_themes", []),
-            created_at=datetime.utcnow()
+            created_at=local_now
         )

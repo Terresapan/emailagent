@@ -36,6 +36,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - TZ=America/Los_Angeles
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
     volumes:
       # Mount API code for hot-reloading

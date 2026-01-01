@@ -70,7 +70,7 @@ async def health_check(db: Session = Depends(get_db)):
     
     return HealthResponse(
         status="ok",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(),  # Local time (TZ=America/Los_Angeles)
         database=db_status,
     )
 
@@ -267,7 +267,7 @@ async def trigger_process(
         
         # Update status to running
         process_status["status"] = "running"
-        process_status["started_at"] = datetime.utcnow()
+        process_status["started_at"] = datetime.now()  # Local time
         process_status["completed_at"] = None
         process_status["emails_found"] = None
         process_status["message"] = f"Processing {digest_type}..."
@@ -315,7 +315,7 @@ async def trigger_process(
                     success = "Hacker News Processing Complete" in log_output or items_found > 0
                 
                 # Update status
-                process_status["completed_at"] = datetime.utcnow()
+                process_status["completed_at"] = datetime.now()  # Local time
                 process_status["emails_found"] = items_found
                 
                 if success:
@@ -329,7 +329,7 @@ async def trigger_process(
                 
             except Exception as e:
                 process_status["status"] = "error"
-                process_status["completed_at"] = datetime.utcnow()
+                process_status["completed_at"] = datetime.now()  # Local time
                 process_status["message"] = str(e)
                 print(f"Exec error: {e}")
         

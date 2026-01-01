@@ -52,7 +52,7 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
                 existing_digest.newsletter_summaries = summaries
                 existing_digest.structured_digests = [d.model_dump() for d in digest.digests]
                 existing_digest.emails_processed = digest.emails_processed
-                existing_digest.created_at = datetime.utcnow()  # Update timestamp
+                existing_digest.created_at = datetime.now()  # Update timestamp (local time)
                 digest_record = existing_digest
             else:
                 # Create new digest record
@@ -149,7 +149,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
             existing.stories_json = stories_json
             existing.summary = insight.summary
             existing.top_themes = insight.top_themes
-            existing.created_at = datetime.utcnow()
+            existing.created_at = datetime.now()  # Local time
             insight_record = existing
             logger.info(f"Updated existing Hacker News insight for {insight_date} (ID: {existing.id})")
         else:
@@ -159,7 +159,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
                 stories_json=stories_json,
                 summary=insight.summary,
                 top_themes=insight.top_themes,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(),  # Local time
             )
             session.add(insight_record)
             logger.info(f"Created new Hacker News insight for {insight_date}")

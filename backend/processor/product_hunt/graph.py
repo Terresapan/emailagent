@@ -297,6 +297,9 @@ suitable for a tech-savvy audience interested in AI tools."""
         
         final_state = self.graph.invoke(initial_state)
         
+        # Use local time (respects TZ environment variable)
+        local_now = datetime.now()
+        
         # Convert to ProductHuntInsight
         launches = [
             ProductLaunch(
@@ -307,13 +310,13 @@ suitable for a tech-savvy audience interested in AI tools."""
                 votesCount=l.get("votes", 0),
                 website=l.get("website"),
                 topics=l.get("topics", []),
-                createdAt=datetime.utcnow().isoformat(),
+                createdAt=local_now.isoformat(),
             )
             for l in final_state.get("launches", [])
         ]
         
         insight = ProductHuntInsight(
-            date=datetime.utcnow(),
+            date=local_now,
             top_launches=launches[:5],  # Top 5
             trend_summary=final_state.get("trend_summary", ""),
             content_angles=final_state.get("content_angles", []),

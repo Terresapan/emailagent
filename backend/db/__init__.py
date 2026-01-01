@@ -44,7 +44,7 @@ class Digest(Base):
     newsletter_summaries = Column(Text)
     structured_digests = Column(JSON)  # List of serialized EmailDigest objects
     emails_processed = Column(JSON)  # List of "sender: subject" strings
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
     # Relationship to emails
     emails = relationship("Email", back_populates="digest")
@@ -60,7 +60,7 @@ class Email(Base):
     subject = Column(Text, nullable=False)
     body = Column(Text, nullable=False)
     received_at = Column(DateTime)
-    processed_at = Column(DateTime, default=datetime.utcnow)
+    processed_at = Column(DateTime, default=datetime.now)
     digest_id = Column(Integer, ForeignKey("digests.id"))
 
     # Relationship to digest
