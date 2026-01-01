@@ -141,8 +141,11 @@ docker exec emailagent uv run python main.py --type all_weekly
 |--------|--------|-------------|
 | `--type` | `dailydigest` (default) | Newsletter briefing + LinkedIn content |
 | `--type` | `weeklydeepdives` | Expert essays → strategic briefing |
-| `--type` | `productlaunch` | **NEW**: Product Hunt AI tools discovery |
-| `--type` | `all` | **NEW**: Run daily digest + Product Hunt in parallel |
+| `--type` | `productlaunch` | Product Hunt AI tools discovery |
+| `--type` | `hackernews` | Hacker News developer trends analysis |
+| `--type` | `all` | Run daily digest + Product Hunt in parallel |
+| `--type` | `all_weekly` | Run weekly deep dive + Product Hunt + HackerNews in parallel |
+| `--timeframe` | `daily` / `weekly` | Timeframe for Product Hunt and HackerNews |
 | `--dry-run` | - | Preview output without modifying emails or sending |
 
 ### Database Commands

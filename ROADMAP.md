@@ -28,25 +28,31 @@ emailagent/                    # Monorepo root
 | **Phase 0** | Daily newsletter digest | ✅ Complete |
 | **Phase 1** | Weekly deep insights digest | ✅ Complete |
 | **Phase 3** | PostgreSQL database (local Docker) | ✅ Complete |
+| **Phase 4a** | Product Hunt Integration | ✅ Complete |
+| **Phase 4b** | Hacker News Integration | ✅ Complete |
 | **Phase 5** | Next.js dashboard MVP | ✅ Complete |
 | **Phase 5.5** | Code quality improvements | ✅ Complete |
 
 ### What's Working Now:
 - **Daily Digest**: `python main.py --type dailydigest`
 - **Weekly Deep Dive**: `python main.py --type weeklydeepdives`
+- **Product Hunt**: `python main.py --type productlaunch` (daily/weekly)
+- **Hacker News**: `python main.py --type hackernews` (daily/weekly)
 - **Database**: PostgreSQL with raw email storage + digest upsert
-- **Dashboard**: Next.js with Daily/Weekly toggle, **Run Now** button, real-time polling
-- **API**: FastAPI with `/api/digest/latest`, `/api/process`, `/api/process/status`
+- **Dashboard**: 4-tab layout (Intelligence, Product Hunt, HackerNews, Strategy)
+- **Run Button**: Context-aware – shows which process is running across all tabs
+- **API**: FastAPI with `/api/digest/latest`, `/api/producthunt/latest`, `/api/hackernews/latest`, `/api/process`
 - **Docker Stack**: 4 services (emailagent, api, dashboard, db)
 
-### Recent Improvements (Phase 5.5):
+### Recent Improvements:
+- ✅ Hacker News integration with Developer Zeitgeist analysis
+- ✅ Product Hunt integration (daily + weekly)
+- ✅ 4-tab dashboard layout (Intelligence, Product Hunt, HackerNews, Strategy)
+- ✅ Context-aware Run button (shows which process is running)
+- ✅ Email delivery for all digest types
 - ✅ Removed hardcoded email fallback (security)
 - ✅ Consolidated database models into shared `db/` package
-- ✅ Updated to SQLAlchemy 2.0 patterns
-- ✅ Added connection pooling for database
 - ✅ Digest upsert: one per date+type (no duplicates)
-- ✅ **Run Now** button with status polling and progress feedback
-- ✅ Edge case: "No emails" detection with proper UI feedback
 
 ---
 
@@ -92,35 +98,29 @@ emailagent/                    # Monorepo root
 
 ---
 
-#### Phase 4a: Product Hunt Integration 🔜 FIRST
+#### Phase 4a: Product Hunt Integration ✅ COMPLETE
 
-**Goal**: Add automated AI tool discovery from Product Hunt.
+**Goal**: Automated AI tool discovery from Product Hunt.
 
-**Frequency**: Once daily (fetch yesterday's top 20-50 AI products).
-
-**Why**: Catch trending AI tools for "Top Tools" content and product inspiration.
-
-**Implementation Plan:**
-```python
-# backend/sources/product_hunt.py
-# GraphQL API - 500 requests/day (Free)
-def fetch_daily_launches() -> list[dict]:
-    # Query posts tagged 'artificial-intelligence' ranked by votes
-```
+**Features:**
+- Daily: Fetches top 20 AI launches from last 24 hours
+- Weekly: Fetches top launches from last 7 days with trend analysis
+- LLM-generated content angles
+- Email delivery of digests
+- Dashboard card with launches and trend summary
 
 ---
 
-#### Phase 4b: Hacker News Integration 🔜 SECOND
+#### Phase 4b: Hacker News Integration ✅ COMPLETE
 
 **Goal**: Technical deep dives and developer sentiment.
 
-**Frequency**: Daily (filtered for high-signal stories).
-
-**Why**: HN is where developers discuss model releases (GPT-5, Claude) honestly.
-
-**Filter Strategy**:
-- Min score: 100+ (community consensus)
-- Keywords: AI, LLM, GPT, Agents, Automation
+**Features:**
+- Fetches top 25 stories from HN Firebase API
+- LLM analysis generates "Developer Zeitgeist" summary
+- Top themes extraction
+- Email delivery of insights
+- Dashboard card with stories, scores, comments
 
 ---
 
@@ -207,6 +207,9 @@ def fetch_daily_launches() -> list[dict]:
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| Hacker News integration | Developer trends + sentiment analysis | Dec 2025 |
+| Context-aware Run button | Shows which process is running across tabs | Dec 2025 |
+| 4-tab dashboard layout | Separate tabs for each content source | Dec 2025 |
 | Product Hunt before HN | More actionable for content; easier API | Dec 2025 |
 | Code quality phase added | Security fixes, model consolidation, UX improvements | Dec 2025 |
 | Digest upsert logic | Avoid duplicates when testing same day | Dec 2025 |
