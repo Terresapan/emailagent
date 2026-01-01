@@ -29,11 +29,11 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
-from processor.states import (
+from .states import (
     Email, DailyDigest, ProcessorState,
     WeeklyDeepDive, DeepDiveProcessorState, DeepDiveSummary
 )
-from processor.nodes import (
+from .nodes import (
     distribute_emails,
     map_emails,
     prepare_content_generation,

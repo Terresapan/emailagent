@@ -12,6 +12,7 @@ from sqlalchemy import desc
 
 from database import get_db, init_db
 from models import Digest, Email
+from db import ProductHuntInsightDB
 from schemas import (
     DigestResponse,
     DigestWithEmails,
@@ -19,6 +20,8 @@ from schemas import (
     HealthResponse,
     ProcessResponse,
     ProcessStatusResponse,
+    ProductHuntInsightResponse,
+    ProductHuntLaunchResponse,
 )
 
 # In-memory process status tracking
@@ -149,6 +152,42 @@ async def get_email_by_id(email_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Email not found")
     
     return email
+
+
+@app.get("/api/tools/latest", response_model=Optional[ProductHuntInsightResponse])
+async def get_latest_tools_insight(db: Session = Depends(get_db)):
+    """Get the most recent Product Hunt insight for AI tools."""
+    insight = (
+        db.query(ProductHuntInsightDB)
+        .order_by(ProductHuntInsightDB.created_at.desc())
+        .first()
+    )
+    
+    if not insight:
+        return None
+    
+    # Transform launches_json to response format
+    launches = [
+        ProductHuntLaunchResponse(
+            id=l.get("id", ""),
+            name=l.get("name", "Unknown"),
+            tagline=l.get("tagline", ""),
+            votes=l.get("votes", 0),
+            website=l.get("website"),
+            topics=l.get("topics", []),
+        )
+        for l in (insight.launches_json or [])
+    ]
+    
+    return ProductHuntInsightResponse(
+        id=insight.id,
+        date=insight.date,
+        launches=launches,
+        trend_summary=insight.trend_summary,
+        content_angles=insight.content_angles or [],
+        period=insight.period,
+        created_at=insight.created_at,
+    )
 
 
 @app.post("/api/process", response_model=ProcessResponse)

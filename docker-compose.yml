@@ -20,6 +20,7 @@ services:
       - ./backend/db:/app/db
       - ./backend/gmail:/app/gmail
       - ./backend/processor:/app/processor
+      - ./backend/sources:/app/sources
       - ./backend/utils:/app/utils
     env_file:
       - ./backend/.env

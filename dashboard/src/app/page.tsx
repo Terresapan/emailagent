@@ -5,13 +5,14 @@ import { RefreshCw, Bell, Play } from "lucide-react";
 import BriefingCard from "@/components/BriefingCard";
 import LinkedInCard from "@/components/LinkedInCard";
 import DeepDiveCard from "@/components/DeepDiveCard";
+import ToolsCard from "@/components/ToolsCard";
 import NewsletterItem from "@/components/NewsletterItem";
-import { fetchLatestDigest, triggerProcess, getProcessStatus, Digest } from "@/lib/api";
+import { fetchLatestDigest, triggerProcess, getProcessStatus, fetchToolsInsight, Digest, ToolsInsight } from "@/lib/api";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-type ViewType = "daily" | "weekly";
+type ViewType = "daily" | "tools" | "weekly";
 
 export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>("daily");
@@ -23,6 +24,7 @@ export default function Home() {
   const [newContentAvailable, setNewContentAvailable] = useState(false);
   const [lastKnownDailyId, setLastKnownDailyId] = useState<number | null>(null);
   const [lastKnownWeeklyId, setLastKnownWeeklyId] = useState<number | null>(null);
+  const [toolsInsight, setToolsInsight] = useState<ToolsInsight | null>(null);
   const [mounted, setMounted] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processMessage, setProcessMessage] = useState<string | null>(null);
@@ -32,12 +34,14 @@ export default function Home() {
     setError(null);
     setNewContentAvailable(false);
     try {
-      const [daily, weekly] = await Promise.all([
+      const [daily, weekly, tools] = await Promise.all([
         fetchLatestDigest("daily"),
         fetchLatestDigest("weekly"),
+        fetchToolsInsight(),
       ]);
       setDailyDigest(daily);
       setWeeklyDigest(weekly);
+      setToolsInsight(tools);
       if (daily) setLastKnownDailyId(daily.id);
       if (weekly) setLastKnownWeeklyId(weekly.id);
       setLastRefresh(new Date());
@@ -100,6 +104,16 @@ export default function Home() {
               }`}
             >
               Intelligence
+            </button>
+            <button
+              onClick={() => setActiveView("tools")}
+              className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
+                activeView === "tools"
+                  ? "text-brand-orange"
+                  : "text-muted-foreground hover:text-white"
+              }`}
+            >
+              Tools
             </button>
             <button
               onClick={() => setActiveView("weekly")}
@@ -220,13 +234,21 @@ export default function Home() {
             </div>
           )}
 
-          {loading && !currentDigest && (
+          {loading && !currentDigest && activeView !== "tools" && (
              <div className="space-y-4 animate-pulse">
                 <div className="h-96 bg-white/5 rounded-lg border border-white/5" />
              </div>
           )}
 
-          {!loading && !currentDigest && !error && (
+          {/* Tools View */}
+          {activeView === "tools" && (
+            <MotionItem className="h-full">
+              <ToolsCard insight={toolsInsight} />
+            </MotionItem>
+          )}
+
+          {/* Daily/Weekly Digest Views */}
+          {activeView !== "tools" && !loading && !currentDigest && !error && (
             <div className="py-32 text-center border border-dashed border-white/10 rounded-lg">
               <p className="font-serif text-3xl text-muted-foreground italic">
                 "Silence is also information."
@@ -234,7 +256,7 @@ export default function Home() {
             </div>
           )}
 
-          {currentDigest && (
+          {activeView !== "tools" && currentDigest && (
             <>
               {/* Primary Article */}
               <MotionItem className="h-full">
@@ -268,29 +290,51 @@ export default function Home() {
         <div className="lg:col-span-4 flex flex-col gap-8 h-fit lg:sticky lg:top-8">
            
            {/* Metadata / Stats */}
-           {currentDigest && (
+           {/* Metadata / Stats */}
+           {(currentDigest || (activeView === "tools" && toolsInsight)) && (
              <MotionItem>
                <div className="p-6 bg-card/30 backdrop-blur-md border border-white/5 rounded-lg">
                   <h4 className="font-sans text-xs font-bold uppercase tracking-widest text-muted-foreground mb-6">
                     Metadata
                   </h4>
                   
-                  <div className="space-y-6">
-                    <div className="flex items-start justify-between pb-4 border-b border-white/5">
-                       <span className="text-sm text-gray-400">Date</span>
-                       <span className="font-serif text-white">{currentDigest.date}</span>
-                    </div>
+                  {activeView === "tools" && toolsInsight ? (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                         <span className="text-sm text-gray-400">Date</span>
+                         <span className="font-serif text-white">{toolsInsight.date}</span>
+                      </div>
 
-                    <div className="flex items-start justify-between pb-4 border-b border-white/5">
-                       <span className="text-sm text-gray-400">Sources</span>
-                       <span className="font-serif text-white">{currentDigest.emails_processed?.length || 0}</span>
-                    </div>
+                      <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                         <span className="text-sm text-gray-400">Tools Found</span>
+                         <span className="font-serif text-white">{toolsInsight.launches.length}</span>
+                      </div>
 
-                    <div className="flex items-start justify-between">
-                       <span className="text-sm text-gray-400">Est. Read</span>
-                       <span className="font-serif text-white">~5 min</span>
+                      <div className="flex items-start justify-between">
+                         <span className="text-sm text-gray-400">Top Trend</span>
+                         <span className="font-serif text-white line-clamp-1 max-w-[150px]" title={toolsInsight.trend_summary?.split('\n')[0].replace(/\*\*/g, '')}>
+                            {toolsInsight.trend_summary?.split('\n')[2]?.replace(/\*\*/g, '').replace('Top Trends: ', '').split(',')[0] || "AI Agents"}
+                         </span>
+                      </div>
                     </div>
-                  </div>
+                  ) : currentDigest && (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                         <span className="text-sm text-gray-400">Date</span>
+                         <span className="font-serif text-white">{currentDigest.date}</span>
+                      </div>
+
+                      <div className="flex items-start justify-between pb-4 border-b border-white/5">
+                         <span className="text-sm text-gray-400">Sources</span>
+                         <span className="font-serif text-white">{currentDigest.emails_processed?.length || 0}</span>
+                      </div>
+
+                      <div className="flex items-start justify-between">
+                         <span className="text-sm text-gray-400">Est. Read</span>
+                         <span className="font-serif text-white">~5 min</span>
+                      </div>
+                    </div>
+                  )}
                </div>
              </MotionItem>
            )}

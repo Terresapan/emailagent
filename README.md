@@ -95,11 +95,43 @@ docker exec emailagent uv run python main.py --dry-run
 docker exec emailagent uv run python main.py --type weeklydeepdives --dry-run
 ```
 
+### 3. Product Hunt AI Analysis
+Fetches the top AI product launches from Product Hunt (Daily or Weekly).
+
+**Daily Run (Default):**
+```bash
+# Fetches top products from the last 24 hours
+docker exec emailagent uv run python main.py --type productlaunch
+```
+
+**Weekly Run:**
+```bash
+# Fetches top products from the last 7 days + Weekly Trend Analysis
+docker exec emailagent uv run python main.py --type productlaunch --timeframe weekly
+```
+
+### 4. Parallel Execution
+
+**Parallel Daily Run:**
+Runs generic email digest AND daily Product Hunt analysis in parallel.
+```bash
+docker exec emailagent uv run python main.py --type all
+```
+
+**Parallel Weekly Run:**
+Runs weekly deep dive analysis AND weekly Product Hunt analysis in parallel.
+```bash
+docker exec emailagent uv run python main.py --type all_weekly
+```
+
 ### CLI Options
 
 | Option | Values | Description |
 |--------|--------|-------------|
-| `--type` | `dailydigest` (default), `weeklydeepdives` | Type of emails to process |
+| `--type` | `dailydigest` (default) | Newsletter briefing + LinkedIn content |
+| `--type` | `weeklydeepdives` | Expert essays → strategic briefing |
+| `--type` | `productlaunch` | **NEW**: Product Hunt AI tools discovery |
+| `--type` | `all` | **NEW**: Run daily digest + Product Hunt in parallel |
 | `--dry-run` | - | Preview output without modifying emails or sending |
 
 ### Database Commands

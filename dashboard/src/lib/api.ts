@@ -204,3 +204,36 @@ export async function getProcessStatus(): Promise<ProcessStatus> {
   return response.json();
 }
 
+export interface ProductHuntLaunch {
+  id: string;
+  name: string;
+  tagline: string;
+  votes: number;
+  website?: string;
+  topics: string[];
+}
+
+export interface ToolsInsight {
+  id: number;
+  date: string;
+  launches: ProductHuntLaunch[];
+  trend_summary?: string;
+  content_angles: string[];
+  period: "daily" | "weekly";
+  created_at: string;
+}
+
+/**
+ * Fetch the latest Product Hunt tools insight.
+ */
+export async function fetchToolsInsight(): Promise<ToolsInsight | null> {
+  const response = await fetch(`${API_URL}/api/tools/latest`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tools insight: ${response.statusText}`);
+  }
+
+  return response.json();
+}

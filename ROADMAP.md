@@ -9,8 +9,10 @@
 ```
 emailagent/                    # Monorepo root
 ├── backend/                   # Python agents, LangGraph, FastAPI
+│   ├── db/                    # Shared database models (NEW)
+│   ├── api/                   # FastAPI endpoints
+│   └── processor/             # LangGraph workflows
 ├── dashboard/                 # Next.js frontend
-├── conductor/                 # Workflow orchestration configs
 ├── docker-compose.yml         # Local development stack
 └── ROADMAP.md                 # This file
 ```
@@ -27,14 +29,24 @@ emailagent/                    # Monorepo root
 | **Phase 1** | Weekly deep insights digest | ✅ Complete |
 | **Phase 3** | PostgreSQL database (local Docker) | ✅ Complete |
 | **Phase 5** | Next.js dashboard MVP | ✅ Complete |
+| **Phase 5.5** | Code quality improvements | ✅ Complete |
 
 ### What's Working Now:
 - **Daily Digest**: `python main.py --type dailydigest`
 - **Weekly Deep Dive**: `python main.py --type weeklydeepdives`
-- **Database**: PostgreSQL with raw email storage + digests
-- **Dashboard**: Next.js with Daily/Weekly toggle, real-time polling
-- **API**: FastAPI with `/api/digest/latest`, `/api/digest/history`, `/api/emails`
+- **Database**: PostgreSQL with raw email storage + digest upsert
+- **Dashboard**: Next.js with Daily/Weekly toggle, **Run Now** button, real-time polling
+- **API**: FastAPI with `/api/digest/latest`, `/api/process`, `/api/process/status`
 - **Docker Stack**: 4 services (emailagent, api, dashboard, db)
+
+### Recent Improvements (Phase 5.5):
+- ✅ Removed hardcoded email fallback (security)
+- ✅ Consolidated database models into shared `db/` package
+- ✅ Updated to SQLAlchemy 2.0 patterns
+- ✅ Added connection pooling for database
+- ✅ Digest upsert: one per date+type (no duplicates)
+- ✅ **Run Now** button with status polling and progress feedback
+- ✅ Edge case: "No emails" detection with proper UI feedback
 
 ---
 
@@ -51,57 +63,42 @@ emailagent/                    # Monorepo root
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| Principle | How We Apply It |
-|-----------|-----------------|
-| **Data Pipeline = Moat** | Store raw + processed data; build robust extraction pipelines |
-| **Workflows > Tasks** | Use LangGraph for complex flows; end-to-end content pipeline |
-| **Proactive > Reactive** | Push-based dashboard with Approve/Reject actions |
-| **Outcomes > Features** | Track content performance; close feedback loop |
-
 ---
 
 ## Phase Roadmap
 
 ### Phase 0-1: Core Digests ✅ COMPLETE
 
-**Implemented:**
 - `sender_whitelist.json` with `type` field (`dailydigest` / `weeklydeepdives`)
-- `EmailSummarizer` for daily news
+- `EmailSummarizer` for daily news (parallel processing via LangGraph)
 - `DeepDiveSummarizer` for weekly thought leadership
-- Separate LLM configs: extraction (nano) vs generation (mini)
+- Separate LLM configs: extraction (gpt-5-nano) vs generation (gpt-5-mini)
 - Quality check nodes for all content
-- Database persistence via `save_to_database()`
 
 ---
 
 ### Phase 3: Database Foundation ✅ COMPLETE
 
-**Implemented:**
 - PostgreSQL 15 via Docker
-- SQLAlchemy models: `Digest`, `Email`
+- SQLAlchemy models: `Digest`, `Email` (shared `db/` package)
 - Raw email body storage for future re-processing
-- FastAPI endpoints for dashboard
+- Upsert logic: one digest per date+type
 
 ---
 
-### Phase 5: Dashboard MVP ✅ COMPLETE
+### Phase 4: Third Party Integration 🔜 NEXT
 
-**Implemented:**
-- Next.js 14 with App Router
-- Tailwind CSS with glassmorphism design
-- Daily/Weekly toggle with tabs
-- `BriefingCard`, `LinkedInCard`, `DeepDiveCard` components
-- Real-time polling for new content notifications
+**Goal**: Expand content sources beyond newsletters.
 
 ---
 
-### Phase 4: Product Hunt Integration 🔜 NEXT
+#### Phase 4a: Product Hunt Integration 🔜 FIRST
 
 **Goal**: Add automated AI tool discovery from Product Hunt.
 
-**Execution**: Once daily (fetch yesterday's top 20-50 products).
+**Frequency**: Once daily (fetch yesterday's top 20-50 AI products).
 
-**Why**: Catch trend NO.1 on that day to collect product ideas and create "Top AI Tools" content.
+**Why**: Catch trending AI tools for "Top Tools" content and product inspiration.
 
 **Implementation Plan:**
 ```python
@@ -113,25 +110,13 @@ def fetch_daily_launches() -> list[dict]:
 
 ---
 
-### Phase 4a: Video Platform Trending (YouTube & TikTok) 🔜 NEXT
-
-**Goal**: Discover viral topics programmatically from YouTube and TikTok.
-
-**Why**: Identify what's actually getting views vs just what's being written about.
-
-**Capabilities:**
-- **YouTube Trending**: Use YouTube Data API v3 (`mostPopular`, `videoCategoryId=28`) to find trending tech/AI videos.
-- **TikTok Trends**: Use TikTok Research API or 3rd-party scrapers for trending hashtags and hooks.
-
----
-
-### Phase 4b: Hacker News Integration 🔜 NEXT
+#### Phase 4b: Hacker News Integration 🔜 SECOND
 
 **Goal**: Technical deep dives and developer sentiment.
 
-**Execution**: Once weekly (or daily filter for high-signal stories).
+**Frequency**: Daily (filtered for high-signal stories).
 
-**Why**: HN is where developers discuss technical depth and model releases (GPT-5, Claude, etc.) honestly.
+**Why**: HN is where developers discuss model releases (GPT-5, Claude) honestly.
 
 **Filter Strategy**:
 - Min score: 100+ (community consensus)
@@ -139,22 +124,46 @@ def fetch_daily_launches() -> list[dict]:
 
 ---
 
+#### Phase 4c: Video Platform Trending (YouTube & TikTok) 🔜 THIRD
+
+**Goal**: Discover viral topics programmatically from video platforms.
+
+**Frequency**: Daily.
+
+**Why**: Identify what's actually getting views vs just what's being written about.
+
+**Capabilities:**
+- **YouTube**: YouTube Data API v3 (`mostPopular`, `videoCategoryId=28` for Science & Tech)
+- **TikTok**: TikTok Research API or 3rd-party for trending hashtags
+
+---
+
 ### Phase 4.5: Vector Embeddings 📅 AFTER DATA SOURCES
 
-**Goal**: Enable semantic search across all stored content (Newsletters + PH + YT + HN).
+**Goal**: Enable semantic search across all stored content.
 
 **Implementation:**
-- Switch to `pgvector/pgvector:pg15` Docker image.
-- Add vector columns to unified `content_items` table.
-- Implement monthly embedding cost control (~$0.01/mo).
+- Switch to `pgvector/pgvector:pg15` Docker image
+- Add vector columns to unified `content_items` table
+- Implement monthly embedding cost control (~$0.01/mo)
 
 ---
 
 ### Phase 4.6: Google Trends Validation 📅 FINAL DATA STEP
 
-**Goal**: Validate topics from all sources against general public search interest.
+**Goal**: Validate topics from all sources against public search interest.
 
-**Strategy**: Validation layer, not discovery. Use to prioritize topics for content creation.
+**Strategy**: Validation layer, not discovery. Prioritize topics for content.
+
+---
+
+### Phase 5: Dashboard MVP ✅ COMPLETE
+
+- Next.js 14 with App Router
+- Tailwind CSS with glassmorphism design
+- Daily/Weekly toggle with tabs
+- **Run Now** button with live status polling
+- Edge case handling: "No emails to process" feedback
 
 ---
 
@@ -172,14 +181,7 @@ def fetch_daily_launches() -> list[dict]:
 
 ### Phase 8: ChatGPT App Integration 📅 Q1 2026
 
-**Goal**: Publish EmailAgent as a ChatGPT App.
-
-**Enhanced Strategy**: Build the multi-source foundation (PH, YT, HN) FIRST to provide a superior "Know/Do/Show" experience beyond just newsletters.
-
-**Updated Capabilities:**
-- `get_trending_ai_tools`: From Product Hunt daily launches.
-- `get_platform_trends`: YouTube and TikTok viral hooks.
-- `get_validated_insights`: Newsletters + Google Trends validation.
+**Goal**: Publish EmailAgent as a ChatGPT App with multi-source foundation.
 
 ---
 
@@ -189,7 +191,7 @@ def fetch_daily_launches() -> list[dict]:
 | Component | Technology |
 |-----------|------------|
 | Agent Framework | LangGraph |
-| LLM | OpenAI o4-mini |
+| LLM | GPT-5-nano (extraction), GPT-5-mini (generation) |
 | Database | PostgreSQL 15 + pgvector (planned) |
 | API | FastAPI |
 
@@ -201,26 +203,16 @@ def fetch_daily_launches() -> list[dict]:
 
 ---
 
-## Cost Estimation (Monthly)
-
-| Service | Cost |
-|---------|------|
-| OpenAI LLM (GPT-4o-mini) | ~$0.25 |
-| OpenAI Embeddings (future) | ~$0.01 |
-| Data Source APIs | Free (PH, HN, YT Data API) |
-| **Total** | **~$0.30/month** |
-
----
-
 ## Key Decisions Log
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| Multi-Source Foundation First | Enhance ChatGPT App value with tools, video trends, and dev signals | Dec 2025 |
-| Skip Reddit | Too noisy; HN + PH provide higher signal for builder/creator needs | Dec 2025 |
-| HN Once Weekly/Daily | Balance signal vs noise; personal use vs content creation | Dec 2025 |
-| YouTube Trending Daily | High-value signal for SME/Founder content creation | Dec 2025 |
+| Product Hunt before HN | More actionable for content; easier API | Dec 2025 |
+| Code quality phase added | Security fixes, model consolidation, UX improvements | Dec 2025 |
+| Digest upsert logic | Avoid duplicates when testing same day | Dec 2025 |
+| Run Now with status polling | Better UX than timeout-based approach | Dec 2025 |
+| Skip Reddit | Too noisy; HN + PH provide higher signal | Dec 2025 |
 
 ---
 
-*Last Updated: December 22, 2025*
+*Last Updated: December 31, 2025*

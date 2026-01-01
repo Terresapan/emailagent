@@ -36,6 +36,9 @@ NEWSLETTER_LABEL = "Newsletters"
 # Supports multiple recipients as comma-separated values, e.g., "user1@example.com,user2@example.com"
 DIGEST_RECIPIENT_EMAIL = os.getenv("DIGEST_RECIPIENT_EMAIL")
 
+# Third-party API settings
+PRODUCT_HUNT_TOKEN = os.getenv("PRODUCT_HUNT_TOKEN")
+
 # LLM settings
 # Use different models for different tasks:
 # - nano: Fast extraction/summarization

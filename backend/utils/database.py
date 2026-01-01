@@ -105,3 +105,78 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
     except Exception as e:
         logger.error(f"Failed to save to database: {e}")
         return None
+
+
+def save_product_hunt_insight(insight) -> Optional[int]:
+    """
+    Save Product Hunt insight to database.
+    
+    Uses UPSERT logic: if an insight already exists for today,
+    it will be updated instead of creating a duplicate.
+    
+    Args:
+        insight: ProductHuntInsight object from analyzer
+        
+    Returns:
+        Insight ID if saved successfully, None otherwise
+    """
+    from db import ProductHuntInsightDB, get_session
+    
+    try:
+        session = get_session()
+        
+        try:
+            insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
+            
+            # UPSERT: Check if insight exists for today AND period
+            existing = session.query(ProductHuntInsightDB).filter_by(
+                date=insight_date,
+                period=insight.period
+            ).first()
+            
+            # Serialize launches to JSON
+            launches_json = [
+                {
+                    "id": l.id,
+                    "name": l.name,
+                    "tagline": l.tagline,
+                    "votes": l.votes,  # Use internal field name
+                    "website": l.website,
+                    "topics": l.topics,
+                }
+                for l in insight.top_launches
+            ]
+            
+            if existing:
+                # Update existing
+                existing.launches_json = launches_json
+                existing.trend_summary = insight.trend_summary
+                existing.content_angles = insight.content_angles
+                existing.created_at = insight.date
+                insight_record = existing
+                logger.info(f"Updated existing Product Hunt {insight.period} insight for {insight_date} (ID: {existing.id})")
+            else:
+                # Create new
+                insight_record = ProductHuntInsightDB(
+                    date=insight_date,
+                    period=insight.period,
+                    launches_json=launches_json,
+                    trend_summary=insight.trend_summary,
+                    content_angles=insight.content_angles,
+                )
+                session.add(insight_record)
+                logger.info(f"Created new Product Hunt {insight.period} insight for {insight_date}")
+            
+            session.commit()
+            return insight_record.id
+            
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Database transaction failed: {e}")
+            raise
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save Product Hunt insight: {e}")
+        return None

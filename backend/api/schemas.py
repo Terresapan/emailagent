@@ -69,3 +69,27 @@ class ProcessStatusResponse(BaseModel):
     completed_at: Optional[datetime] = None
     emails_found: Optional[int] = None
     message: Optional[str] = None
+
+
+class ProductHuntLaunchResponse(BaseModel):
+    """A Product Hunt launch."""
+    id: str
+    name: str
+    tagline: str
+    votes: int
+    website: Optional[str] = None
+    topics: List[str] = []
+
+
+class ProductHuntInsightResponse(BaseModel):
+    """Product Hunt analysis insight."""
+    id: int
+    date: date
+    launches: List[ProductHuntLaunchResponse] = []
+    trend_summary: Optional[str] = None
+    content_angles: List[str] = []
+    period: str = "daily"
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

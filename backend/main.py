@@ -1,13 +1,16 @@
 """Main orchestration script for the email digest agent."""
 import argparse
+import asyncio
+import concurrent.futures
 from datetime import date
-from config.settings import validate_config, load_sender_whitelist_by_type, DIGEST_RECIPIENT_EMAIL
+from config.settings import validate_config, load_sender_whitelist_by_type, DIGEST_RECIPIENT_EMAIL, PRODUCT_HUNT_TOKEN
 from gmail.client import GmailClient
-from processor.states import Email
-from processor.graph import EmailSummarizer, DeepDiveSummarizer
-from processor.prompts import DIGEST_EMAIL_TEMPLATE, LINKEDIN_EMAIL_TEMPLATE, DEEPDIVE_EMAIL_TEMPLATE
+from processor.email.states import Email
+from processor.email.graph import EmailSummarizer, DeepDiveSummarizer
+from processor.product_hunt.graph import ProductHuntAnalyzer
+from processor.email.prompts import DIGEST_EMAIL_TEMPLATE, LINKEDIN_EMAIL_TEMPLATE, DEEPDIVE_EMAIL_TEMPLATE
 from utils.logger import setup_logger
-from utils.database import save_to_database
+from utils.database import save_to_database, save_product_hunt_insight
 
 logger = setup_logger(__name__)
 
@@ -244,16 +247,17 @@ def main_weekly_deepdive(gmail_client: GmailClient, sender_configs: list, dry_ru
     logger.info("=" * 60)
 
 
-def main(email_type: str = "dailydigest", dry_run: bool = False):
+def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str = "daily"):
     """
     Main execution function.
     
     Args:
-        email_type: Either 'dailydigest' or 'weeklydeepdives'
+        email_type: 'dailydigest', 'weeklydeepdives', 'productlaunch', 'all'
         dry_run: If True, don't mark emails as read or create drafts
+        timeframe: 'daily' (default) or 'weekly' - mostly for productlaunch
     """
     logger.info("=" * 60)
-    logger.info(f"Email Agent Starting - Type: {email_type}")
+    logger.info(f"Email Agent Starting - Type: {email_type} (Timeframe: {timeframe})")
     logger.info("=" * 60)
     
     try:
@@ -263,13 +267,16 @@ def main(email_type: str = "dailydigest", dry_run: bool = False):
         logger.info("✓ Configuration valid")
         
         # Load sender whitelist filtered by type
-        logger.info(f"Loading sender whitelist for type: {email_type}...")
-        sender_configs = load_sender_whitelist_by_type(email_type)
-        logger.info(f"✓ Loaded {len(sender_configs)} senders for {email_type}")
-        
-        if not sender_configs:
-            logger.error(f"No senders configured for type: {email_type}")
-            return
+        sender_configs = []
+        if email_type in ["dailydigest", "weeklydeepdives", "all"]:
+            load_type = "dailydigest" if email_type == "all" else email_type
+            logger.info(f"Loading sender whitelist for type: {load_type}...")
+            sender_configs = load_sender_whitelist_by_type(load_type)
+            logger.info(f"✓ Loaded {len(sender_configs)} senders for {load_type}")
+            
+            if not sender_configs:
+                logger.error(f"No senders configured for type: {load_type}")
+                return
         
         # Initialize Gmail client
         logger.info("Initializing Gmail client...")
@@ -281,6 +288,25 @@ def main(email_type: str = "dailydigest", dry_run: bool = False):
             main_daily_digest(gmail_client, sender_configs, dry_run)
         elif email_type == "weeklydeepdives":
             main_weekly_deepdive(gmail_client, sender_configs, dry_run)
+        elif email_type == "productlaunch":
+            # Default to daily, but can be invoked with timeframe logic via arg if needed
+            main_product_hunt(gmail_client, dry_run, timeframe=timeframe)
+        elif email_type == "all":
+            # Run daily email digest and daily product hunt in parallel
+            logger.info("Running all DAILY processors in parallel...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                future_digest = executor.submit(main_daily_digest, gmail_client, sender_configs, dry_run)
+                future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
+                concurrent.futures.wait([future_digest, future_ph])
+            logger.info("All daily processors completed")
+        elif email_type == "all_weekly" or email_type == "weekly_all":
+            # Run weekly deep dive and weekly product hunt in parallel
+            logger.info("Running all WEEKLY processors in parallel...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
+                future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
+                concurrent.futures.wait([future_digest, future_ph])
+            logger.info("All weekly processors completed")
         else:
             logger.error(f"Unknown email type: {email_type}")
             return
@@ -294,19 +320,117 @@ def main(email_type: str = "dailydigest", dry_run: bool = False):
         raise
 
 
+def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timeframe: str = "daily"):
+    """
+    Process Product Hunt AI launches and send insights email.
+    
+    Args:
+        gmail_client: Initialized Gmail client
+        dry_run: If True, don't send emails
+        timeframe: 'daily' or 'weekly'
+    """
+    logger.info("=" * 60)
+    logger.info(f"Product Hunt AI Tools Processing ({timeframe})")
+    logger.info("=" * 60)
+    
+    if not PRODUCT_HUNT_TOKEN:
+        logger.warning("PRODUCT_HUNT_TOKEN not set. Skipping Product Hunt processing.")
+        return
+    
+    # Initialize analyzer
+    logger.info(f"Initializing Product Hunt analyzer ({timeframe})...")
+    analyzer = ProductHuntAnalyzer(timeframe=timeframe)
+    
+    # Run analysis
+    logger.info("Fetching and analyzing AI launches...")
+    insight = analyzer.process()
+    
+    if not insight.top_launches:
+        logger.info(f"No AI launches found on Product Hunt ({timeframe}).")
+        return
+    
+    logger.info(f"✓ Analyzed {len(insight.top_launches)} top launches")
+    
+    # Save to database
+    if not dry_run:
+        logger.info("Saving insight to database...")
+        try:
+            insight_id = save_product_hunt_insight(insight)
+            logger.info(f"✓ Saved to database with ID: {insight_id}")
+        except Exception as e:
+            logger.error(f"Failed to save to database: {e}")
+    
+    # Format and send email
+    if not dry_run:
+        logger.info(f"Sending {timeframe} AI Tools digest to {DIGEST_RECIPIENT_EMAIL}...")
+        
+        # Format launches
+        launches_text = "\n".join([
+            f"• **{l.name}** ({l.votes} votes)\n  {l.tagline}\n  {l.website or 'No website'}"
+            for l in insight.top_launches[:5]
+        ])
+        
+        # Format content angles
+        angles_text = "\n".join([f"• {angle}" for angle in insight.content_angles])
+        
+        title_prefix = "Weekly AI Best" if timeframe == "weekly" else "AI Tools Discovery"
+        
+        email_body = f"""# 🚀 {title_prefix} – {date.today()}
+
+## Top AI Launches {timeframe.capitalize()}
+
+{launches_text}
+
+---
+
+## Trend Analysis
+
+{insight.trend_summary}
+
+---
+
+## Content Ideas
+
+{angles_text}
+"""
+        
+        try:
+            msg_id = gmail_client.send_email(
+                to=DIGEST_RECIPIENT_EMAIL,
+                subject=f"{title_prefix} – {date.today()}",
+                body=email_body
+            )
+            logger.info(f"✓ Sent AI Tools digest with ID: {msg_id}")
+        except Exception as e:
+            logger.error(f"Failed to send email: {e}")
+    else:
+        logger.info("[DRY RUN] Would send AI Tools digest email")
+        logger.info(f"Top Launches: {[l.name for l in insight.top_launches[:5]]}")
+    
+    logger.info("=" * 60)
+    logger.info("Product Hunt Processing Complete")
+    logger.info("=" * 60)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Newsletter Email Digest Agent")
     parser.add_argument(
         "--type",
-        choices=["dailydigest", "weeklydeepdives"],
+        choices=["dailydigest", "weeklydeepdives", "productlaunch", "all", "all_weekly"],
         default="dailydigest",
-        help="Type of emails to process: 'dailydigest' (Mon-Fri) or 'weeklydeepdives' (Sunday)"
+        help="Type of processing to run"
+    )
+    parser.add_argument(
+        "--timeframe",
+        choices=["daily", "weekly"],
+        default="daily",
+        help="Timeframe for Product Hunt analysis ('daily' or 'weekly')"
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Run without modifying emails or creating drafts"
+        help="Run without modifying emails or sending digests"
     )
     
     args = parser.parse_args()
-    main(email_type=args.type, dry_run=args.dry_run)
+    main(email_type=args.type, dry_run=args.dry_run, timeframe=args.timeframe)

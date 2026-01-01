@@ -67,6 +67,19 @@ class Email(Base):
     digest = relationship("Digest", back_populates="emails")
 
 
+class ProductHuntInsightDB(Base):
+    """Stored Product Hunt analysis results."""
+    __tablename__ = "product_hunt_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    period = Column(String(20), default="daily", nullable=False)
+    launches_json = Column(JSON)  # List of top launches
+    trend_summary = Column(Text)  # LLM-generated trend analysis
+    content_angles = Column(JSON)  # List of content ideas
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def get_session():
     """Get a new database session."""
     return SessionLocal()

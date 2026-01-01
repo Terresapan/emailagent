@@ -30,11 +30,11 @@ from langgraph.types import Send
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-from processor.states import (
+from .states import (
     ProcessorState, WorkerState, EmailDigest, CategorySummary,
     DeepDiveProcessorState, DeepDiveDigest, DeepDiveSummary
 )
-from processor.prompts import (
+from .prompts import (
     EMAIL_SUMMARIZATION_PROMPT, 
     DIGEST_BRIEFING_PROMPT,
     LINKEDIN_CONTENT_PROMPT,
