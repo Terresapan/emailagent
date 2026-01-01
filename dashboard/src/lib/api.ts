@@ -158,12 +158,12 @@ export interface ProcessResponse {
 }
 
 /**
- * Manually trigger email processing.
- * @param digestType - Either 'dailydigest' or 'weeklydeepdives'
+ * Manually trigger processing.
+ * @param digestType - 'dailydigest', 'weeklydeepdives', 'productlaunch', or 'hackernews'
  * @param dryRun - If true, preview only without modifying emails
  */
 export async function triggerProcess(
-  digestType: "dailydigest" | "weeklydeepdives" = "dailydigest",
+  digestType: "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews" = "dailydigest",
   dryRun: boolean = false
 ): Promise<ProcessResponse> {
   const response = await fetch(

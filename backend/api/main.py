@@ -246,10 +246,10 @@ async def trigger_process(
     import docker
     import threading
     
-    if digest_type not in ["dailydigest", "weeklydeepdives"]:
+    if digest_type not in ["dailydigest", "weeklydeepdives", "productlaunch", "hackernews"]:
         return ProcessResponse(
             status="error",
-            message=f"Invalid digest_type: {digest_type}. Use 'dailydigest' or 'weeklydeepdives'",
+            message=f"Invalid digest_type: {digest_type}. Use 'dailydigest', 'weeklydeepdives', 'productlaunch', or 'hackernews'",
             digest_id=None,
         )
     
@@ -288,24 +288,44 @@ async def trigger_process(
                 )
                 log_output = log_result.output.decode('utf-8') if log_result.output else ""
                 
-                # Parse log for email count
+                # Parse log for result based on process type
                 import re
-                no_emails = "No unread" in log_output or "Found 0 unread" in log_output
-                email_match = re.search(r'Found (\d+) unread emails', log_output)
-                emails_found = int(email_match.group(1)) if email_match else 0
+                
+                # Check for success markers based on digest type
+                success = False
+                items_found = 0
+                
+                if digest_type in ["dailydigest", "weeklydeepdives"]:
+                    # Email-based: Look for email count
+                    no_emails = "No unread" in log_output or "Found 0 unread" in log_output
+                    email_match = re.search(r'Found (\d+) unread emails', log_output)
+                    items_found = int(email_match.group(1)) if email_match else 0
+                    success = not no_emails and items_found > 0
+                    
+                elif digest_type == "productlaunch":
+                    # Product Hunt: Look for launches
+                    launch_match = re.search(r'Fetched (\d+) AI launches', log_output)
+                    items_found = int(launch_match.group(1)) if launch_match else 0
+                    success = "Product Hunt Processing Complete" in log_output or items_found > 0
+                    
+                elif digest_type == "hackernews":
+                    # Hacker News: Look for stories
+                    story_match = re.search(r'Fetched (\d+) stories', log_output)
+                    items_found = int(story_match.group(1)) if story_match else 0
+                    success = "Hacker News Processing Complete" in log_output or items_found > 0
                 
                 # Update status
                 process_status["completed_at"] = datetime.utcnow()
-                process_status["emails_found"] = emails_found
+                process_status["emails_found"] = items_found
                 
-                if no_emails or emails_found == 0:
-                    process_status["status"] = "no_emails"
-                    process_status["message"] = "No unread emails found to process"
-                else:
+                if success:
                     process_status["status"] = "completed"
-                    process_status["message"] = f"Processed {emails_found} emails successfully"
+                    process_status["message"] = f"Processed {items_found} items successfully"
+                else:
+                    process_status["status"] = "no_emails"
+                    process_status["message"] = "No content found to process"
                 
-                print(f"Process completed: {process_status['status']} ({emails_found} emails)")
+                print(f"Process completed: {process_status['status']} ({items_found} items)")
                 
             except Exception as e:
                 process_status["status"] = "error"

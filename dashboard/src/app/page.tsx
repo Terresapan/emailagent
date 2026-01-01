@@ -156,17 +156,22 @@ export default function Home() {
              </Button>
              )}
 
-             {/* Run Now Button - Enhanced UX */}
+             {/* Run Now Button - Context-Aware */}
              <Button
                variant="default"
                size="sm"
                disabled={processing}
                onClick={async () => {
                  setProcessing(true);
-                 setProcessMessage("⏳ Processing started... (~2-3 min)");
+                 const processTypeMap: Record<ViewType, "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews"> = {
+                   daily: "dailydigest",
+                   producthunt: "productlaunch",
+                   hackernews: "hackernews",
+                   weekly: "weeklydeepdives",
+                 };
+                 const digestType = processTypeMap[activeView];
+                 setProcessMessage(`⏳ Processing ${activeView}... (~30s-2min)`);
                  try {
-                   const digestType = activeView === "daily" ? "dailydigest" : "weeklydeepdives";
-                   const currentId = activeView === "daily" ? lastKnownDailyId : lastKnownWeeklyId;
                    await triggerProcess(digestType);
                    
                    // Poll process status every 5 seconds
@@ -181,13 +186,13 @@ export default function Home() {
                        
                        if (status.status === "completed") {
                          clearInterval(pollInterval);
-                         setProcessMessage(`✅ Complete! Processed ${status.emails_found} emails`);
+                         setProcessMessage(`✅ Complete!`);
                          await loadDigests();
                          setTimeout(() => setProcessMessage(null), 3000);
                          setProcessing(false);
                        } else if (status.status === "no_emails") {
                          clearInterval(pollInterval);
-                         setProcessMessage("📭 No new emails to process");
+                         setProcessMessage("📭 No new content to process");
                          setTimeout(() => setProcessMessage(null), 5000);
                          setProcessing(false);
                        } else if (status.status === "error") {
@@ -212,7 +217,11 @@ export default function Home() {
                className="gap-2 bg-gradient-to-r from-brand-fuchsia to-brand-purple hover:opacity-90 text-white border-0 shadow-lg shadow-brand-fuchsia/20"
              >
                <Play className={`h-3 w-3 ${processing ? "animate-spin" : ""}`} />
-               {processing ? "Processing..." : "Run Now"}
+               {processing ? "Processing..." : 
+                activeView === "daily" ? "Run Newsletter" :
+                activeView === "producthunt" ? "Run Product Hunt" :
+                activeView === "hackernews" ? "Run HackerNews" :
+                "Run Strategy"}
              </Button>
 
              {processMessage && (
