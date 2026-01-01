@@ -29,6 +29,7 @@ export default function Home() {
   const [hackerNewsInsight, setHackerNewsInsight] = useState<HackerNewsInsight | null>(null);
   const [mounted, setMounted] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processingType, setProcessingType] = useState<ViewType | null>(null);
   const [processMessage, setProcessMessage] = useState<string | null>(null);
 
   const loadDigests = async () => {
@@ -163,14 +164,21 @@ export default function Home() {
                disabled={processing}
                onClick={async () => {
                  setProcessing(true);
+                 setProcessingType(activeView);
                  const processTypeMap: Record<ViewType, "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews"> = {
                    daily: "dailydigest",
                    producthunt: "productlaunch",
                    hackernews: "hackernews",
                    weekly: "weeklydeepdives",
                  };
+                 const labelMap: Record<ViewType, string> = {
+                   daily: "Newsletter",
+                   producthunt: "Product Hunt",
+                   hackernews: "HackerNews",
+                   weekly: "Strategy",
+                 };
                  const digestType = processTypeMap[activeView];
-                 setProcessMessage(`⏳ Processing ${activeView}... (~30s-2min)`);
+                 setProcessMessage(`⏳ Running ${labelMap[activeView]}... (~30s-2min)`);
                  try {
                    await triggerProcess(digestType);
                    
@@ -179,7 +187,7 @@ export default function Home() {
                    const maxAttempts = 60; // 5 minutes at 5s intervals
                    const pollInterval = setInterval(async () => {
                      attempts++;
-                     setProcessMessage(`⏳ Processing... (${attempts * 5}s)`);
+                     setProcessMessage(`⏳ Running ${labelMap[activeView]}... (${attempts * 5}s)`);
                      
                      try {
                        const status = await getProcessStatus();
@@ -188,21 +196,29 @@ export default function Home() {
                          clearInterval(pollInterval);
                          setProcessMessage(`✅ Complete!`);
                          await loadDigests();
-                         setTimeout(() => setProcessMessage(null), 3000);
+                         setTimeout(() => {
+                           setProcessMessage(null);
+                           setProcessingType(null);
+                         }, 3000);
                          setProcessing(false);
                        } else if (status.status === "no_emails") {
                          clearInterval(pollInterval);
                          setProcessMessage("📭 No new content to process");
-                         setTimeout(() => setProcessMessage(null), 5000);
+                         setTimeout(() => {
+                           setProcessMessage(null);
+                           setProcessingType(null);
+                         }, 5000);
                          setProcessing(false);
                        } else if (status.status === "error") {
                          clearInterval(pollInterval);
                          setProcessMessage(`❌ Error: ${status.message}`);
                          setProcessing(false);
+                         setProcessingType(null);
                        } else if (attempts >= maxAttempts) {
                          clearInterval(pollInterval);
                          setProcessMessage("⏰ Timed out. Click refresh to check manually.");
                          setProcessing(false);
+                         setProcessingType(null);
                        }
                      } catch {
                        // Silently continue polling on error
@@ -212,16 +228,24 @@ export default function Home() {
                  } catch (err) {
                    setProcessMessage(err instanceof Error ? err.message : "Failed to start");
                    setProcessing(false);
+                   setProcessingType(null);
                  }
                }}
                className="gap-2 bg-gradient-to-r from-brand-fuchsia to-brand-purple hover:opacity-90 text-white border-0 shadow-lg shadow-brand-fuchsia/20"
              >
                <Play className={`h-3 w-3 ${processing ? "animate-spin" : ""}`} />
-               {processing ? "Processing..." : 
-                activeView === "daily" ? "Run Newsletter" :
-                activeView === "producthunt" ? "Run Product Hunt" :
-                activeView === "hackernews" ? "Run HackerNews" :
-                "Run Strategy"}
+               {processing ? (
+                 processingType === "daily" ? "Running Newsletter..." :
+                 processingType === "producthunt" ? "Running Product Hunt..." :
+                 processingType === "hackernews" ? "Running HackerNews..." :
+                 processingType === "weekly" ? "Running Strategy..." :
+                 "Processing..."
+               ) : (
+                 activeView === "daily" ? "Run Newsletter" :
+                 activeView === "producthunt" ? "Run Product Hunt" :
+                 activeView === "hackernews" ? "Run HackerNews" :
+                 "Run Strategy"
+               )}
              </Button>
 
              {processMessage && (
