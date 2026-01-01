@@ -103,6 +103,8 @@ class HackerNewsStoryResponse(BaseModel):
     score: int
     comments_count: int = 0
     by: Optional[str] = None
+    verdict: Optional[str] = None
+    sentiment: Optional[str] = None
 
 
 class HackerNewsInsightResponse(BaseModel):
@@ -113,6 +115,7 @@ class HackerNewsInsightResponse(BaseModel):
     summary: Optional[str] = None
     top_themes: List[str] = []
     created_at: datetime
+    period: str = "daily"
 
     class Config:
         from_attributes = True

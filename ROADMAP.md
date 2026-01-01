@@ -119,8 +119,9 @@ emailagent/                    # Monorepo root
 - Fetches top 25 stories from HN Firebase API
 - LLM analysis generates "Developer Zeitgeist" summary
 - Top themes extraction
+- **Sentiment Analysis ("The Sentinel")**: Analyzing top comments for community verdict
 - Email delivery of insights
-- Dashboard card with stories, scores, comments
+- Dashboard card with stories, scores, verdicts
 
 ---
 

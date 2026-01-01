@@ -37,6 +37,9 @@ class HackerNewsStory(BaseModel):
     comments_count: int = 0
     by: str
     time: Optional[int] = None
+    comments: list[str] = []  # Top 3 root comments
+    verdict: Optional[str] = None  # LLM-generated community consensus (e.g. "Skeptical")
+    sentiment: Optional[str] = None  # Emoji badge (e.g. "⚠️")
 
 
 class HackerNewsInsight(BaseModel):
@@ -46,3 +49,4 @@ class HackerNewsInsight(BaseModel):
     summary: str  # LLM-generated summary of developer trends
     top_themes: list[str]  # e.g., "WebComics", "Rust", "AI Safety"
     created_at: datetime
+    period: Literal['daily', 'weekly'] = "daily"

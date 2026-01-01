@@ -2,7 +2,7 @@
 
 This module uses the shared db package for models and session management.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB
@@ -126,9 +126,10 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
     try:
         insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
         
-        # UPSERT: Check if insight exists for today
+        # UPSERT: Check if insight exists for today AND period
         existing = session.query(HackerNewsInsightDB).filter_by(
-            date=insight_date
+            date=insight_date,
+            period=insight.period
         ).first()
         
         # Serialize stories to JSON
@@ -140,6 +141,8 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
                 "score": s.score,
                 "comments_count": s.comments_count,
                 "by": s.by,
+                "verdict": getattr(s, 'verdict', None),
+                "sentiment": getattr(s, 'sentiment', None),
             }
             for s in insight.stories
         ]
@@ -156,6 +159,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
             # Create new
             insight_record = HackerNewsInsightDB(
                 date=insight_date,
+                period=insight.period,
                 stories_json=stories_json,
                 summary=insight.summary,
                 top_themes=insight.top_themes,
@@ -246,3 +250,28 @@ def save_product_hunt_insight(insight) -> Optional[int]:
     except Exception as e:
         logger.error(f"Failed to save Product Hunt insight: {e}")
         return None
+
+
+def get_recent_hacker_news_insights(session: Session, days: int = 7) -> List[HackerNewsInsightDB]:
+    """
+    Fetch Hacker News insights from the last N days (daily only).
+    
+    Args:
+        session: SQLAlchemy session
+        days: Number of days to look back
+        
+    Returns:
+        List of HackerNewsInsightDB objects
+    """
+    try:
+        cutoff_date = datetime.now().date() - timedelta(days=days)
+        
+        insights = session.query(HackerNewsInsightDB).filter(
+            HackerNewsInsightDB.period == 'daily',
+            HackerNewsInsightDB.date >= cutoff_date
+        ).order_by(HackerNewsInsightDB.date.desc()).all()
+        
+        return insights
+    except Exception as e:
+        logger.error(f"Failed to fetch recent HN insights: {e}")
+        return []

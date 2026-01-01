@@ -90,11 +90,17 @@ class HackerNewsInsightDB(Base):
     __tablename__ = "hacker_news_insights"
     
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(Date, index=True, unique=True)
+    date = Column(Date, nullable=False, index=True)
+    period = Column(String(20), default="daily", nullable=False)  # 'daily' or 'weekly'
     stories_json = Column(JSON)  # List of stories
     summary = Column(Text)       # LLM summary
     top_themes = Column(JSON)    # List of strings
     created_at = Column(DateTime)
+
+    __table_args__ = (
+        # Ensure only one daily and one weekly entry per date
+        Index('ix_hacker_news_insights_date_period', 'date', 'period', unique=True),
+    )
 
 
 def get_session():

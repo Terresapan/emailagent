@@ -293,12 +293,13 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
             # Default to daily, but can be invoked with timeframe logic via arg if needed
             main_product_hunt(gmail_client, dry_run, timeframe=timeframe)
         elif email_type == "all":
-            # Run daily email digest and daily product hunt in parallel
+            # Run daily email digest, daily product hunt, and daily hacker news in parallel
             logger.info("Running all DAILY processors in parallel...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                 future_digest = executor.submit(main_daily_digest, gmail_client, sender_configs, dry_run)
                 future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
-                concurrent.futures.wait([future_digest, future_ph])
+                future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
+                concurrent.futures.wait([future_digest, future_ph, future_hn])
             logger.info("All daily processors completed")
         elif email_type == "all_weekly" or email_type == "weekly_all":
             # Run weekly deep dive and weekly product hunt in parallel
@@ -442,8 +443,8 @@ def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe
     logger.info("=" * 60)
     
     try:
-        logger.info("Initializing Hacker News analyzer...")
-        analyzer = HackerNewsAnalyzer()
+        logger.info(f"Initializing Hacker News analyzer ({timeframe})...")
+        analyzer = HackerNewsAnalyzer(timeframe=timeframe)
         
         logger.info("Fetching and analyzing Hacker News trends...")
         insight = analyzer.process()
@@ -476,11 +477,13 @@ def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe
             
             # Format top stories
             stories_text = "\n".join([
-                f"• **{s.title}** ({s.score} pts, {s.comments_count} comments)\n  {s.url or 'No link'}"
-                for s in insight.stories[:7]
+                f"• **{s.title}** ({s.score} pts, {s.comments_count} comments)\n  {s.sentiment or ''} {s.verdict or ''}\n  {s.url or 'No link'}"
+                for s in insight.stories[:10]
             ])
             
-            email_body = f"""# 📰 HackerNews Trends – {date.today()}
+            title_prefix = "Weekly HN Rewind" if timeframe == "weekly" else "HackerNews Trends"
+            
+            email_body = f"""# 📰 {title_prefix} – {date.today()}
 
 ## Developer Zeitgeist
 
@@ -506,7 +509,7 @@ def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe
             try:
                 msg_id = gmail_client.send_email(
                     to=recipient,
-                    subject=f"HackerNews Trends – {date.today()}",
+                    subject=f"{title_prefix} – {date.today()}",
                     body=email_body
                 )
                 logger.info(f"✓ Sent HackerNews digest with ID: {msg_id}")

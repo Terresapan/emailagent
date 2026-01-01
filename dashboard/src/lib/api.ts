@@ -164,10 +164,11 @@ export interface ProcessResponse {
  */
 export async function triggerProcess(
   digestType: "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews" = "dailydigest",
-  dryRun: boolean = false
+  dryRun: boolean = false,
+  timeframe: "daily" | "weekly" = "daily"
 ): Promise<ProcessResponse> {
   const response = await fetch(
-    `${API_URL}/api/process?digest_type=${digestType}&dry_run=${dryRun}`,
+    `${API_URL}/api/process?digest_type=${digestType}&dry_run=${dryRun}&timeframe=${timeframe}`,
     {
       method: "POST",
       cache: "no-store",
@@ -245,6 +246,8 @@ export interface HackerNewsStory {
   score: number;
   comments_count: number;
   by?: string;
+  verdict?: string;
+  sentiment?: string;
 }
 
 export interface HackerNewsInsight {
@@ -254,6 +257,7 @@ export interface HackerNewsInsight {
   summary?: string;
   top_themes: string[];
   created_at: string;
+  period: "daily" | "weekly";
 }
 
 /**

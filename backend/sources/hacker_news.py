@@ -14,6 +14,36 @@ class HackerNewsClient:
     def __init__(self):
         self.session = requests.Session()
     
+    def _fetch_comments(self, comment_ids: List[int], limit: int = 3) -> List[str]:
+        """
+        Fetch text content of top root comments.
+        
+        Args:
+            comment_ids: List of comment IDs (kids)
+            limit: Maximum number of comments to fetch
+            
+        Returns:
+            List of comment text strings (HTML stripped/cleaned via simple extraction)
+        """
+        comments = []
+        # Take top N comments
+        target_ids = comment_ids[:limit]
+        
+        for cid in target_ids:
+            try:
+                # Short timeout for comments to avoid hanging
+                response = self.session.get(f"{self.BASE_URL}/item/{cid}.json", timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    # Only keep valid text comments (not deleted/dead)
+                    if data and data.get('text') and not data.get('deleted') and not data.get('dead'):
+                        comments.append(data['text'])
+            except Exception as e:
+                logger.warning(f"Failed to fetch comment {cid}: {e}")
+                continue
+                
+        return comments
+    
     def get_top_stories(self, limit: int = 20) -> List[int]:
         """Fetch the IDs of the current top stories."""
         try:
@@ -34,6 +64,11 @@ class HackerNewsClient:
             
             if not data or data.get('type') != 'story':
                 return None
+            
+            # Fetch top 3 comments if available
+            comments = []
+            if 'kids' in data:
+                comments = self._fetch_comments(data['kids'], limit=3)
                 
             return HackerNewsStory(
                 id=str(data.get('id')),
@@ -42,7 +77,8 @@ class HackerNewsClient:
                 score=data.get('score', 0),
                 comments_count=data.get('descendants', 0),
                 by=data.get('by', 'unknown'),
-                time=data.get('time')
+                time=data.get('time'),
+                comments=comments
             )
         except Exception as e:
             logger.warning(f"Failed to fetch HN story {story_id}: {e}")

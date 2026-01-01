@@ -215,6 +215,8 @@ async def get_latest_hackernews_insight(db: Session = Depends(get_db)):
             score=s.get("score", 0),
             comments_count=s.get("comments_count", 0),
             by=s.get("by"),
+            verdict=s.get("verdict"),
+            sentiment=s.get("sentiment"),
         )
         for s in (insight.stories_json or [])
     ]
@@ -226,19 +228,22 @@ async def get_latest_hackernews_insight(db: Session = Depends(get_db)):
         summary=insight.summary,
         top_themes=insight.top_themes or [],
         created_at=insight.created_at,
+        period=getattr(insight, 'period', 'daily')
     )
 
 @app.post("/api/process", response_model=ProcessResponse)
 async def trigger_process(
     digest_type: str = "dailydigest",
-    dry_run: bool = False
+    dry_run: bool = False,
+    timeframe: str = "daily"
 ):
     """
     Manually trigger email processing.
     
     Args:
-        digest_type: Either 'dailydigest' or 'weeklydeepdives'
+        digest_type: Either 'dailydigest', 'weeklydeepdives', 'productlaunch', or 'hackernews'
         dry_run: If True, preview only without modifying emails
+        timeframe: 'daily' or 'weekly' (relevant for productlaunch/hackernews)
         
     Returns:
         ProcessResponse with status and message
@@ -254,7 +259,7 @@ async def trigger_process(
         )
     
     # Build command - redirect output to cron.log so manual runs are logged same as scheduled
-    cmd = f"uv run python main.py --type {digest_type}"
+    cmd = f"uv run python main.py --type {digest_type} --timeframe {timeframe}"
     if dry_run:
         cmd += " --dry-run"
     # Append output to cron.log (same as cron job)
@@ -309,8 +314,8 @@ async def trigger_process(
                     success = "Product Hunt Processing Complete" in log_output or items_found > 0
                     
                 elif digest_type == "hackernews":
-                    # Hacker News: Look for stories
-                    story_match = re.search(r'Fetched (\d+) stories', log_output)
+                    # Hacker News: Look for stories (fetched or aggregated)
+                    story_match = re.search(r'(?:Fetched|Aggregated) (\d+) (?:stories|unique stories)', log_output)
                     items_found = int(story_match.group(1)) if story_match else 0
                     success = "Hacker News Processing Complete" in log_output or items_found > 0
                 
