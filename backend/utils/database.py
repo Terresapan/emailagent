@@ -5,7 +5,9 @@ This module uses the shared db package for models and session management.
 from datetime import datetime
 from typing import List, Optional
 
-from db import Digest as DigestModel, Email as EmailModel, get_session
+from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB
+from sqlalchemy.orm import Session
+from sources.models import HackerNewsInsight
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -107,6 +109,69 @@ def save_to_database(emails: List, digest, digest_type: str = "daily") -> Option
         return None
 
 
+def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Optional[int]:
+    """
+    Save Hacker News insight to database.
+    
+    Uses UPSERT logic: if an insight already exists for today,
+    it will be updated instead of creating a duplicate.
+    
+    Args:
+        session: The SQLAlchemy session object.
+        insight: HackerNewsInsight object from analyzer.
+        
+    Returns:
+        Insight ID if saved successfully, None otherwise.
+    """
+    try:
+        insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
+        
+        # UPSERT: Check if insight exists for today
+        existing = session.query(HackerNewsInsightDB).filter_by(
+            date=insight_date
+        ).first()
+        
+        # Serialize stories to JSON
+        stories_json = [
+            {
+                "id": s.id,
+                "title": s.title,
+                "url": s.url,
+                "score": s.score,
+                "comments_count": s.comments_count,
+                "by": s.by,
+            }
+            for s in insight.stories
+        ]
+        
+        if existing:
+            # Update existing
+            existing.stories_json = stories_json
+            existing.summary = insight.summary
+            existing.top_themes = insight.top_themes
+            existing.created_at = datetime.utcnow()
+            insight_record = existing
+            logger.info(f"Updated existing Hacker News insight for {insight_date} (ID: {existing.id})")
+        else:
+            # Create new
+            insight_record = HackerNewsInsightDB(
+                date=insight_date,
+                stories_json=stories_json,
+                summary=insight.summary,
+                top_themes=insight.top_themes,
+                created_at=datetime.utcnow(),
+            )
+            session.add(insight_record)
+            logger.info(f"Created new Hacker News insight for {insight_date}")
+        
+        session.flush()
+        return insight_record.id
+        
+    except Exception as e:
+        logger.error(f"Database transaction failed for Hacker News insight: {e}")
+        raise
+
+
 def save_product_hunt_insight(insight) -> Optional[int]:
     """
     Save Product Hunt insight to database.
@@ -120,7 +185,8 @@ def save_product_hunt_insight(insight) -> Optional[int]:
     Returns:
         Insight ID if saved successfully, None otherwise
     """
-    from db import ProductHuntInsightDB, get_session
+    # The get_session import is already at the top level.
+    # ProductHuntInsightDB is now imported as ProductHuntInsight from sources.models
     
     try:
         session = get_session()

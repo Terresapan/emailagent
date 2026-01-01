@@ -26,3 +26,23 @@ class ProductHuntInsight(BaseModel):
     trend_summary: str  # LLM-generated summary
     content_angles: list[str]  # Content ideas for LinkedIn
     period: Literal['daily', 'weekly'] = "daily"
+
+
+class HackerNewsStory(BaseModel):
+    """A story from Hacker News."""
+    id: str
+    title: str
+    url: Optional[str] = None
+    score: int
+    comments_count: int = 0
+    by: str
+    time: Optional[int] = None
+
+
+class HackerNewsInsight(BaseModel):
+    """LLM-analyzed insights from Hacker News trends."""
+    date: datetime
+    stories: list[HackerNewsStory]
+    summary: str  # LLM-generated summary of developer trends
+    top_themes: list[str]  # e.g., "WebComics", "Rust", "AI Safety"
+    created_at: datetime

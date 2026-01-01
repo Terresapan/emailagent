@@ -237,3 +237,36 @@ export async function fetchToolsInsight(): Promise<ToolsInsight | null> {
 
   return response.json();
 }
+
+export interface HackerNewsStory {
+  id: string;
+  title: string;
+  url?: string;
+  score: number;
+  comments_count: number;
+  by?: string;
+}
+
+export interface HackerNewsInsight {
+  id: number;
+  date: string;
+  stories: HackerNewsStory[];
+  summary?: string;
+  top_themes: string[];
+  created_at: string;
+}
+
+/**
+ * Fetch the latest Hacker News insight.
+ */
+export async function fetchHackerNewsInsight(): Promise<HackerNewsInsight | null> {
+  const response = await fetch(`${API_URL}/api/hackernews/latest`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch HN insight: ${response.statusText}`);
+  }
+
+  return response.json();
+}

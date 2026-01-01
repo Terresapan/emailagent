@@ -58,7 +58,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Rocket className={cn("h-5 w-5", isWeekly ? "text-brand-purple" : "text-brand-orange")} />
-            <CardTitle className={cn("font-serif text-2xl tracking-wide", isWeekly ? "text-transparent bg-clip-text bg-gradient-brand" : "text-white")}>
+            <CardTitle className="font-serif text-2xl tracking-wide text-white">
               {isWeekly ? "Weekly AI Tool Best" : "AI Tools Discovery"}
             </CardTitle>
           </div>

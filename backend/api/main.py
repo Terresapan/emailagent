@@ -22,6 +22,8 @@ from schemas import (
     ProcessStatusResponse,
     ProductHuntInsightResponse,
     ProductHuntLaunchResponse,
+    HackerNewsInsightResponse,
+    HackerNewsStoryResponse,
 )
 
 # In-memory process status tracking
@@ -189,6 +191,42 @@ async def get_latest_tools_insight(db: Session = Depends(get_db)):
         created_at=insight.created_at,
     )
 
+
+@app.get("/api/hackernews/latest", response_model=Optional[HackerNewsInsightResponse])
+async def get_latest_hackernews_insight(db: Session = Depends(get_db)):
+    """Get the most recent Hacker News insight."""
+    from db import HackerNewsInsightDB
+    
+    insight = (
+        db.query(HackerNewsInsightDB)
+        .order_by(HackerNewsInsightDB.created_at.desc())
+        .first()
+    )
+    
+    if not insight:
+        return None
+    
+    # Transform stories_json to response format
+    stories = [
+        HackerNewsStoryResponse(
+            id=s.get("id", ""),
+            title=s.get("title", "Unknown"),
+            url=s.get("url"),
+            score=s.get("score", 0),
+            comments_count=s.get("comments_count", 0),
+            by=s.get("by"),
+        )
+        for s in (insight.stories_json or [])
+    ]
+    
+    return HackerNewsInsightResponse(
+        id=insight.id,
+        date=insight.date,
+        stories=stories,
+        summary=insight.summary,
+        top_themes=insight.top_themes or [],
+        created_at=insight.created_at,
+    )
 
 @app.post("/api/process", response_model=ProcessResponse)
 async def trigger_process(

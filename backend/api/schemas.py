@@ -93,3 +93,26 @@ class ProductHuntInsightResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class HackerNewsStoryResponse(BaseModel):
+    """A Hacker News story."""
+    id: str
+    title: str
+    url: Optional[str] = None
+    score: int
+    comments_count: int = 0
+    by: Optional[str] = None
+
+
+class HackerNewsInsightResponse(BaseModel):
+    """Hacker News analysis insight."""
+    id: int
+    date: date
+    stories: List[HackerNewsStoryResponse] = []
+    summary: Optional[str] = None
+    top_themes: List[str] = []
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

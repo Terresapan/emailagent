@@ -110,7 +110,18 @@ docker exec emailagent uv run python main.py --type productlaunch
 docker exec emailagent uv run python main.py --type productlaunch --timeframe weekly
 ```
 
-### 4. Parallel Execution
+### 4. Hacker News Analysis (Developer Trends)
+Fetches top trending stories and analyzes developer culture/sentiment.
+
+```bash
+# Daily Analysis
+docker exec emailagent uv run python main.py --type hackernews
+
+# Weekly Analysis (uses different prompt context)
+docker exec emailagent uv run python main.py --type hackernews --timeframe weekly
+```
+
+### 5. Parallel Execution
 
 **Parallel Daily Run:**
 Runs generic email digest AND daily Product Hunt analysis in parallel.

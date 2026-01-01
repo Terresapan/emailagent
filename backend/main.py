@@ -8,9 +8,10 @@ from gmail.client import GmailClient
 from processor.email.states import Email
 from processor.email.graph import EmailSummarizer, DeepDiveSummarizer
 from processor.product_hunt.graph import ProductHuntAnalyzer
+from processor.hacker_news.graph import HackerNewsAnalyzer
 from processor.email.prompts import DIGEST_EMAIL_TEMPLATE, LINKEDIN_EMAIL_TEMPLATE, DEEPDIVE_EMAIL_TEMPLATE
 from utils.logger import setup_logger
-from utils.database import save_to_database, save_product_hunt_insight
+from utils.database import save_to_database, save_product_hunt_insight, save_hacker_news_insight
 
 logger = setup_logger(__name__)
 
@@ -305,10 +306,13 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                 future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
                 future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
-                concurrent.futures.wait([future_digest, future_ph])
+                future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
+                concurrent.futures.wait([future_digest, future_ph, future_hn])
             logger.info("All weekly processors completed")
+        elif email_type == "hackernews":
+            main_hacker_news(gmail_client, dry_run, timeframe=timeframe)
         else:
-            logger.error(f"Unknown email type: {email_type}")
+            logger.error(f"Unknown type: {email_type}")
             return
         
         logger.info("=" * 60)
@@ -341,7 +345,7 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
     logger.info(f"Initializing Product Hunt analyzer ({timeframe})...")
     analyzer = ProductHuntAnalyzer(timeframe=timeframe)
     
-    # Run analysis
+    # Run the Product Hunt workflow
     logger.info("Fetching and analyzing AI launches...")
     insight = analyzer.process()
     
@@ -354,14 +358,26 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
     # Save to database
     if not dry_run:
         logger.info("Saving insight to database...")
+        from utils.database import get_session
+        session = get_session()
         try:
             insight_id = save_product_hunt_insight(insight)
             logger.info(f"✓ Saved to database with ID: {insight_id}")
+            insight.id = insight_id
         except Exception as e:
-            logger.error(f"Failed to save to database: {e}")
-    
+            logger.error(f"Failed to save insight: {e}")
+        finally:
+            session.close()
+            
     # Format and send email
-    if not dry_run:
+    # (Reusing a simple template for now or just logging)
+    # For now for HN we might want to email too, but user didn't specify template.
+    # Let's create a basic one dynamically or skip email if not critical. 
+    # Current instruction says "Display on dashboard". Email is optional but good practice.
+    
+    # Send email
+    recipient = DIGEST_RECIPIENT_EMAIL
+    if not dry_run and recipient:
         logger.info(f"Sending {timeframe} AI Tools digest to {DIGEST_RECIPIENT_EMAIL}...")
         
         # Format launches
@@ -412,11 +428,107 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
     logger.info("=" * 60)
 
 
+def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe: str = "daily"):
+    """
+    Process Hacker News trends and save insights.
+    
+    Args:
+        gmail_client: Initialized Gmail client
+        dry_run: If True, don't save to database
+        timeframe: 'daily' or 'weekly' (for future use)
+    """
+    logger.info("=" * 60)
+    logger.info(f"Hacker News Processing ({timeframe})")
+    logger.info("=" * 60)
+    
+    try:
+        logger.info("Initializing Hacker News analyzer...")
+        analyzer = HackerNewsAnalyzer()
+        
+        logger.info("Fetching and analyzing Hacker News trends...")
+        insight = analyzer.process()
+        
+        logger.info(f"✓ Analyzed {len(insight.stories)} top stories")
+        logger.info(f"✓ Identified themes: {insight.top_themes}")
+        
+        # Save to database
+        if not dry_run:
+            logger.info("Saving insight to database...")
+            from db import get_session
+            session = get_session()
+            try:
+                insight_id = save_hacker_news_insight(session, insight)
+                session.commit()
+                logger.info(f"✓ Saved to database with ID: {insight_id}")
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Failed to save insight: {e}")
+            finally:
+                session.close()
+        
+        # Format and send email
+        recipient = DIGEST_RECIPIENT_EMAIL
+        if not dry_run and recipient:
+            logger.info(f"Sending HackerNews digest to {recipient}...")
+            
+            # Format themes
+            themes_text = "\n".join([f"• {theme}" for theme in insight.top_themes])
+            
+            # Format top stories
+            stories_text = "\n".join([
+                f"• **{s.title}** ({s.score} pts, {s.comments_count} comments)\n  {s.url or 'No link'}"
+                for s in insight.stories[:7]
+            ])
+            
+            email_body = f"""# 📰 HackerNews Trends – {date.today()}
+
+## Developer Zeitgeist
+
+{insight.summary}
+
+---
+
+## Top Themes
+
+{themes_text}
+
+---
+
+## Top Stories
+
+{stories_text}
+
+---
+
+*Generated by AI Newsletter Agent*
+"""
+            
+            try:
+                msg_id = gmail_client.send_email(
+                    to=recipient,
+                    subject=f"HackerNews Trends – {date.today()}",
+                    body=email_body
+                )
+                logger.info(f"✓ Sent HackerNews digest with ID: {msg_id}")
+            except Exception as e:
+                logger.error(f"Failed to send email: {e}")
+        else:
+            logger.info("[DRY RUN] Would send HackerNews digest email")
+            logger.info(f"Summary: {insight.summary[:200]}...")
+        
+        logger.info("=" * 60)
+        logger.info("Hacker News Processing Complete")
+        logger.info("=" * 60)
+        
+    except Exception as e:
+        logger.error(f"Hacker News processing failed: {e}", exc_info=True)
+        raise
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Newsletter Email Digest Agent")
     parser.add_argument(
         "--type",
-        choices=["dailydigest", "weeklydeepdives", "productlaunch", "all", "all_weekly"],
+        choices=["dailydigest", "weeklydeepdives", "productlaunch", "hackernews", "all", "all_weekly"],
         default="dailydigest",
         help="Type of processing to run"
     )

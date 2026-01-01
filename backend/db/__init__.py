@@ -8,7 +8,7 @@ This package provides:
 import os
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Date, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Date, Text, Float, JSON, DateTime, Index, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 # Database configuration
@@ -73,11 +73,28 @@ class ProductHuntInsightDB(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, index=True)
-    period = Column(String(20), default="daily", nullable=False)
+    period = Column(String(20), default="daily", nullable=False)  # 'daily' or 'weekly'
     launches_json = Column(JSON)  # List of top launches
     trend_summary = Column(Text)  # LLM-generated trend analysis
-    content_angles = Column(JSON)  # List of content ideas
-    created_at = Column(DateTime, default=datetime.utcnow)
+    content_angles = Column(JSON)  # List of strings
+    created_at = Column(DateTime)
+    
+    __table_args__ = (
+        # Ensure only one daily and one weekly entry per date
+        Index('ix_product_hunt_insights_date', 'date', 'period', unique=True),
+    )
+
+
+class HackerNewsInsightDB(Base):
+    """DB Model for Hacker News insights."""
+    __tablename__ = "hacker_news_insights"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, index=True, unique=True)
+    stories_json = Column(JSON)  # List of stories
+    summary = Column(Text)       # LLM summary
+    top_themes = Column(JSON)    # List of strings
+    created_at = Column(DateTime)
 
 
 def get_session():
