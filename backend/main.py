@@ -1,6 +1,5 @@
 """Main orchestration script for the email digest agent."""
 import argparse
-import asyncio
 import concurrent.futures
 from datetime import date
 from config.settings import validate_config, load_sender_whitelist_by_type, DIGEST_RECIPIENT_EMAIL, PRODUCT_HUNT_TOKEN
@@ -15,6 +14,10 @@ from utils.database import save_to_database, save_product_hunt_insight, save_hac
 
 logger = setup_logger(__name__)
 
+
+# =============================================================================
+# HELPER FUNCTIONS (formatters)
+# =============================================================================
 
 def format_newsletter_digest(daily_digest) -> str:
     """
@@ -68,6 +71,10 @@ def format_deepdive_email(weekly_digest) -> str:
     )
     return email_body
 
+
+# =============================================================================
+# PROCESSOR FUNCTIONS (called by main)
+# =============================================================================
 
 def main_daily_digest(gmail_client: GmailClient, sender_configs: list, dry_run: bool = False):
     """
@@ -248,92 +255,6 @@ def main_weekly_deepdive(gmail_client: GmailClient, sender_configs: list, dry_ru
     logger.info("=" * 60)
 
 
-def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str = "daily"):
-    """
-    Main execution function.
-    
-    Args:
-        email_type: 'dailydigest', 'weeklydeepdives', 'productlaunch', 'all'
-        dry_run: If True, don't mark emails as read or create drafts
-        timeframe: 'daily' (default) or 'weekly' - mostly for productlaunch
-    """
-    logger.info("=" * 60)
-    logger.info(f"Email Agent Starting - Type: {email_type} (Timeframe: {timeframe})")
-    logger.info("=" * 60)
-    
-    try:
-        # Validate configuration
-        logger.info("Validating configuration...")
-        validate_config()
-        logger.info("✓ Configuration valid")
-        
-        # Load sender whitelist filtered by type
-        sender_configs = []
-        if email_type in ["dailydigest", "weeklydeepdives", "all"]:
-            load_type = "dailydigest" if email_type == "all" else email_type
-            logger.info(f"Loading sender whitelist for type: {load_type}...")
-            sender_configs = load_sender_whitelist_by_type(load_type)
-            logger.info(f"✓ Loaded {len(sender_configs)} senders for {load_type}")
-            
-            if not sender_configs:
-                logger.error(f"No senders configured for type: {load_type}")
-                return
-        
-        # Initialize Gmail client
-        logger.info("Initializing Gmail client...")
-        gmail_client = GmailClient()
-        logger.info("✓ Gmail client initialized")
-        
-        # Route to appropriate processor
-        if email_type == "dailydigest":
-            main_daily_digest(gmail_client, sender_configs, dry_run)
-        elif email_type == "weeklydeepdives":
-            main_weekly_deepdive(gmail_client, sender_configs, dry_run)
-        elif email_type == "productlaunch":
-            # Default to daily, but can be invoked with timeframe logic via arg if needed
-            main_product_hunt(gmail_client, dry_run, timeframe=timeframe)
-        elif email_type == "all":
-            # Run daily email digest, daily product hunt, and daily hacker news in parallel
-            logger.info("Running all DAILY processors in parallel...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                future_digest = executor.submit(main_daily_digest, gmail_client, sender_configs, dry_run)
-                future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
-                future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
-                concurrent.futures.wait([future_digest, future_ph, future_hn])
-            logger.info("All daily processors completed")
-        elif email_type == "all_weekly":
-            # Sunday only: Run weekly processors (no daily digest)
-            logger.info("Running all WEEKLY processors in parallel...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                # Weekly deep dive and weekly Product Hunt
-                future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
-                future_ph_weekly = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
-                
-                # Run Daily HN first to capture Sunday's data for weekly rollup
-                future_hn_daily = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
-                concurrent.futures.wait([future_hn_daily])
-                
-                # Then run Weekly HN (aggregates the data just saved)
-                future_hn_weekly = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
-                
-                # Wait for all
-                concurrent.futures.wait([future_digest, future_ph_weekly, future_hn_weekly])
-            logger.info("All weekly processors completed")
-        elif email_type == "hackernews":
-            main_hacker_news(gmail_client, dry_run, timeframe=timeframe)
-        else:
-            logger.error(f"Unknown type: {email_type}")
-            return
-        
-        logger.info("=" * 60)
-        logger.info("Email Agent Completed Successfully")
-        logger.info("=" * 60)
-        
-    except Exception as e:
-        logger.error(f"Fatal error in main execution: {e}", exc_info=True)
-        raise
-
-
 def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timeframe: str = "daily"):
     """
     Process Product Hunt AI launches and send insights email.
@@ -373,17 +294,10 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
         try:
             insight_id = save_product_hunt_insight(insight)
             logger.info(f"✓ Saved to database with ID: {insight_id}")
-            # Note: Don't try to set insight.id - Pydantic models don't allow dynamic attributes
         except Exception as e:
             logger.error(f"Failed to save insight: {e}")
         finally:
             session.close()
-            
-    # Format and send email
-    # (Reusing a simple template for now or just logging)
-    # For now for HN we might want to email too, but user didn't specify template.
-    # Let's create a basic one dynamically or skip email if not critical. 
-    # Current instruction says "Display on dashboard". Email is optional but good practice.
     
     # Send email
     recipient = DIGEST_RECIPIENT_EMAIL
@@ -535,6 +449,100 @@ def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe
     except Exception as e:
         logger.error(f"Hacker News processing failed: {e}", exc_info=True)
         raise
+
+
+# =============================================================================
+# MAIN ORCHESTRATOR (calls processor functions)
+# =============================================================================
+
+def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str = "daily"):
+    """
+    Main execution function.
+    
+    Args:
+        email_type: 'dailydigest', 'weeklydeepdives', 'productlaunch', 'all'
+        dry_run: If True, don't mark emails as read or create drafts
+        timeframe: 'daily' (default) or 'weekly' - mostly for productlaunch
+    """
+    logger.info("=" * 60)
+    logger.info(f"Email Agent Starting - Type: {email_type} (Timeframe: {timeframe})")
+    logger.info("=" * 60)
+    
+    try:
+        # Validate configuration
+        logger.info("Validating configuration...")
+        validate_config()
+        logger.info("✓ Configuration valid")
+        
+        # Load sender whitelist filtered by type
+        sender_configs = []
+        if email_type in ["dailydigest", "weeklydeepdives", "all"]:
+            load_type = "dailydigest" if email_type == "all" else email_type
+            logger.info(f"Loading sender whitelist for type: {load_type}...")
+            sender_configs = load_sender_whitelist_by_type(load_type)
+            logger.info(f"✓ Loaded {len(sender_configs)} senders for {load_type}")
+            
+            if not sender_configs:
+                logger.error(f"No senders configured for type: {load_type}")
+                return
+        
+        # Initialize Gmail client
+        logger.info("Initializing Gmail client...")
+        gmail_client = GmailClient()
+        logger.info("✓ Gmail client initialized")
+        
+        # Route to appropriate processor
+        if email_type == "dailydigest":
+            main_daily_digest(gmail_client, sender_configs, dry_run)
+        elif email_type == "weeklydeepdives":
+            main_weekly_deepdive(gmail_client, sender_configs, dry_run)
+        elif email_type == "productlaunch":
+            main_product_hunt(gmail_client, dry_run, timeframe=timeframe)
+        elif email_type == "all":
+            # Run daily email digest, daily product hunt, and daily hacker news in parallel
+            logger.info("Running all DAILY processors in parallel...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                future_digest = executor.submit(main_daily_digest, gmail_client, sender_configs, dry_run)
+                future_ph = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
+                future_hn = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
+                concurrent.futures.wait([future_digest, future_ph, future_hn])
+            logger.info("All daily processors completed")
+        elif email_type == "all_weekly":
+            # Sunday only: Run weekly processors (no daily digest)
+            logger.info("Running all WEEKLY processors in parallel...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # Weekly deep dive and weekly Product Hunt
+                future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
+                future_ph_weekly = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
+                
+                # Run Daily HN first to capture Sunday's data for weekly rollup
+                future_hn_daily = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
+                concurrent.futures.wait([future_hn_daily])
+                
+                # Then run Weekly HN (aggregates the data just saved)
+                future_hn_weekly = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
+                
+                # Wait for all
+                concurrent.futures.wait([future_digest, future_ph_weekly, future_hn_weekly])
+            logger.info("All weekly processors completed")
+        elif email_type == "hackernews":
+            main_hacker_news(gmail_client, dry_run, timeframe=timeframe)
+        else:
+            logger.error(f"Unknown type: {email_type}")
+            return
+        
+        logger.info("=" * 60)
+        logger.info("Email Agent Completed Successfully")
+        logger.info("=" * 60)
+        
+    except Exception as e:
+        logger.error(f"Fatal error in main execution: {e}", exc_info=True)
+        raise
+
+
+# =============================================================================
+# ENTRY POINT
+# =============================================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Newsletter Email Digest Agent")
