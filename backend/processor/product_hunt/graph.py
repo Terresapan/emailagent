@@ -240,7 +240,7 @@ Focus on insights, comparisons, or practical applications."""
         
         insight = ProductHuntInsight(
             date=local_now,
-            top_launches=launches[:10],  # Top 10
+            top_launches=launches[:20],  # Store all 20 for flexibility (LLM only analyzes top 10)
             trend_summary=final_state.get("trend_summary", ""),
             content_angles=final_state.get("content_angles", []),
             period=self.timeframe,
