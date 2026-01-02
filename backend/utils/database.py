@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB
 from sqlalchemy.orm import Session
-from sources.models import HackerNewsInsight
+from sources.models import HackerNewsInsight, ProductHuntInsight
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -178,7 +178,7 @@ def save_hacker_news_insight(session: Session, insight: HackerNewsInsight) -> Op
         raise
 
 
-def save_product_hunt_insight(insight) -> Optional[int]:
+def save_product_hunt_insight(session: Session, insight: ProductHuntInsight) -> Optional[int]:
     """
     Save Product Hunt insight to database.
     
@@ -186,74 +186,61 @@ def save_product_hunt_insight(insight) -> Optional[int]:
     it will be updated instead of creating a duplicate.
     
     Args:
-        insight: ProductHuntInsight object from analyzer
+        session: The SQLAlchemy session object.
+        insight: ProductHuntInsight object from analyzer.
         
     Returns:
-        Insight ID if saved successfully, None otherwise
+        Insight ID if saved successfully, None otherwise.
     """
-    # The get_session import is already at the top level.
-    # ProductHuntInsightDB is now imported as ProductHuntInsight from sources.models
-    
     try:
-        session = get_session()
+        insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
         
-        try:
-            insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
-            
-            # UPSERT: Check if insight exists for today AND period
-            existing = session.query(ProductHuntInsightDB).filter_by(
+        # UPSERT: Check if insight exists for today AND period
+        existing = session.query(ProductHuntInsightDB).filter_by(
+            date=insight_date,
+            period=insight.period
+        ).first()
+        
+        # Serialize launches to JSON
+        launches_json = [
+            {
+                "id": l.id,
+                "name": l.name,
+                "tagline": l.tagline,
+                "votes": l.votes,  # Use internal field name
+                "website": l.website,
+                "topics": l.topics,
+            }
+            for l in insight.top_launches
+        ]
+        
+        if existing:
+            # Update existing
+            existing.launches_json = launches_json
+            existing.trend_summary = insight.trend_summary
+            existing.content_angles = insight.content_angles
+            existing.created_at = datetime.now()
+            insight_record = existing
+            logger.info(f"Updated existing Product Hunt {insight.period} insight for {insight_date} (ID: {existing.id})")
+        else:
+            # Create new
+            insight_record = ProductHuntInsightDB(
                 date=insight_date,
-                period=insight.period
-            ).first()
-            
-            # Serialize launches to JSON
-            launches_json = [
-                {
-                    "id": l.id,
-                    "name": l.name,
-                    "tagline": l.tagline,
-                    "votes": l.votes,  # Use internal field name
-                    "website": l.website,
-                    "topics": l.topics,
-                }
-                for l in insight.top_launches
-            ]
-            
-            if existing:
-                # Update existing
-                existing.launches_json = launches_json
-                existing.trend_summary = insight.trend_summary
-                existing.content_angles = insight.content_angles
-                existing.created_at = insight.date
-                insight_record = existing
-                logger.info(f"Updated existing Product Hunt {insight.period} insight for {insight_date} (ID: {existing.id})")
-            else:
-                # Create new
-                from datetime import datetime
-                insight_record = ProductHuntInsightDB(
-                    date=insight_date,
-                    period=insight.period,
-                    launches_json=launches_json,
-                    trend_summary=insight.trend_summary,
-                    content_angles=insight.content_angles,
-                    created_at=datetime.now(),
-                )
-                session.add(insight_record)
-                logger.info(f"Created new Product Hunt {insight.period} insight for {insight_date}")
-            
-            session.commit()
-            return insight_record.id
-            
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Database transaction failed: {e}")
-            raise
-        finally:
-            session.close()
-            
+                period=insight.period,
+                launches_json=launches_json,
+                trend_summary=insight.trend_summary,
+                content_angles=insight.content_angles,
+                created_at=datetime.now(),
+            )
+            session.add(insight_record)
+            logger.info(f"Created new Product Hunt {insight.period} insight for {insight_date}")
+        
+        session.flush()
+        return insight_record.id
+        
     except Exception as e:
-        logger.error(f"Failed to save Product Hunt insight: {e}")
-        return None
+        logger.error(f"Database transaction failed for Product Hunt insight: {e}")
+        raise
 
 
 def get_recent_hacker_news_insights(session: Session, days: int = 7) -> List[HackerNewsInsightDB]:

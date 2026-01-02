@@ -4,7 +4,7 @@ import concurrent.futures
 from datetime import date
 from config.settings import validate_config, load_sender_whitelist_by_type, DIGEST_RECIPIENT_EMAIL, PRODUCT_HUNT_TOKEN
 from sources.gmail.client import GmailClient
-from processor.email.states import Email
+from processor.email.states import Email, DailyDigest, WeeklyDeepDive
 from processor.email.graph import EmailSummarizer, DeepDiveSummarizer
 from processor.product_hunt.graph import ProductHuntAnalyzer
 from processor.hacker_news.graph import HackerNewsAnalyzer
@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 # HELPER FUNCTIONS (formatters)
 # =============================================================================
 
-def format_newsletter_digest(daily_digest) -> str:
+def format_newsletter_digest(daily_digest: DailyDigest) -> str:
     """
     Format the newsletter digest into an email body.
     
@@ -37,7 +37,7 @@ def format_newsletter_digest(daily_digest) -> str:
     return email_body
 
 
-def format_linkedin_content(daily_digest) -> str:
+def format_linkedin_content(daily_digest: DailyDigest) -> str:
     """
     Format the LinkedIn content into an email body.
     
@@ -54,7 +54,7 @@ def format_linkedin_content(daily_digest) -> str:
     return email_body
 
 
-def format_deepdive_email(weekly_digest) -> str:
+def format_deepdive_email(weekly_digest: WeeklyDeepDive) -> str:
     """
     Format the weekly deep dive into an email body.
     
@@ -289,12 +289,14 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
     # Save to database
     if not dry_run:
         logger.info("Saving insight to database...")
-        from utils.database import get_session
+        from db import get_session
         session = get_session()
         try:
-            insight_id = save_product_hunt_insight(insight)
+            insight_id = save_product_hunt_insight(session, insight)
+            session.commit()
             logger.info(f"✓ Saved to database with ID: {insight_id}")
         except Exception as e:
+            session.rollback()
             logger.error(f"Failed to save insight: {e}")
         finally:
             session.close()

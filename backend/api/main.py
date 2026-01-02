@@ -3,12 +3,20 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+
+# Import logger for consistent logging
+import logging
+logger = logging.getLogger(__name__)
+
+# CORS origins from environment variable (comma-separated)
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://dashboard:3000").split(",")
 
 from database import get_db, init_db
 from models import Digest, Email
@@ -35,26 +43,28 @@ process_status = {
     "message": None,
 }
 
+# Lifespan context manager (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup."""
+    init_db()
+    yield
+
 app = FastAPI(
     title="Content Agent API",
     description="API for viewing AI-generated briefings and LinkedIn content",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://dashboard:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup."""
-    init_db()
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -339,13 +349,13 @@ async def trigger_process(
                     process_status["status"] = "no_emails"
                     process_status["message"] = "No content found to process"
                 
-                print(f"Process completed: {process_status['status']} ({items_found} items)")
+                logger.info(f"Process completed: {process_status['status']} ({items_found} items)")
                 
             except Exception as e:
                 process_status["status"] = "error"
                 process_status["completed_at"] = datetime.now()  # Local time
                 process_status["message"] = str(e)
-                print(f"Exec error: {e}")
+                logger.error(f"Exec error: {e}")
         
         thread = threading.Thread(target=run_exec)
         thread.start()

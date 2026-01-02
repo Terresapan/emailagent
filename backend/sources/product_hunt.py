@@ -1,6 +1,6 @@
 """Product Hunt GraphQL API client."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import requests
@@ -68,7 +68,7 @@ class ProductHuntClient:
         """
         
         # Get products from the last N days
-        start_date = (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+        start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
         
         variables = {
             "first": limit,
@@ -111,7 +111,7 @@ class ProductHuntClient:
                     votesCount=node.get("votesCount", 0),
                     website=node.get("website"),
                     topics=topics,
-                    createdAt=node.get("createdAt", datetime.utcnow().isoformat()),
+                    createdAt=node.get("createdAt", datetime.now(timezone.utc).isoformat()),
                 )
                 launches.append(launch)
             
