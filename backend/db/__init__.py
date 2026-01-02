@@ -72,7 +72,7 @@ class ProductHuntInsightDB(Base):
     __tablename__ = "product_hunt_insights"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(Date, nullable=False, index=True)
+    date = Column(Date, nullable=False)  # No index=True, we use composite index below
     period = Column(String(20), default="daily", nullable=False)  # 'daily' or 'weekly'
     launches_json = Column(JSON)  # List of top launches
     trend_summary = Column(Text)  # LLM-generated trend analysis
@@ -81,7 +81,7 @@ class ProductHuntInsightDB(Base):
     
     __table_args__ = (
         # Ensure only one daily and one weekly entry per date
-        Index('ix_product_hunt_insights_date', 'date', 'period', unique=True),
+        Index('ix_product_hunt_insights_date_period', 'date', 'period', unique=True),
     )
 
 
@@ -90,7 +90,7 @@ class HackerNewsInsightDB(Base):
     __tablename__ = "hacker_news_insights"
     
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(Date, nullable=False, index=True)
+    date = Column(Date, nullable=False)  # No index=True, we use composite index below
     period = Column(String(20), default="daily", nullable=False)  # 'daily' or 'weekly'
     stories_json = Column(JSON)  # List of stories
     summary = Column(Text)       # LLM summary
@@ -119,4 +119,4 @@ def get_db():
 
 def init_db():
     """Initialize database tables."""
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine, checkfirst=True)

@@ -192,7 +192,7 @@ async def get_latest_tools_insight(
         trend_summary=insight.trend_summary,
         content_angles=insight.content_angles or [],
         period=insight.period,
-        created_at=insight.created_at,
+        created_at=insight.created_at or datetime.now(),
     )
 
 

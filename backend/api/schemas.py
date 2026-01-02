@@ -89,7 +89,7 @@ class ProductHuntInsightResponse(BaseModel):
     trend_summary: Optional[str] = None
     content_angles: List[str] = []
     period: str = "daily"
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
