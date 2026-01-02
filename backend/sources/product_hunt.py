@@ -28,7 +28,7 @@ class ProductHuntClient:
     
     def fetch_ai_launches(self, limit: int = 20, days: int = 1) -> list[ProductLaunch]:
         """
-        Fetch top AI product launches from the past N days.
+        Fetch top product launches from the past N days (homepage leaderboard).
         
         Args:
             limit: Maximum number of products to fetch (default 20)
@@ -37,11 +37,11 @@ class ProductHuntClient:
         Returns:
             List of ProductLaunch objects sorted by votes
         """
+        # Query for ALL top products (not just AI topic) to match homepage
         query = """
-        query GetAIProducts($first: Int!, $postedAfter: DateTime) {
+        query GetTopProducts($first: Int!, $postedAfter: DateTime) {
             posts(
                 first: $first,
-                topic: "artificial-intelligence",
                 postedAfter: $postedAfter,
                 order: VOTES
             ) {

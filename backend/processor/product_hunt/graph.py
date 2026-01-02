@@ -86,7 +86,7 @@ class ProductHuntAnalyzer:
         return workflow.compile()
 
     def fetch_launches_node(self, state: ProductHuntState) -> ProductHuntState:
-        """Fetch AI product launches from Product Hunt."""
+        """Fetch top product launches from Product Hunt homepage."""
         try:
             client = ProductHuntClient()
             # Use self.days determined by timeframe
@@ -106,7 +106,7 @@ class ProductHuntAnalyzer:
                 for l in launches
             ]
             
-            logger.info(f"Fetched {len(launch_dicts)} AI launches from Product Hunt (Last {self.days} days)")
+            logger.info(f"Fetched {len(launch_dicts)} products from Product Hunt (Last {self.days} days)")
             return {"launches": launch_dicts}
             
         except Exception as e:
@@ -118,7 +118,7 @@ class ProductHuntAnalyzer:
         launches = state.get("launches", [])
         
         if not launches:
-            return {"trend_summary": "No AI product launches found."}
+            return {"trend_summary": "No product launches found."}
         
         # Format launches for LLM
         launches_text = "\n".join([
@@ -139,14 +139,14 @@ class ProductHuntAnalyzer:
         context_title = "This Week's Best" if self.timeframe == "weekly" else "Today's Top"
         
         prompt = f"""
-        Analyze these AI product launches from Product Hunt.
+        Analyze these product launches from Product Hunt.
         Identify the top 3 trends and notable tools.
 
-        {context_title} AI Launches:
+        {context_title} Product Launches:
         {launches_text}
 
         Provide a brief summary (2-3 sentences) of the trends, written in a professional tone 
-        suitable for a tech-savvy audience interested in AI tools."""
+        suitable for a tech-savvy audience interested in new tools and products."""
 
         try:
             structured_llm = llm.with_structured_output(TrendAnalysis)
@@ -179,13 +179,13 @@ class ProductHuntAnalyzer:
             model_kwargs={"reasoning_effort": LLM_REASONING_EFFORT_GENERATION}
         )
         
-        # Get top 5 products
+        # Get top 10 products
         top_products = "\n".join([
             f"- {l['name']}: {l['tagline']}"
-            for l in launches[:5]
+            for l in launches[:10]
         ])
         
-        prompt = f"""Based on these trending AI tools from Product Hunt, suggest 3 LinkedIn post ideas.
+        prompt = f"""Based on these trending products from Product Hunt, suggest 3 LinkedIn post ideas.
 Trend Summary:
 {trend_summary}
 
@@ -193,7 +193,7 @@ Top Products:
 {top_products}
 
 Generate 3 concise content angles. Each should be 1-2 sentences describing a post idea 
-that would resonate with tech professionals and AI enthusiasts.
+that would resonate with tech professionals and product enthusiasts.
 Focus on insights, comparisons, or practical applications."""
 
         try:
@@ -240,7 +240,7 @@ Focus on insights, comparisons, or practical applications."""
         
         insight = ProductHuntInsight(
             date=local_now,
-            top_launches=launches[:5],  # Top 5
+            top_launches=launches[:10],  # Top 10
             trend_summary=final_state.get("trend_summary", ""),
             content_angles=final_state.get("content_angles", []),
             period=self.timeframe,

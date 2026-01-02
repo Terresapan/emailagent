@@ -38,7 +38,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
         <CardHeader>
           <div className="flex items-center gap-3">
             <Rocket className="h-5 w-5 text-brand-orange" />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">AI Tools</CardTitle>
+            <CardTitle className="font-serif text-2xl tracking-wide text-white">Product Hunt</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
@@ -59,7 +59,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           <div className="flex items-center gap-3">
             <Rocket className={cn("h-5 w-5", isWeekly ? "text-brand-purple" : "text-brand-orange")} />
             <CardTitle className="font-serif text-2xl tracking-wide text-white">
-              {isWeekly ? "Weekly AI Tool Best" : "AI Tools Discovery"}
+              {isWeekly ? "Weekly Product Hunt Best" : "Today's Top Launches"}
             </CardTitle>
           </div>
         </div>
@@ -72,11 +72,11 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-brand-indigo" : "text-brand-fuchsia")} />
               <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-brand-purple" : "text-white")}>
-                {isWeekly ? "Best of the Week" : "Top AI Launches"}
+                {isWeekly ? "Best of the Week" : "Top Launches"}
               </h3>
             </div>
             <div className="space-y-3">
-              {insight.launches.slice(0, 5).map((launch, i) => (
+              {insight.launches.slice(0, 10).map((launch, i) => (
                 <div 
                   key={launch.id} 
                   className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
