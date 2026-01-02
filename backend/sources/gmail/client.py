@@ -6,7 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from tenacity import retry, stop_after_attempt
 from config.settings import LLM_MAX_RETRIES, NEWSLETTER_LABEL
-from gmail.auth import authenticate_gmail
+from sources.gmail.auth import authenticate_gmail
 from utils.logger import setup_logger
 from utils.html_parser import html_to_text
 

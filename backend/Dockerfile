@@ -19,7 +19,6 @@ COPY pyproject.toml .
 COPY main.py .
 COPY config/ ./config/
 COPY db/ ./db/
-COPY gmail/ ./gmail/
 COPY processor/ ./processor/
 COPY sources/ ./sources/
 COPY utils/ ./utils/

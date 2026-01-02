@@ -4,7 +4,7 @@ import asyncio
 import concurrent.futures
 from datetime import date
 from config.settings import validate_config, load_sender_whitelist_by_type, DIGEST_RECIPIENT_EMAIL, PRODUCT_HUNT_TOKEN
-from gmail.client import GmailClient
+from sources.gmail.client import GmailClient
 from processor.email.states import Email
 from processor.email.graph import EmailSummarizer, DeepDiveSummarizer
 from processor.product_hunt.graph import ProductHuntAnalyzer
