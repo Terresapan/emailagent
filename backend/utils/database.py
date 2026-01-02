@@ -229,12 +229,14 @@ def save_product_hunt_insight(insight) -> Optional[int]:
                 logger.info(f"Updated existing Product Hunt {insight.period} insight for {insight_date} (ID: {existing.id})")
             else:
                 # Create new
+                from datetime import datetime
                 insight_record = ProductHuntInsightDB(
                     date=insight_date,
                     period=insight.period,
                     launches_json=launches_json,
                     trend_summary=insight.trend_summary,
                     content_angles=insight.content_angles,
+                    created_at=datetime.now(),
                 )
                 session.add(insight_record)
                 logger.info(f"Created new Product Hunt {insight.period} insight for {insight_date}")
