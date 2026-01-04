@@ -157,10 +157,6 @@ Evaluate the briefing below and improve it if needed. Focus on:
 - **What's Happening (top takeaways)**
 - **What This Means for You (practical actions)**
 - **Notes**
-- **Industry News:**
-- **New Tools:**
-- **Insights:**
-
 
 You may rewrite, reorganize, shorten, or simplify the briefing as needed.
 If it is already excellent, return it exactly as-is.
