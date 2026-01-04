@@ -478,8 +478,15 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
         
         # Load sender whitelist filtered by type
         sender_configs = []
-        if email_type in ["dailydigest", "weeklydeepdives", "all"]:
-            load_type = "dailydigest" if email_type == "all" else email_type
+        if email_type in ["dailydigest", "weeklydeepdives", "all", "all_weekly"]:
+            # Determine which sender type to load
+            if email_type == "all":
+                load_type = "dailydigest"
+            elif email_type == "all_weekly":
+                load_type = "weeklydeepdives"
+            else:
+                load_type = email_type
+            
             logger.info(f"Loading sender whitelist for type: {load_type}...")
             sender_configs = load_sender_whitelist_by_type(load_type)
             logger.info(f"✓ Loaded {len(sender_configs)} senders for {load_type}")

@@ -319,24 +319,37 @@ async def trigger_process(
                 success = False
                 items_found = 0
                 
+                # Universal success marker
+                completed_successfully = "Email Agent Completed Successfully" in log_output
+                
                 if digest_type in ["dailydigest", "weeklydeepdives"]:
-                    # Email-based: Look for email count
+                    # Email-based: Look for email/essay count
+                    # Check both "Found X unread" and "processed X" patterns
                     no_emails = "No unread" in log_output or "Found 0 unread" in log_output
-                    email_match = re.search(r'Found (\d+) unread emails', log_output)
-                    items_found = int(email_match.group(1)) if email_match else 0
-                    success = not no_emails and items_found > 0
+                    
+                    # Try multiple patterns
+                    found_match = re.search(r'Found (\d+) unread (?:emails|essays)', log_output)
+                    processed_match = re.search(r'(?:Emails|Essays) processed: (\d+)', log_output)
+                    
+                    if processed_match:
+                        items_found = int(processed_match.group(1))
+                    elif found_match:
+                        items_found = int(found_match.group(1))
+                    
+                    success = (completed_successfully and items_found > 0) or (not no_emails and items_found > 0)
                     
                 elif digest_type == "productlaunch":
                     # Product Hunt: Look for launches
                     launch_match = re.search(r'Fetched (\d+) AI launches', log_output)
-                    items_found = int(launch_match.group(1)) if launch_match else 0
-                    success = "Product Hunt Processing Complete" in log_output or items_found > 0
+                    analyzed_match = re.search(r'Analyzed (\d+) top launches', log_output)
+                    items_found = int(analyzed_match.group(1)) if analyzed_match else (int(launch_match.group(1)) if launch_match else 0)
+                    success = completed_successfully or "Product Hunt Processing Complete" in log_output or items_found > 0
                     
                 elif digest_type == "hackernews":
                     # Hacker News: Look for stories (fetched or aggregated)
-                    story_match = re.search(r'(?:Fetched|Aggregated) (\d+) (?:stories|unique stories)', log_output)
+                    story_match = re.search(r'(?:Fetched|Aggregated|Analyzed) (\d+) (?:stories|unique stories|top stories)', log_output)
                     items_found = int(story_match.group(1)) if story_match else 0
-                    success = "Hacker News Processing Complete" in log_output or items_found > 0
+                    success = completed_successfully or "Hacker News Processing Complete" in log_output or items_found > 0
                 
                 # Update status
                 process_status["completed_at"] = datetime.now()  # Local time

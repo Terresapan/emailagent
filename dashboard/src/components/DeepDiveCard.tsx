@@ -63,7 +63,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   </li>
                 ),
                 strong: ({ children }) => (
-                  <strong className="text-white font-bold">{children}</strong>
+                  <strong className="text-brand-indigo font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
                 ),
                 p: ({ children }) => (
                   <p className="text-muted-foreground leading-7 my-4 font-sans text-lg transition-colors duration-300 hover:text-gray-200">{children}</p>
