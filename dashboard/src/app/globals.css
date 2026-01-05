@@ -42,7 +42,7 @@
     --popover: 234.2857 13.2075% 31.1765%;
     --popover-foreground: 226.1538 63.9344% 88.0392%;
     
-    --primary: 267.4074 83.5052% 80.9804%; /* Lavender Purple */
+    --primary: 189.1837 71.0145% 72.9412%; /* Teal/Cyan */
     --primary-foreground: 240 21.0526% 14.9020%;
     
     --secondary: 232.5000 12% 39.2157%;
@@ -51,7 +51,7 @@
     --muted: 230.5263 18.8119% 19.8039%;
     --muted-foreground: 227.6471 23.6111% 71.7647%;
     
-    --accent: 189.1837 71.0145% 72.9412%; /* Teal/Cyan */
+    --accent: 267.4074 83.5052% 80.9804%; /* Lavender Purple */
     --accent-foreground: 240 21.0526% 14.9020%;
     
     --destructive: 343.2692 81.2500% 74.9020%;
