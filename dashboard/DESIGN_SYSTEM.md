@@ -1,16 +1,47 @@
-# Dashboard Design System: "The Monolith"
+# Dashboard Design System: "Neu-Editorial"
 
-**Core Concept:** Deep Obsidian background with a single, sharp International Orange accent.
+## Aesthetic Direction
+
+**Style:** Luxury/Refined + Editorial/Magazine fusion  
+**Core Concept:** Exclusive intelligence briefing with magazine-quality typography
+
+### What Makes It Unforgettable
+- **Giant Typography** — Headlines that feel like magazine covers
+- **Purple/Teal Palette** — Sophisticated, non-generic color pairing
+- **Editorial Grid** — Asymmetric 8+4 column structure
+
+---
+
+## Color Palette (HSL)
+
+| Name | HSL Value | Hex | Usage |
+|------|-----------|-----|-------|
+| **Background** | `240 21% 12%` | Deep Indigo | App background |
+| **Card** | `240 21% 15%` | Elevated Indigo | Card surfaces |
+| **Primary** | `267 83% 81%` | Lavender Purple | Buttons, rings |
+| **Accent** | `189 71% 73%` | Teal/Cyan | Icons, tags, links |
+| **Foreground** | `226 64% 88%` | Soft Gray-White | Body text |
+| **Muted** | `227 24% 72%` | Muted Gray | Secondary text |
+
+---
+
+## Typography
+
+| Role | Font | Weight |
+|------|------|--------|
+| **Display** | Playfair Display | 600-700 |
+| **Body** | DM Sans | 400-500 |
+
+---
 
 ## Semantic Utilities
 
-### Accent Abstraction (The "One Color" Rule)
-Use these for **functional colors** (links, icons, active states). Never use hardcoded colors.
-| Class | Usage |
-|-------|-------|
-| `.text-accent` | Icons, active headers, links (`text-brand-orange`) |
-| `.bg-accent` | Active indicators (`bg-brand-orange`) |
-| `.border-accent` | Active borders (`border-brand-orange`) |
+### Accent Abstraction
+```css
+.text-accent   { color: hsl(var(--accent)); }
+.bg-accent     { background-color: hsl(var(--accent)); }
+.border-accent { border-color: hsl(var(--accent)); }
+```
 
 ### Item Patterns
 | Class | Usage |
@@ -29,15 +60,20 @@ Use these for **functional colors** (links, icons, active states). Never use har
 | `.section-header` | Sub-header |
 | `.section-label` | Uppercase label |
 
-## Color Palette
+---
 
-| Name | Hex | Functional Role |
-|------|-----|-----------------|
-| **Accent** | `#FF3B00` | Focus, Action, Branding (International Orange) |
-| **Obsidian** | `#050505` | App Background (Deep Black) |
-| **Surface** | `#1A1A24` | Cards |
-| **Text** | `#F2E9E4` | Primary Readability |
+## Design Principles (from SKILL.md)
+
+| Principle | Application |
+|-----------|-------------|
+| **Anti-Generic** | Custom Purple/Teal avoids common palettes |
+| **Intentionality** | Semantic utilities for all patterns |
+| **Editorial** | Giant headlines, magazine grid |
+| **Refined** | Controlled motion, subtle glass effects |
+
+---
 
 ## Files
-- `src/app/globals.css` - Utilities defined here
-- `tailwind.config.js` - Color definitions
+- `src/app/globals.css` — CSS variables & utilities
+- `tailwind.config.js` — Color definitions
+- `backend/sources/gmail/client.py` — Email template (aligned)

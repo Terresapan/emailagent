@@ -134,8 +134,8 @@
     @apply text-sm text-muted-foreground hover:text-gray-200 transition-colors duration-300;
   }
   .item-tag {
-    /* Updated to use accent abstraction */
-    @apply text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium border border-accent/20;
+    /* 12px, lighter weight to appear smaller than tagline */
+    @apply text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-normal border border-accent/20;
   }
   .item-tag-neutral {
     @apply text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 font-medium border border-white/10;
