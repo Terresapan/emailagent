@@ -112,7 +112,7 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
             {/* Post Content */}
             {expandedIndex === index && (
               <div className="border-t border-accent/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground font-sans">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground hover:text-foreground transition-colors duration-300 font-sans">
                   {post}
                 </p>
               </div>

@@ -424,7 +424,7 @@ export default function Home() {
            {currentDigest && activeView === "daily" && (
              <MotionItem>
                 <div className="relative group">
-                   <div className="absolute -inset-0.5 bg-accent opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
+                   <div className="absolute -inset-0.5 bg-gradient-to-r from-accent to-primary opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
                    <div className="relative">
                      <LinkedInCard content={currentDigest.linkedin_content} />
                    </div>
