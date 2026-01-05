@@ -107,7 +107,7 @@ export default function Home() {
               onClick={() => setActiveView("daily")}
               className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "daily"
-                  ? "text-brand-fuchsia"
+                  ? "text-accent"
                   : "text-muted-foreground hover:text-white"
               }`}
             >
@@ -117,7 +117,7 @@ export default function Home() {
               onClick={() => setActiveView("producthunt")}
               className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "producthunt"
-                  ? "text-brand-indigo"
+                  ? "text-accent"
                   : "text-muted-foreground hover:text-white"
               }`}
             >
@@ -127,7 +127,7 @@ export default function Home() {
               onClick={() => setActiveView("hackernews")}
               className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "hackernews"
-                  ? "text-brand-fuchsia"
+                  ? "text-accent"
                   : "text-muted-foreground hover:text-white"
               }`}
             >
@@ -137,7 +137,7 @@ export default function Home() {
               onClick={() => setActiveView("weekly")}
               className={`text-sm font-medium tracking-[0.2em] uppercase transition-all duration-300 ${
                 activeView === "weekly"
-                  ? "text-brand-indigo"
+                  ? "text-accent"
                   : "text-muted-foreground hover:text-white"
               }`}
             >
@@ -150,7 +150,7 @@ export default function Home() {
                <Button
                variant="ghost"
                onClick={loadDigests}
-               className="text-brand-fuchsia animate-pulse gap-2"
+               className="text-accent animate-pulse gap-2"
              >
                <Bell className="h-4 w-4" />
                New Reports
@@ -231,7 +231,7 @@ export default function Home() {
                    setProcessingType(null);
                  }
                }}
-               className="gap-2 bg-gradient-to-r from-brand-fuchsia to-brand-purple hover:opacity-90 text-white border-0 shadow-lg shadow-brand-fuchsia/20"
+               className="gap-2 bg-accent hover:opacity-90 text-white border-0 shadow-lg shadow-accent/20"
              >
                <Play className={`h-3 w-3 ${processing ? "animate-spin" : ""}`} />
                {processing ? (
@@ -252,7 +252,7 @@ export default function Home() {
                <span className={`text-xs font-medium px-3 py-1 rounded-full ${
                  processMessage.includes("✅") ? "bg-green-500/20 text-green-400" :
                  processMessage.includes("Failed") || processMessage.includes("Timed") ? "bg-red-500/20 text-red-400" :
-                 "bg-brand-fuchsia/20 text-brand-fuchsia"
+                 "bg-accent/20 text-accent"
                }`}>
                  {processMessage}
                </span>
@@ -424,7 +424,7 @@ export default function Home() {
            {currentDigest && activeView === "daily" && (
              <MotionItem>
                 <div className="relative group">
-                   <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-fuchsia to-brand-purple opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
+                   <div className="absolute -inset-0.5 bg-accent opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
                    <div className="relative">
                      <LinkedInCard content={currentDigest.linkedin_content} />
                    </div>
@@ -434,7 +434,7 @@ export default function Home() {
 
            {/* Quote */}
            <MotionItem>
-             <div className="p-6 border-l-2 border-brand-purple/50 pl-6 italic font-serif text-muted-foreground text-lg">
+             <div className="p-6 border-l-2 border-accent/50 pl-6 italic font-serif text-muted-foreground text-lg">
                 "The goal is not to read more, but to understand better."
              </div>
            </MotionItem>

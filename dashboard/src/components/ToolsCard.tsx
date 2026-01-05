@@ -37,12 +37,12 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Rocket className="h-5 w-5 text-brand-orange" />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">Product Hunt</CardTitle>
+            <Rocket className="h-5 w-5 text-accent" />
+            <CardTitle className="card-title">Product Hunt</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
-          <p className="font-serif italic text-muted-foreground">Waiting for discoveries...</p>
+          <p className="card-empty-text">Waiting for discoveries...</p>
         </CardContent>
       </Card>
     );
@@ -51,14 +51,14 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
   return (
     <Card className={cn(
       "flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
-      isWeekly ? "border-brand-purple/30" : "border-white/5",
+      isWeekly ? "border-accent/30" : "border-white/5",
       className
     )}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Rocket className={cn("h-5 w-5", isWeekly ? "text-brand-purple" : "text-brand-orange")} />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">
+            <Rocket className={cn("h-5 w-5", isWeekly ? "text-accent" : "text-accent")} />
+            <CardTitle className="card-title">
               {isWeekly ? "Weekly Product Hunt Best" : "Today's Top Launches"}
             </CardTitle>
           </div>
@@ -70,8 +70,8 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           {/* Top Launches */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-brand-indigo" : "text-brand-fuchsia")} />
-              <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-brand-purple" : "text-white")}>
+              <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
+              <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
                 {isWeekly ? "Best of the Week" : "Top Launches"}
               </h3>
             </div>
@@ -79,28 +79,40 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
               {insight.launches.slice(0, 10).map((launch, i) => (
                 <div 
                   key={launch.id} 
-                  className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                  className="item-card"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-brand-fuchsia">#{i + 1}</span>
+                        <span className="text-2xl font-bold text-accent">#{i + 1}</span>
                         {launch.website ? (
                           <a 
                             href={launch.website} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="font-semibold text-white hover:text-brand-orange hover:underline transition-colors"
+                            className="item-title hover:text-accent hover:underline transition-colors"
                           >
                             {launch.name}
                           </a>
                         ) : (
-                          <h4 className="font-semibold text-white">{launch.name}</h4>
+                          <h4 className="item-title">{launch.name}</h4>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">{launch.tagline}</p>
+                      <p className="item-description mt-1">{launch.tagline}</p>
+                      {launch.topics && launch.topics.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {launch.topics.slice(0, 5).map((topic, j) => (
+                            <span 
+                              key={j}
+                              className="item-tag"
+                            >
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <Badge variant="secondary" className="shrink-0 bg-white/10 text-white hover:bg-white/20">
+                    <Badge variant="secondary" className="badge-votes">
                       🔺 {launch.votes}
                     </Badge>
                   </div>
@@ -113,7 +125,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           {insight.trend_summary && (
             <div className="border-t border-white/5 pt-6">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="h-4 w-4 text-brand-purple" />
+                <TrendingUp className="h-4 w-4 text-accent" />
                 <h3 className="font-serif text-lg text-white tracking-wide">Trend Analysis</h3>
               </div>
               <div className="text-muted-foreground leading-relaxed">
@@ -144,7 +156,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                 {insight.content_angles.map((angle, i) => (
                   <li 
                     key={i} 
-                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-brand-fuchsia/50 transition-colors duration-300 hover:text-gray-200 text-base"
+                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-accent/50 transition-colors duration-300 hover:text-gray-200 text-base"
                   >
                     {angle}
                   </li>

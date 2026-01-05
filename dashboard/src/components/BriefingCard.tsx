@@ -17,12 +17,12 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-brand-fuchsia" />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">Daily Briefing</CardTitle>
+            <Sparkles className="h-5 w-5 text-accent" />
+            <CardTitle className="card-title">Daily Briefing</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
-          <p className="font-serif italic text-muted-foreground">Waiting for intelligence...</p>
+          <p className="card-empty-text">Waiting for intelligence...</p>
         </CardContent>
       </Card>
     );
@@ -32,8 +32,8 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
     <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5 overflow-hidden", className)}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-brand-fuchsia" />
-          <CardTitle className="font-serif text-2xl tracking-wide text-white">Daily Briefing</CardTitle>
+          <Sparkles className="h-5 w-5 text-accent" />
+          <CardTitle className="card-title">Daily Briefing</CardTitle>
         </div>
       </CardHeader>
       
@@ -43,7 +43,7 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
             <ReactMarkdown
               components={{
                 h2: ({ children }) => (
-                  <h2 className="mt-8 first:mt-0 mb-4 text-2xl font-serif font-bold text-white border-b border-brand-purple/20 pb-2">
+                  <h2 className="mt-8 first:mt-0 mb-4 text-2xl font-serif font-bold text-white border-b border-accent/20 pb-2">
                     {children}
                   </h2>
                 ),
@@ -53,12 +53,12 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-brand-fuchsia/50 transition-colors duration-300 hover:text-gray-200 text-base">
+                  <li className="list-item list-item-text text-base hover:border-accent/50">
                     {children}
                   </li>
                 ),
                 strong: ({ children }) => (
-                  <strong className="text-brand-fuchsia font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
+                  <strong className="text-accent font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
                 ),
                 p: ({ children }) => (
                   <p className="text-muted-foreground leading-relaxed my-3 font-sans transition-colors duration-300 hover:text-gray-200 text-lg">{children}</p>

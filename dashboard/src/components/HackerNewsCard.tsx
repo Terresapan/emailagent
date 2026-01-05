@@ -21,12 +21,12 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Newspaper className="h-5 w-5 text-brand-fuchsia" />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">HackerNews</CardTitle>
+            <Newspaper className="h-5 w-5 text-accent" />
+            <CardTitle className="card-title">HackerNews</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
-          <p className="font-serif italic text-muted-foreground">Waiting for trends...</p>
+          <p className="card-empty-text">Waiting for trends...</p>
         </CardContent>
       </Card>
     );
@@ -35,14 +35,14 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
   return (
     <Card className={cn(
       "flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
-      isWeekly ? "border-brand-purple/30" : "border-white/5",
+      isWeekly ? "border-accent/30" : "border-white/5",
       className
     )}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Newspaper className={cn("h-5 w-5", isWeekly ? "text-brand-purple" : "text-brand-fuchsia")} />
-            <CardTitle className="font-serif text-2xl tracking-wide text-white">
+            <Newspaper className={cn("h-5 w-5", isWeekly ? "text-accent" : "text-accent")} />
+            <CardTitle className="card-title">
               {isWeekly ? "Weekly HN Rewind" : "HackerNews"}
             </CardTitle>
           </div>
@@ -57,7 +57,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {/* Developer Zeitgeist Summary */}
           {insight.summary && (
             <div>
-              <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-brand-purple" : "text-white")}>
+              <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-accent" : "text-white")}>
                 {isWeekly ? "Meta-Trend Synthesis" : "Developer Zeitgeist"}
               </h3>
               <p className="text-muted-foreground leading-relaxed hover:text-white transition-colors">
@@ -70,8 +70,8 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {insight.top_themes.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-brand-indigo" : "text-brand-fuchsia")} />
-                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-brand-purple" : "text-white")}>
+                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
+                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
                   Top Themes
                 </h3>
               </div>
@@ -79,9 +79,9 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                 {insight.top_themes.map((theme, i) => (
                   <div 
                     key={i}
-                    className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                    className="item-card"
                   >
-                    <p className="text-muted-foreground tracking-wide hover:text-white transition-colors">{theme}</p>
+                    <p className="list-item-text tracking-wide">{theme}</p>
                   </div>
                 ))}
               </div>
@@ -92,8 +92,8 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {insight.stories.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <MessageSquare className={cn("h-4 w-4", isWeekly ? "text-brand-purple" : "text-brand-fuchsia")} />
-                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-brand-purple" : "text-white")}>
+                <MessageSquare className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
+                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
                    {isWeekly ? "Most Discussed this Week" : "Top Stories"}
                 </h3>
               </div>
@@ -101,14 +101,14 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                 {insight.stories.slice(0, 10).map((story, i) => (
                   <div 
                     key={story.id}
-                    className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                    className="item-card"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">
+                        <p className="item-title truncate">
                           {story.title}
                         </p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-1 item-meta">
                           <span>{story.score} pts</span>
                           <span>{story.comments_count} comments</span>
                           {story.github_stars && (
@@ -125,7 +125,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                             {story.sentiment && <span className="text-sm shrink-0 mt-0.5" aria-label="Sentiment">{story.sentiment}</span>}
                             {story.verdict && (
                               <p className="text-xs text-muted-foreground leading-snug hover:text-white transition-colors">
-                                <span className={cn("font-semibold", isWeekly ? "text-brand-purple/80" : "text-brand-fuchsia/80")}>Verdict: </span>
+                                <span className={cn("font-semibold", isWeekly ? "text-accent/80" : "text-accent/80")}>Verdict: </span>
                                 {story.verdict}
                               </p>
                             )}

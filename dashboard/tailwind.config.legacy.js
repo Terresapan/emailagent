@@ -26,11 +26,9 @@ module.exports = {
       },
   		colors: {
   			brand: {
-  				fuchsia: '#d946ef', // Legacy (referenced in old code)
-  				purple: '#a855f7',  // Legacy
-  				indigo: '#6366f1',  // Legacy
-  				orange: '#d76c14',  // Custom accent
-  				obsidian: '#050505' // Monolith Background
+  				fuchsia: '#d946ef',
+  				purple: '#a855f7',
+  				indigo: '#6366f1'
   			},
   			editorial: {
   				bg: '#0F0F16', // Deep Cool Black

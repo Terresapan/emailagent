@@ -293,7 +293,7 @@ class GmailClient:
         }}
         .header-accent {{
             height: 4px;
-            background: linear-gradient(to right, #d946ef, #a855f7, #6366f1);
+            background: linear-gradient(to right, #c4b5fd, #86efdf);
             border-radius: 2px;
             margin-bottom: 32px;
         }}
@@ -306,12 +306,12 @@ class GmailClient:
             font-size: 1.35em;
             letter-spacing: -0.01em;
             padding-bottom: 8px;
-            border-bottom: 2px solid #a855f7;
+            border-bottom: 2px solid #c4b5fd;
         }}
         h3 {{
             font-family: 'DM Sans', sans-serif;
             font-weight: 600;
-            color: #7c3aed;
+            color: #86efdf;
             margin-top: 24px;
             font-size: 1.1em;
         }}
@@ -337,28 +337,28 @@ class GmailClient:
             margin: 28px 0;
         }}
         a {{
-            color: #a855f7;
+            color: #c4b5fd;
             text-decoration: none;
         }}
         a:hover {{
-            color: #d946ef;
+            color: #86efdf;
             text-decoration: underline;
         }}
         code {{
-            background-color: #faf5ff;
-            color: #7c3aed;
+            background-color: #f3f0ff;
+            color: #c4b5fd;
             padding: 3px 8px;
             border-radius: 6px;
             font-size: 0.9em;
             font-family: 'SF Mono', Monaco, monospace;
-            border: 1px solid #e9d5ff;
+            border: 1px solid #c4b5fd;
         }}
         blockquote {{
             border-left: 4px solid;
-            border-image: linear-gradient(to bottom, #d946ef, #6366f1) 1;
+            border-image: linear-gradient(to bottom, #c4b5fd, #86efdf) 1;
             margin: 20px 0;
             padding: 16px 24px;
-            background-color: #faf5ff;
+            background-color: #f3f0ff;
             color: #6b7280;
             border-radius: 0 8px 8px 0;
         }}
@@ -366,7 +366,7 @@ class GmailClient:
             color: #6b7280;
         }}
         .brand-text {{
-            background: linear-gradient(to right, #d946ef, #a855f7, #6366f1);
+            background: linear-gradient(to right, #c4b5fd, #86efdf);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;

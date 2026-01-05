@@ -64,6 +64,9 @@ services:
       # Mount source code for hot-reloading
       - ./dashboard/src:/app/src
       - ./dashboard/public:/app/public
+      # Mount config files for hot-reloading (no rebuild needed)
+      - ./dashboard/tailwind.config.js:/app/tailwind.config.js
+      - ./dashboard/postcss.config.mjs:/app/postcss.config.mjs
     depends_on:
       - api
 

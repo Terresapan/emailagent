@@ -32,40 +32,41 @@
   }
 
   .dark {
-    --background: 240 19% 7%; /* #0F0F16 - Deep Cool Black */
-    --foreground: 21 28% 92%; /* #F2E9E4 - Gallery White */
+    /* New Purple/Teal Theme */
+    --background: 240 21.3115% 11.9608%;
+    --foreground: 226.1538 63.9344% 88.0392%;
     
-    --card: 240 16% 12%; /* #1A1A24 - Slightly lighter cool black */
-    --card-foreground: 21 28% 92%;
+    --card: 240 21.0526% 14.9020%;
+    --card-foreground: 226.1538 63.9344% 88.0392%;
     
-    --popover: 240 16% 12%;
-    --popover-foreground: 21 28% 92%;
+    --popover: 234.2857 13.2075% 31.1765%;
+    --popover-foreground: 226.1538 63.9344% 88.0392%;
     
-    --primary: 271 91% 65%; /* #a855f7 */
-    --primary-foreground: 0 0% 98%;
+    --primary: 267.4074 83.5052% 80.9804%; /* Lavender Purple */
+    --primary-foreground: 240 21.0526% 14.9020%;
     
-    --secondary: 240 14% 16%; /* #252530 - Surface color */
-    --secondary-foreground: 21 28% 92%;
+    --secondary: 232.5000 12% 39.2157%;
+    --secondary-foreground: 226.1538 63.9344% 88.0392%;
     
-    --muted: 231 15% 12%;
-    --muted-foreground: 240 5% 65%; /* #a1a1aa */
+    --muted: 230.5263 18.8119% 19.8039%;
+    --muted-foreground: 227.6471 23.6111% 71.7647%;
     
-    --accent: 271 91% 65%; /* Brand Purple as accent */
-    --accent-foreground: 0 0% 98%;
+    --accent: 189.1837 71.0145% 72.9412%; /* Teal/Cyan */
+    --accent-foreground: 240 21.0526% 14.9020%;
     
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 343.2692 81.2500% 74.9020%;
+    --destructive-foreground: 240 21.0526% 14.9020%;
     
-    --border: 0 0% 100%; /* White */
-    --input: 231 15% 12%;
+    --border: 236.8421 16.2393% 22.9412%;
+    --input: 236.8421 16.2393% 22.9412%;
     
-    --ring: 271 91% 65%;
+    --ring: 267.4074 83.5052% 80.9804%;
     
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 267.4074 83.5052% 80.9804%;
+    --chart-2: 189.1837 71.0145% 72.9412%;
+    --chart-3: 115.4545 54.0984% 76.0784%;
+    --chart-4: 22.9565 92.0000% 75.4902%;
+    --chart-5: 9.6000 55.5556% 91.1765%;
   }
 }
 
@@ -113,5 +114,71 @@
   .hover-glow:hover {
     box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.3);
     border-color: hsl(var(--primary) / 0.3);
+  }
+
+  /* ===== ACCENT CONTROLS (New Theme) ===== */
+  .text-accent   { color: hsl(var(--accent)); }
+  .bg-accent     { background-color: hsl(var(--accent)); }
+  .border-accent { border-color: hsl(var(--accent)); }
+  
+  /* ===== COMPONENT TOKENS ===== */
+  
+  /* Item Patterns (launches, stories, list items) */
+  .item-card {
+    @apply p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5;
+  }
+  .item-title {
+    @apply font-semibold text-white;
+  }
+  .item-description {
+    @apply text-sm text-muted-foreground hover:text-gray-200 transition-colors duration-300;
+  }
+  .item-tag {
+    /* Updated to use accent abstraction */
+    @apply text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium border border-accent/20;
+  }
+  .item-tag-neutral {
+    @apply text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 font-medium border border-white/10;
+  }
+  .item-meta {
+    @apply text-xs text-muted-foreground;
+  }
+
+  /* Section Headers */
+  .section-header {
+    @apply font-serif text-lg tracking-wide text-white;
+  }
+  .section-label {
+    @apply text-xs font-bold uppercase tracking-widest;
+  }
+
+  /* Card Patterns */
+  .card-title {
+    @apply font-serif text-2xl tracking-wide text-white;
+  }
+  .card-title-sm {
+    @apply font-serif text-base font-bold tracking-wider text-white;
+  }
+  .card-empty-text {
+    @apply font-serif italic text-muted-foreground;
+  }
+
+  /* List Items (bordered left) */
+  .list-item {
+    /* Updated hover state to use accent */
+    @apply leading-relaxed pl-4 border-l-2 border-white/10 hover:border-accent/50 transition-colors duration-300;
+  }
+  .list-item-text {
+    @apply text-muted-foreground hover:text-gray-200 transition-colors duration-300;
+  }
+
+  /* Badges */
+  .badge-votes {
+    @apply shrink-0 bg-white/10 text-white hover:bg-white/20;
+  }
+
+  /* Status Indicators */
+  .status-label {
+    @apply text-xs font-medium text-white;
   }
 }

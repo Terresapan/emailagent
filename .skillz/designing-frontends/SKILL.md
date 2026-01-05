@@ -20,6 +20,8 @@ metadata:
 5. [Response Format](#5-response-format)
 6. [Design Thinking Process](#6-design-thinking-process)
 7. [Implementation Quality](#7-implementation-quality)
+8. [Design Token System](#8-design-token-system)
+9. [Final Reminder](#9-final-reminder)
 
 ---
 
@@ -256,7 +258,94 @@ Elegance comes from executing the vision well.
 
 ---
 
-## 8. Final Reminder
+## 8. Design Token System
+
+Establishes a **single source of truth** for styling patterns using semantic utility classes.
+
+### Greenfield Projects (New)
+
+**Step 1: Set Up Token Structure**
+```
+project/
+├── src/app/globals.css      # Semantic utilities defined here
+├── tailwind.config.js       # Brand colors, fonts, spacing
+└── DESIGN_SYSTEM.md         # Quick reference doc
+```
+
+**Step 2: Define Semantic Utilities in `globals.css`**
+```css
+@layer utilities {
+  /* Items */
+  .item-card { @apply p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5; }
+  .item-title { @apply font-semibold text-white; }
+  .item-description { @apply text-sm text-muted-foreground hover:text-gray-200 transition-colors; }
+  .item-tag { @apply text-xs px-2 py-0.5 rounded-full bg-brand-fuchsia/20 text-brand-fuchsia font-medium; }
+  
+  /* Cards */
+  .card-title { @apply font-serif text-2xl tracking-wide text-white; }
+  .card-empty-text { @apply font-serif italic text-muted-foreground; }
+  
+  /* Sections */
+  .section-header { @apply font-serif text-lg tracking-wide text-white; }
+}
+```
+
+**Step 3: Use Semantic Classes in Components**
+```tsx
+// ✅ DO: Use semantic utilities
+<div className="item-card">
+  <h4 className="item-title">{name}</h4>
+  <p className="item-description">{description}</p>
+</div>
+
+// ❌ DON'T: Raw Tailwind for repeated patterns
+<div className="p-3 rounded-lg bg-white/5 hover:bg-white/10...">
+```
+
+### Brownfield Projects (Audit Existing)
+
+**Step 1: Audit for Inconsistencies**
+```bash
+# Find duplicate patterns across components
+grep -r "font-semibold text-white" src/components/
+grep -r "text-xs.*rounded-full" src/components/
+```
+
+**Step 2: Identify Common Patterns**
+Look for repeated inline classes that should be utilities:
+- Item titles/descriptions
+- Card headers/empty states
+- Tags/badges
+- List item styles
+
+**Step 3: Create Utilities and Refactor**
+1. Define semantic utilities in `globals.css`
+2. Replace inline classes with utility names
+3. Verify visual appearance unchanged
+
+**Step 4: Document the System**
+Create `DESIGN_SYSTEM.md` listing all utilities with usage.
+
+### Naming Convention
+
+| Pattern | Prefix | Example |
+|---------|--------|---------|
+| List items | `item-` | `item-card`, `item-title`, `item-tag` |
+| Cards | `card-` | `card-title`, `card-empty-text` |
+| Sections | `section-` | `section-header`, `section-label` |
+| Badges | `badge-` | `badge-votes`, `badge-count` |
+| Status | `status-` | `status-label`, `status-indicator` |
+
+### Consistency Checklist
+
+Before adding new components, verify:
+- [ ] Using semantic utilities, not raw Tailwind for known patterns
+- [ ] New patterns added to `globals.css` first
+- [ ] `DESIGN_SYSTEM.md` updated if new utilities added
+
+---
+
+## 9. Final Reminder
 
 > **Capable of extraordinary creative work. Does not hold back—shows what can truly be created when thinking outside the box and committing fully to a distinctive vision.**
 

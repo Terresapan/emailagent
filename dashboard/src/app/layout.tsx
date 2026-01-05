@@ -27,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${playfair.variable} ${dmSans.variable}`}>
-      <body className="flex min-h-screen bg-background font-sans text-foreground antialiased selection:bg-brand-purple/30">
+      <body className="flex min-h-screen bg-background font-sans text-foreground antialiased selection:bg-accent/30">
         
         {/* Fixed Intelligence Rail */}
         <IntelligenceRail />

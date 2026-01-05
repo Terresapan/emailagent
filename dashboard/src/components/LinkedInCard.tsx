@@ -19,11 +19,11 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
     return (
       <Card className={cn("bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-          <Linkedin className="h-4 w-4 text-brand-indigo" />
-          <CardTitle className="text-base font-serif font-bold text-white">LinkedIn Drafts</CardTitle>
+          <Linkedin className="h-4 w-4 text-accent" />
+          <CardTitle className="card-title">LinkedIn Drafts</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground italic">No drafts generated.</p>
+          <p className="card-empty-text text-sm">No drafts generated.</p>
         </CardContent>
       </Card>
     );
@@ -45,11 +45,11 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
     <Card className={cn("bg-card/50 backdrop-blur-sm border-white/5 overflow-hidden transition-all duration-300", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-white/5 pb-4">
         <div className="flex items-center gap-2">
-          <Linkedin className="h-4 w-4 text-brand-indigo" />
+          <Linkedin className="h-4 w-4 text-accent" />
           {/* Increased tracking as requested */}
-          <CardTitle className="text-base font-serif font-bold text-white tracking-wider">LinkedIn Drafts</CardTitle>
+          <CardTitle className="card-title">LinkedIn Drafts</CardTitle>
         </div>
-        <span className="font-mono text-xs text-brand-indigo font-medium bg-brand-indigo/10 px-2 py-1 rounded">
+        <span className="font-mono text-xs text-accent font-medium bg-accent/10 px-2 py-1 rounded">
           {posts.length > 0 ? posts.length - 1 : 0} DRAFTS
         </span>
       </CardHeader>
@@ -66,7 +66,7 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
             className={cn(
               "group rounded-lg border transition-all duration-300",
               expandedIndex === index 
-               ? "border-brand-indigo/30 bg-brand-indigo/5" 
+               ? "border-accent/30 bg-accent/5" 
                : "border-white/5 bg-white/5 hover:border-white/10"
             )}
           >
@@ -80,7 +80,7 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
               <span className={cn(
                 "text-sm font-medium transition-colors uppercase tracking-wider", // Added uppercase and tracking
                 expandedIndex === index ? "text-white" : "text-muted-foreground group-hover:text-foreground",
-                isTopics && "text-brand-fuchsia" // Highlight Topics
+                isTopics && "text-accent" // Highlight Topics
               )}>
                 {label}
               </span>
@@ -111,7 +111,7 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
 
             {/* Post Content */}
             {expandedIndex === index && (
-              <div className="border-t border-brand-indigo/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="border-t border-accent/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground font-sans">
                   {post}
                 </p>
