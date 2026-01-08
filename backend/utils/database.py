@@ -5,9 +5,9 @@ This module uses the shared db package for models and session management.
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB
+from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB, YouTubeInsightDB
 from sqlalchemy.orm import Session
-from sources.models import HackerNewsInsight, ProductHuntInsight
+from sources.models import HackerNewsInsight, ProductHuntInsight, YouTubeInsight
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -265,4 +265,96 @@ def get_recent_hacker_news_insights(session: Session, days: int = 7) -> List[Hac
         return insights
     except Exception as e:
         logger.error(f"Failed to fetch recent HN insights: {e}")
+        return []
+
+
+def save_youtube_insight(session: Session, insight: YouTubeInsight) -> Optional[int]:
+    """
+    Save YouTube insight to database.
+    
+    Uses UPSERT logic: if an insight already exists for today,
+    it will be updated instead of creating a duplicate.
+    
+    Args:
+        session: The SQLAlchemy session object.
+        insight: YouTubeInsight object from analyzer.
+        
+    Returns:
+        Insight ID if saved successfully, None otherwise.
+    """
+    try:
+        insight_date = insight.date.date() if hasattr(insight.date, 'date') else insight.date
+        
+        # UPSERT: Check if insight exists for today AND period
+        existing = session.query(YouTubeInsightDB).filter_by(
+            date=insight_date,
+            period=insight.period
+        ).first()
+        
+        # Serialize videos to JSON
+        videos_json = [
+            {
+                "id": v.id,
+                "title": v.title,
+                "channel_name": v.channel_name,
+                "channel_id": v.channel_id,
+                "description": v.description,
+                "view_count": v.view_count,
+                "published_at": v.published_at.isoformat() if v.published_at else None,
+                "summary": v.summary,
+            }
+            for v in insight.videos
+        ]
+        
+        if existing:
+            # Update existing
+            existing.videos_json = videos_json
+            existing.trend_summary = insight.trend_summary
+            existing.key_topics = insight.key_topics
+            existing.created_at = datetime.now()
+            insight_record = existing
+            logger.info(f"Updated existing YouTube {insight.period} insight for {insight_date} (ID: {existing.id})")
+        else:
+            # Create new
+            insight_record = YouTubeInsightDB(
+                date=insight_date,
+                period=insight.period,
+                videos_json=videos_json,
+                trend_summary=insight.trend_summary,
+                key_topics=insight.key_topics,
+                created_at=datetime.now(),
+            )
+            session.add(insight_record)
+            logger.info(f"Created new YouTube {insight.period} insight for {insight_date}")
+        
+        session.flush()
+        return insight_record.id
+        
+    except Exception as e:
+        logger.error(f"Database transaction failed for YouTube insight: {e}")
+        raise
+
+
+def get_recent_youtube_insights(session: Session, days: int = 7) -> List[YouTubeInsightDB]:
+    """
+    Fetch YouTube insights from the last N days (daily only).
+    
+    Args:
+        session: SQLAlchemy session
+        days: Number of days to look back
+        
+    Returns:
+        List of YouTubeInsightDB objects
+    """
+    try:
+        cutoff_date = datetime.now().date() - timedelta(days=days)
+        
+        insights = session.query(YouTubeInsightDB).filter(
+            YouTubeInsightDB.period == 'daily',
+            YouTubeInsightDB.date >= cutoff_date
+        ).order_by(YouTubeInsightDB.date.desc()).all()
+        
+        return insights
+    except Exception as e:
+        logger.error(f"Failed to fetch recent YouTube insights: {e}")
         return []

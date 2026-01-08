@@ -120,3 +120,29 @@ class HackerNewsInsightResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class YouTubeVideoResponse(BaseModel):
+    """A YouTube video summary."""
+    id: str
+    title: str
+    channel_name: str
+    channel_id: str
+    description: Optional[str] = None
+    view_count: int = 0
+    published_at: Optional[str] = None
+    summary: Optional[str] = None
+
+
+class YouTubeInsightResponse(BaseModel):
+    """YouTube influencer analysis insight."""
+    id: int
+    date: date
+    videos: List[YouTubeVideoResponse] = []
+    trend_summary: Optional[str] = None
+    key_topics: List[str] = []
+    created_at: datetime
+    period: str = "daily"
+
+    class Config:
+        from_attributes = True

@@ -103,6 +103,23 @@ class HackerNewsInsightDB(Base):
     )
 
 
+class YouTubeInsightDB(Base):
+    """DB Model for YouTube influencer insights."""
+    __tablename__ = "youtube_insights"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False)
+    period = Column(String(20), default="daily", nullable=False)  # 'daily' or 'weekly'
+    videos_json = Column(JSON)   # List of videos with summaries
+    trend_summary = Column(Text) # LLM summary of influencer discussions
+    key_topics = Column(JSON)    # List of topic strings
+    created_at = Column(DateTime)
+
+    __table_args__ = (
+        Index('ix_youtube_insights_date_period', 'date', 'period', unique=True),
+    )
+
+
 def get_session():
     """Get a new database session."""
     return SessionLocal()

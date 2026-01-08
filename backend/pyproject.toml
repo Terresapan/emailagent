@@ -19,4 +19,5 @@ dependencies = [
     "sqlalchemy>=2.0.35",
     "psycopg2-binary>=2.9.9",
     "markdown>=3.7",
+    "youtube-transcript-api>=0.6.3",
 ]

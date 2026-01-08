@@ -38,6 +38,11 @@ DIGEST_RECIPIENT_EMAIL = os.getenv("DIGEST_RECIPIENT_EMAIL")
 
 # Third-party API settings
 PRODUCT_HUNT_TOKEN = os.getenv("PRODUCT_HUNT_TOKEN")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+YOUTUBE_CHANNELS_PATH = os.getenv(
+    "YOUTUBE_CHANNELS_PATH",
+    str(CONFIG_DIR / "youtube_channels.json")
+)
 
 # LLM settings
 # Use different models for different tasks:
@@ -87,6 +92,12 @@ def load_sender_whitelist_by_type(email_type: str = "dailydigest"):
     """
     all_senders = load_sender_whitelist()
     return [s for s in all_senders if s.get("type") == email_type]
+
+
+def load_youtube_channels():
+    """Load the YouTube channels whitelist from JSON file."""
+    with open(YOUTUBE_CHANNELS_PATH, "r") as f:
+        return json.load(f)
 
 
 def validate_config():

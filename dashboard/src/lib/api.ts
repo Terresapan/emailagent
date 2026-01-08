@@ -95,7 +95,7 @@ export async function fetchDigestHistory(
   if (digestType) {
     url += `&digest_type=${digestType}`;
   }
-  
+
   const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
@@ -159,11 +159,11 @@ export interface ProcessResponse {
 
 /**
  * Manually trigger processing.
- * @param digestType - 'dailydigest', 'weeklydeepdives', 'productlaunch', or 'hackernews'
+ * @param digestType - 'dailydigest', 'weeklydeepdives', 'productlaunch', 'hackernews', or 'youtube'
  * @param dryRun - If true, preview only without modifying emails
  */
 export async function triggerProcess(
-  digestType: "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews" = "dailydigest",
+  digestType: "dailydigest" | "weeklydeepdives" | "productlaunch" | "hackernews" | "youtube" = "dailydigest",
   dryRun: boolean = false,
   timeframe: "daily" | "weekly" = "daily"
 ): Promise<ProcessResponse> {
@@ -271,6 +271,42 @@ export async function fetchHackerNewsInsight(): Promise<HackerNewsInsight | null
 
   if (!response.ok) {
     throw new Error(`Failed to fetch HN insight: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export interface YouTubeVideo {
+  id: string;
+  title: string;
+  channel_name: string;
+  channel_id: string;
+  description?: string;
+  view_count: number;
+  published_at?: string;
+  summary?: string;
+}
+
+export interface YouTubeInsight {
+  id: number;
+  date: string;
+  videos: YouTubeVideo[];
+  trend_summary?: string;
+  key_topics: string[];
+  created_at: string;
+  period: "daily" | "weekly";
+}
+
+/**
+ * Fetch the latest YouTube influencer insight.
+ */
+export async function fetchYouTubeInsight(): Promise<YouTubeInsight | null> {
+  const response = await fetch(`${API_URL}/api/youtube/latest`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch YouTube insight: ${response.statusText}`);
   }
 
   return response.json();

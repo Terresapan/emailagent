@@ -1,0 +1,62 @@
+[
+  {
+    "handle": "@AICodeKing",
+    "name": "AICodeKing",
+    "category": "ai-tools"
+  },
+  {
+    "handle": "@AISeeKing",
+    "name": "AISeeKing",
+    "category": "ai-tools"
+  },
+  {
+    "handle": "@PromptEngineerng",
+    "name": "Prompt Engineering",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@samwitteveenai",
+    "name": "Sam Witteveen",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@LangChain",
+    "name": "LangChain",
+    "category": "ai-coding"
+  },
+  {
+    "handle": "@AdamLucek",
+    "name": "Adam Lucek",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@ColeMedin",
+    "name": "Cole Medin",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@AIJasonZ",
+    "name": "AI Jason",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@aiwithbrandon",
+    "name": "aiwithbrandon",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@devlearnllm",
+    "name": "LLMs for Devs",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@ai-for-devs",
+    "name": "AI FOR DEVS",
+    "category": "ai-research"
+  },
+  {
+    "handle": "@OfficialStanfordAIClub",
+    "name": "Stanford AI Club",
+    "category": "ai-research"
+  }
+]

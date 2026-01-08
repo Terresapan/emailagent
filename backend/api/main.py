@@ -32,6 +32,8 @@ from schemas import (
     ProductHuntLaunchResponse,
     HackerNewsInsightResponse,
     HackerNewsStoryResponse,
+    YouTubeInsightResponse,
+    YouTubeVideoResponse,
 )
 
 # In-memory process status tracking
@@ -250,6 +252,50 @@ async def get_latest_hackernews_insight(
         period=getattr(insight, 'period', 'daily')
     )
 
+
+@app.get("/api/youtube/latest", response_model=Optional[YouTubeInsightResponse])
+async def get_latest_youtube_insight(
+    period: str = "daily",
+    db: Session = Depends(get_db)
+):
+    """Get the most recent YouTube influencer insight, filtered by period."""
+    from db import YouTubeInsightDB
+    
+    insight = (
+        db.query(YouTubeInsightDB)
+        .filter(YouTubeInsightDB.period == period)
+        .order_by(YouTubeInsightDB.created_at.desc())
+        .first()
+    )
+    
+    if not insight:
+        return None
+    
+    # Transform videos_json to response format
+    videos = [
+        YouTubeVideoResponse(
+            id=v.get("id", ""),
+            title=v.get("title", "Unknown"),
+            channel_name=v.get("channel_name", "Unknown"),
+            channel_id=v.get("channel_id", ""),
+            description=v.get("description"),
+            view_count=v.get("view_count", 0),
+            published_at=v.get("published_at"),
+            summary=v.get("summary"),
+        )
+        for v in (insight.videos_json or [])
+    ]
+    
+    return YouTubeInsightResponse(
+        id=insight.id,
+        date=insight.date,
+        videos=videos,
+        trend_summary=insight.trend_summary,
+        key_topics=insight.key_topics or [],
+        created_at=insight.created_at or datetime.now(),
+        period=insight.period,
+    )
+
 @app.post("/api/process", response_model=ProcessResponse)
 async def trigger_process(
     digest_type: str = "dailydigest",
@@ -270,10 +316,10 @@ async def trigger_process(
     import docker
     import threading
     
-    if digest_type not in ["dailydigest", "weeklydeepdives", "productlaunch", "hackernews"]:
+    if digest_type not in ["dailydigest", "weeklydeepdives", "productlaunch", "hackernews", "youtube"]:
         return ProcessResponse(
             status="error",
-            message=f"Invalid digest_type: {digest_type}. Use 'dailydigest', 'weeklydeepdives', 'productlaunch', or 'hackernews'",
+            message=f"Invalid digest_type: {digest_type}. Use 'dailydigest', 'weeklydeepdives', 'productlaunch', 'hackernews', or 'youtube'",
             digest_id=None,
         )
     
@@ -350,6 +396,12 @@ async def trigger_process(
                     story_match = re.search(r'(?:Fetched|Aggregated|Analyzed) (\d+) (?:stories|unique stories|top stories)', log_output)
                     items_found = int(story_match.group(1)) if story_match else 0
                     success = completed_successfully or "Hacker News Processing Complete" in log_output or items_found > 0
+                
+                elif digest_type == "youtube":
+                    # YouTube: Look for videos analyzed
+                    video_match = re.search(r'Analyzed (\d+) videos', log_output)
+                    items_found = int(video_match.group(1)) if video_match else 0
+                    success = completed_successfully or "YouTube Processing Complete" in log_output or items_found > 0
                 
                 # Update status
                 process_status["completed_at"] = datetime.now()  # Local time

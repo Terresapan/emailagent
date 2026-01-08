@@ -121,7 +121,20 @@ docker exec emailagent uv run python main.py --type hackernews
 docker exec emailagent uv run python main.py --type hackernews --timeframe weekly
 ```
 
-### 5. Parallel Execution
+### 5. YouTube Influencer Analysis (NEW)
+Fetches recent videos from curated influencer channels, extracts transcripts, and summarizes content.
+
+```bash
+# Daily Analysis (checks for new videos from configured channels)
+docker exec emailagent uv run python main.py --type youtube
+
+# Dry run (preview without saving to DB or sending email)
+docker exec emailagent uv run python main.py --type youtube --dry-run
+```
+
+> **Setup Required**: Edit `backend/config/youtube_channels.json` with your influencer channel IDs before running.
+
+### 6. Parallel Execution
 
 **Parallel Daily Run:**
 Runs generic email digest AND daily Product Hunt analysis in parallel.
@@ -143,8 +156,9 @@ docker exec emailagent uv run python main.py --type all_weekly
 | `--type` | `weeklydeepdives` | Expert essays → strategic briefing |
 | `--type` | `productlaunch` | Product Hunt AI tools discovery |
 | `--type` | `hackernews` | Hacker News developer trends analysis |
+| `--type` | `youtube` | YouTube influencer video summaries |
 | `--type` | `all` | Run all DAILY processors in parallel |
-| `--type` | `all_weekly` | Run all WEEKLY processors (and Sunday Daily) in parallel |
+| `--type` | `all_weekly` | Run all WEEKLY processors in parallel |
 | `--timeframe` | `daily` / `weekly` | Timeframe for Product Hunt and HackerNews |
 | `--dry-run` | - | Preview output without modifying emails or sending |
 

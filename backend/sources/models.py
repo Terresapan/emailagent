@@ -51,3 +51,27 @@ class HackerNewsInsight(BaseModel):
     top_themes: list[str]  # e.g., "WebComics", "Rust", "AI Safety"
     created_at: datetime
     period: Literal['daily', 'weekly'] = "daily"
+
+
+class YouTubeVideo(BaseModel):
+    """A video from a YouTube influencer channel."""
+    id: str
+    title: str
+    channel_name: str
+    channel_id: str
+    description: Optional[str] = None
+    view_count: int = 0
+    published_at: Optional[datetime] = None
+    transcript: Optional[str] = None  # Full transcript text
+    summary: Optional[str] = None     # LLM-generated summary of content
+
+
+class YouTubeInsight(BaseModel):
+    """LLM-analyzed insights from YouTube influencer videos."""
+    date: datetime
+    videos: list[YouTubeVideo]
+    trend_summary: str  # LLM-generated summary of what influencers are discussing
+    key_topics: list[str]  # Main themes across videos
+    created_at: datetime
+    period: Literal['daily', 'weekly'] = "daily"
+
