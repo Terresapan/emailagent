@@ -293,7 +293,7 @@ class GmailClient:
         }}
         .header-accent {{
             height: 4px;
-            background: linear-gradient(to right, #c4b5fd, #86efdf);
+            background: #8b3aed;
             border-radius: 2px;
             margin-bottom: 32px;
         }}
@@ -306,12 +306,12 @@ class GmailClient:
             font-size: 1.35em;
             letter-spacing: -0.01em;
             padding-bottom: 8px;
-            border-bottom: 2px solid #c4b5fd;
+            border-bottom: 2px solid #8b3aed;
         }}
         h3 {{
             font-family: 'DM Sans', sans-serif;
             font-weight: 600;
-            color: #86efdf;
+            color: #8b3aed;
             margin-top: 24px;
             font-size: 1.1em;
         }}
@@ -333,11 +333,12 @@ class GmailClient:
         }}
         hr {{
             border: none;
-            border-top: 1px solid #e5e5e5;
+            border-top: 1px solid #8b3aed;
             margin: 28px 0;
+            opacity: 0.3;
         }}
         a {{
-            color: #c4b5fd;
+            color: #8b3aed;
             text-decoration: none;
         }}
         a:hover {{
@@ -366,10 +367,7 @@ class GmailClient:
             color: #6b7280;
         }}
         .brand-text {{
-            background: linear-gradient(to right, #c4b5fd, #86efdf);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #8b3aed;
         }}
         .footer {{
             margin-top: 40px;

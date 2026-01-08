@@ -58,5 +58,10 @@
     "handle": "@OfficialStanfordAIClub",
     "name": "Stanford AI Club",
     "category": "ai-research"
+  },
+  {
+    "handle": "@peterdiamandis",
+    "name": "Peter H. Diamandis",
+    "category": "ai-research"
   }
 ]

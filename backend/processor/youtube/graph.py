@@ -138,7 +138,7 @@ class YouTubeAnalyzer:
             videos = client.fetch_videos_from_channels(
                 channels=valid_channels,
                 videos_per_channel=3,
-                fetch_transcripts=True,
+                fetch_transcripts=False,  # Use descriptions instead - faster & more reliable
             )
             
             # Convert to dicts for state
@@ -152,10 +152,9 @@ class YouTubeAnalyzer:
                     "description": v.description,
                     "view_count": v.view_count,
                     "published_at": v.published_at.isoformat() if v.published_at else None,
-                    "transcript": v.transcript,
                 })
             
-            logger.info(f"Fetched {len(video_dicts)} videos with transcripts")
+            logger.info(f"Fetched {len(video_dicts)} videos")
             return {"videos": video_dicts}
             
         except Exception as e:
@@ -173,25 +172,14 @@ class YouTubeAnalyzer:
                 "key_topics": [],
             }
         
-        # Filter to videos with transcripts
-        videos_with_transcripts = [v for v in videos if v.get("transcript")]
-        
-        if not videos_with_transcripts:
-            logger.warning("No videos have transcripts available")
-            return {
-                "summaries": videos,
-                "trend_summary": "No transcripts available for analysis.",
-                "key_topics": [],
-            }
-        
-        # Prepare content for LLM - truncate transcripts to fit context
+        # Prepare content for LLM using title + description (no transcripts needed)
         video_texts = []
-        for v in videos_with_transcripts[:10]:  # Limit to 10 videos
-            transcript = v.get("transcript", "")[:3000]  # ~750 tokens per video
+        for v in videos[:15]:  # Can handle more videos since descriptions are shorter
+            description = v.get("description", "") or "No description provided."
             video_texts.append(
                 f"Video ID [{v['id']}]: \"{v['title']}\" by {v['channel_name']}\n"
                 f"Views: {v.get('view_count', 0):,}\n"
-                f"Transcript excerpt:\n{transcript}"
+                f"Description:\n{description}"
             )
         
         videos_text = "\n\n---\n\n".join(video_texts)
@@ -208,13 +196,18 @@ class YouTubeAnalyzer:
         
         prompt = f"""You are an expert tech content analyst reviewing videos from top tech influencers.
 
-Here are the recent videos and their transcripts:
+Here are the recent videos with their titles and descriptions:
 
 {videos_text}
 
+IMPORTANT: Video descriptions often contain promotional content (social links, Patreon, Discord, email addresses, course ads, sponsorship plugs). IGNORE all promotional content and focus ONLY on:
+- The actual video topic description
+- Timestamps/chapter markers (e.g., "00:00 Introduction", "04:47 Key Concept")
+- Technical content and key points
+
 Please analyze this content and provide:
 
-1. **Video Summaries**: For each video, provide a concise 2-3 sentence summary of the main points and key takeaways.
+1. **Video Summaries**: For each video, provide a concise 2-3 sentence summary based on the title and description. Focus on the main technical topic and key takeaways. Ignore any promotional content.
 
 2. **Trend Summary**: A 2-3 sentence overview of what tech influencers are currently discussing and any emerging themes.
 

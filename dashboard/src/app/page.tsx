@@ -101,7 +101,7 @@ export default function Home() {
             {activeView === "daily" ? "DAILY INSIGHTS" :
               activeView === "producthunt" ? "PRODUCT HUNT" :
                 activeView === "hackernews" ? (<>HACKER<br className="sm:hidden" /> NEWS</>) :
-                  activeView === "youtube" ? "YOUTUBE" :
+                  activeView === "youtube" ? (<>YOUTUBE<br className="sm:hidden" /> CHANNELS</>) :
                     "WEEKLY INTELLIGENCE"}
           </h1>
         </MotionItem>

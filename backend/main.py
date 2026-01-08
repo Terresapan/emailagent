@@ -309,8 +309,8 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
         
         # Format launches
         launches_text = "\n".join([
-            f"• **{l.name}** ({l.votes} votes)\n  {l.tagline}\n  {l.website or 'No website'}"
-            for l in insight.top_launches[:5]
+            f"• **[{l.name}]({l.website or '#'})** ({l.votes} votes)\n  {l.tagline}"
+            for l in insight.top_launches[:10]  # Show top 10
         ])
         
         # Format content angles
@@ -403,7 +403,7 @@ def main_hacker_news(gmail_client: GmailClient, dry_run: bool = False, timeframe
             
             # Format top stories
             stories_text = "\n".join([
-                f"• **{s.title}** ({s.score} pts, {s.comments_count} comments)\n  {s.sentiment or ''} {s.verdict or ''}\n  {s.url or 'No link'}"
+                f"• **[{s.title}]({s.url or '#'})** ({s.score} pts, {s.comments_count} comments)\n  {s.sentiment or ''} {s.verdict or ''}"
                 for s in insight.stories[:10]
             ])
             
@@ -510,7 +510,7 @@ def main_youtube(gmail_client: GmailClient, dry_run: bool = False, timeframe: st
             
             # Format videos
             videos_text = "\n".join([
-                f"• **{v.title}** ({v.channel_name})\n  {v.view_count:,} views\n  {v.summary or 'No summary available'}"
+                f"• **[{v.title}](https://www.youtube.com/watch?v={v.id})** ({v.channel_name})\n  {v.view_count:,} views\n  {v.summary or 'No summary available'}"
                 for v in insight.videos[:10]
             ])
             

@@ -222,7 +222,7 @@ class YouTubeClient:
                     title=snippet.get("title", "Untitled"),
                     channel_name=channel_name,
                     channel_id=channel_id,
-                    description=snippet.get("description", "")[:500],  # Truncate
+                    description=snippet.get("description", ""),  # Full description
                     view_count=int(stats.get("viewCount", 0)),
                     published_at=published_at,
                 )
