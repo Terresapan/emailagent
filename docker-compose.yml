@@ -44,6 +44,8 @@ services:
     volumes:
       # Mount API code for hot-reloading
       - ./backend/api:/app
+      # Preserve venv from image
+      - /app/.venv
       # Mount shared packages
       - ./backend/db:/app/db
       - ./backend/sources:/app/sources

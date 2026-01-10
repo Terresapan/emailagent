@@ -21,4 +21,6 @@ dependencies = [
     "psycopg2-binary>=2.9.9",
     "markdown>=3.7",
     "youtube-transcript-api>=0.6.3",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
 ]
