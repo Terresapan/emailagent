@@ -12,18 +12,18 @@ from sources.models import TrendValidation
 
 logger = logging.getLogger(__name__)
 
-# Keywords that indicate content appeals to technical builders
-BUILDER_KEYWORDS = [
+# Keywords that indicate technically-focused content
+TECHNICAL_KEYWORDS = [
     "tutorial", "how to build", "api", "sdk", "open source", "github",
     "programming", "code", "developer", "framework", "library", "cli",
     "documentation", "integration", "deploy", "self-hosted"
 ]
 
-# Keywords that indicate content appeals to non-tech founders
-FOUNDER_KEYWORDS = [
+# Keywords that indicate strategically-focused content
+STRATEGIC_KEYWORDS = [
     "pricing", "for startups", "vs", "alternative", "benefits", "roi",
     "for business", "enterprise", "saas", "productivity", "automation",
-    "no-code", "low-code", "cost", "free", "trial"
+    "no-code", "low-code", "cost", "free", "trial", "strategy", "growth"
 ]
 
 
@@ -131,17 +131,9 @@ class GoogleTrendsClient:
                         "value": values[0].get("extracted_value", 0)
                     })
             
-            # Fetch related queries (separate call)
+            # Note: Related queries would require a separate API call (doubling usage)
+            # Skipping to conserve API quota - can be enabled if needed
             related = []
-            if self._can_use_serpapi():
-                params["data_type"] = "RELATED_QUERIES"
-                response = requests.get(self.SERPAPI_BASE_URL, params=params, timeout=30)
-                if response.status_code == 200:
-                    self._increment_usage()
-                    related_data = response.json()
-                    rising = related_data.get("related_queries", {}).get("rising", [])
-                    for item in rising[:5]:  # Top 5 rising queries
-                        related.append(item.get("query", ""))
             
             return {
                 "interest_over_time": interest_data,
@@ -167,9 +159,12 @@ class GoogleTrendsClient:
         try:
             from pytrends.request import TrendReq
             import time
+            import random
             
-            # Add delay to avoid rate limiting
-            time.sleep(2)
+            # Add randomized delay to avoid aggressive rate limiting
+            sleep_time = random.uniform(5, 10)
+            logger.info(f"Sleeping {sleep_time:.1f}s before pytrends request...")
+            time.sleep(sleep_time)
             
             pytrends = TrendReq(hl='en-US', tz=360)
             pytrends.build_payload([keyword], timeframe='today 3-m')
@@ -187,6 +182,8 @@ class GoogleTrendsClient:
             # Get related queries
             related = []
             try:
+                # Add another small sleep before second request
+                time.sleep(2) 
                 related_df = pytrends.related_queries()
                 if keyword in related_df and related_df[keyword].get("rising") is not None:
                     rising = related_df[keyword]["rising"]
@@ -208,23 +205,23 @@ class GoogleTrendsClient:
         """
         Classify topic for target audience based on keyword and related queries.
         
-        Returns list of audience tags: ["builder"], ["founder"], or ["builder", "founder"]
+        Returns list of audience tags: ["technical"], ["strategic"], or ["technical", "strategic"]
         """
         all_text = (keyword + " " + " ".join(related_queries)).lower()
         
         tags = []
         
-        # Check for builder signals
-        if any(bk in all_text for bk in BUILDER_KEYWORDS):
-            tags.append("builder")
+        # Check for technical signals
+        if any(tk in all_text for tk in TECHNICAL_KEYWORDS):
+            tags.append("technical")
         
-        # Check for founder signals
-        if any(fk in all_text for fk in FOUNDER_KEYWORDS):
-            tags.append("founder")
+        # Check for strategic signals
+        if any(sk in all_text for sk in STRATEGIC_KEYWORDS):
+            tags.append("strategic")
         
         # Default to both if no clear signal (broad appeal)
         if not tags:
-            tags = ["builder", "founder"]
+            tags = ["technical", "strategic"]
         
         return tags
     

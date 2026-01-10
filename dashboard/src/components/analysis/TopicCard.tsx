@@ -44,7 +44,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({
                                 key={tag}
                                 className={cn(
                                     "audience-badge",
-                                    tag === 'builder' ? "audience-badge-builder" : "audience-badge-founder"
+                                    tag === 'technical' ? "audience-badge-technical" : "audience-badge-strategic"
                                 )}
                             >
                                 {tag}
@@ -91,24 +91,26 @@ export const TopicCard: React.FC<TopicCardProps> = ({
             </div>
 
             {/* Related Queries */}
-            <div className="border-t border-white/5 pt-3">
-                <div className="trend-label mb-2 opacity-70">Rising Context</div>
-                <div className="flex flex-wrap gap-2">
-                    {relatedQueries.slice(0, 3).map(query => (
-                        <span
-                            key={query}
-                            className="text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default"
-                        >
-                            {query}
-                        </span>
-                    ))}
-                    {relatedQueries.length > 3 && (
-                        <span className="text-xs text-muted-foreground/50 px-2 py-1">
-                            +{relatedQueries.length - 3}
-                        </span>
-                    )}
+            {relatedQueries.length > 0 && (
+                <div className="border-t border-white/5 pt-3">
+                    <div className="trend-label mb-2 opacity-70">Rising Context</div>
+                    <div className="flex flex-wrap gap-2">
+                        {relatedQueries.slice(0, 3).map(query => (
+                            <span
+                                key={query}
+                                className="text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default"
+                            >
+                                {query}
+                            </span>
+                        ))}
+                        {relatedQueries.length > 3 && (
+                            <span className="text-xs text-muted-foreground/50 px-2 py-1">
+                                +{relatedQueries.length - 3}
+                            </span>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

@@ -27,6 +27,14 @@ Thumbs.db
 # Docker
 postgres_data/
 
+# Docker generated mount points (do not commit)
+backend/api/config/
+backend/api/processor/
+backend/api/utils/
+backend/api/logs/
+backend/api/db/
+backend/api/sources/
+
 # Credentials (keep these private!)
 credentials.json
 token.json

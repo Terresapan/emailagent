@@ -465,3 +465,112 @@ class GmailClient:
         except HttpError as error:
             logger.error(f"Error sending email: {error}")
             raise
+
+    def send_analysis_email(self, analyses: list) -> str:
+        """
+        Send trend analysis email report.
+        
+        Consolidates the AnalysisEmailService functionality directly into GmailClient
+        for consistent email formatting with other features.
+        
+        Args:
+            analyses: List of TopicAnalysis objects to include in the report
+            
+        Returns:
+            Message ID if sent successfully
+        """
+        from datetime import datetime
+        from config import settings
+        
+        if not analyses:
+            logger.warning("No analyses to send")
+            return None
+        
+        html_content = self._generate_analysis_html(analyses)
+        date_str = datetime.now().strftime("%b %d")
+        subject = f"Trend Intelligence: Market Validation for {date_str}"
+        
+        recipient = settings.DIGEST_RECIPIENT_EMAIL
+        msg_id = self.send_html_email(to=recipient, subject=subject, html_content=html_content)
+        logger.info(f"Sent analysis email to {recipient}")
+        return msg_id
+    
+    def _format_trend_row(self, trend) -> str:
+        """Format a single trend row for the email."""
+        emoji = "📈" if trend.trend_direction == "rising" else "➖"
+        if trend.trend_direction == "declining":
+            emoji = "📉"
+            
+        audiences = []
+        if "builder" in trend.audience_tags:
+            audiences.append('<span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Builder</span>')
+        if "founder" in trend.audience_tags:
+            audiences.append('<span style="background:#f3e8ff;color:#7e22ce;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Founder</span>')
+            
+        audience_html = " ".join(audiences)
+        
+        related_queries_html = ""
+        if trend.related_queries:
+            related_queries_html = f'<div style="margin-top:8px; font-size:11px; color:#6b7280; font-family:\'DM Sans\',sans-serif;">Context: {", ".join(trend.related_queries[:3])}</div>'
+        
+        return f"""
+        <div style="margin-bottom: 16px; padding: 16px; border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 8px; background-color: #ffffff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-weight:600; font-size:16px; color:#1a1a1a; font-family:'DM Sans',sans-serif;">{trend.keyword}</span>
+                <span style="font-weight:700; color:#8b3aed; font-family:'DM Sans',sans-serif;">{trend.trend_score}/100</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#374151; font-family:'DM Sans',sans-serif;">
+                <span>{emoji} Momentum: {trend.momentum}%</span>
+                <div>{audience_html}</div>
+            </div>
+            {related_queries_html}
+        </div>
+        """
+
+    def _generate_analysis_html(self, analyses: list) -> str:
+        """Generate the HTML body for the analysis email using brand-consistent styling."""
+        
+        sections_html = ""
+        
+        for analysis in analyses:
+            if not analysis.topics:
+                continue
+                
+            source_label = analysis.source.replace("producthunt", "Product Hunt").replace("hackernews", "Hacker News").title()
+            
+            # Show ALL topics, not just top 3
+            rows_html = "".join([self._format_trend_row(t) for t in analysis.topics])
+            
+            sections_html += f"""
+            <div style="margin-bottom: 32px;">
+                <h2 style="font-family: 'Playfair Display', Georgia, serif; font-weight: 600; color: #1a1a1a; margin-top: 32px; margin-bottom: 16px; font-size: 1.35em; letter-spacing: -0.01em; padding-bottom: 8px; border-bottom: 2px solid #8b3aed;">
+                    {source_label}
+                </h2>
+                {rows_html}
+            </div>
+            """
+            
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body style="font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1a1a1a; max-width: 680px; margin: 0 auto; padding: 24px; background-color: #f8f7f6;">
+    <div style="background-color: #ffffff; border-radius: 12px; padding: 40px; border: 1px solid rgba(0, 0, 0, 0.06); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <h1 style="font-family: 'Playfair Display', Georgia, serif; font-weight: 600; color: #1a1a1a; font-size: 2em; margin-bottom: 8px; letter-spacing: -0.02em;">Trend Intelligence</h1>
+            <div style="height: 4px; background: #8b3aed; border-radius: 2px; margin: 16px auto; max-width: 100px;"></div>
+            <p style="color: #6b7280; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0;">Market Validation Report</p>
+        </div>
+        
+        {sections_html}
+        
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e5e5; text-align: center; color: #9ca3af; font-size: 0.85em;">
+            Generated by AI Newsletter Agent • <a href="http://localhost:3000/analysis" style="color: #8b3aed; text-decoration: none;">View Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>
+        """

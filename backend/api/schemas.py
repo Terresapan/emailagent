@@ -159,7 +159,7 @@ class TrendValidationResponse(BaseModel):
     momentum: float = 0.0
     trend_direction: str = "stable"  # "rising", "stable", "declining"
     related_queries: List[str] = []
-    audience_tags: List[str] = []    # "builder", "founder"
+    audience_tags: List[str] = []    # "technical", "strategic"
     trend_score: int = 0
     api_source: str = "serpapi"
 
@@ -170,8 +170,8 @@ class TopicAnalysisResponse(BaseModel):
     source: str  # "producthunt", "hackernews", "youtube", "newsletter"
     source_date: date
     topics: List[TrendValidationResponse] = []
-    top_builder_topics: List[str] = []
-    top_founder_topics: List[str] = []
+    top_technical_topics: List[str] = []
+    top_strategic_topics: List[str] = []
     summary: Optional[str] = None
     created_at: datetime
 

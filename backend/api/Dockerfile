@@ -18,7 +18,11 @@ RUN pip install --no-cache-dir \
     pytrends==4.9.2 \
     tenacity==8.2.3 \
     markdown==3.5.2 \
-    justhtml
+    justhtml \
+    langchain-openai \
+    langgraph \
+    langsmith \
+    nest_asyncio
 
 # Copy API code
 COPY . .

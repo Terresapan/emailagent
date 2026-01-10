@@ -45,6 +45,7 @@ services:
       # Mount shared packages
       - ./backend/db:/app/db
       - ./backend/sources:/app/sources
+      - ./backend/processor:/app/processor
       - ./backend/config:/app/config
       - ./backend/utils:/app/utils
       # Mount Gmail credentials for email delivery

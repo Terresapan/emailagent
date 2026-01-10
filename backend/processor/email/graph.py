@@ -59,22 +59,14 @@ from config.settings import (
     LLM_MAX_RETRIES,
     LLM_REASONING_EFFORT_EXTRACTION,
     LLM_REASONING_EFFORT_GENERATION,
-    LANGSMITH_API_KEY,
-    LANGSMITH_TRACING,
-    LANGSMITH_ENDPOINT,
-    LANGSMITH_PROJECT
 )
+from config.langsmith import configure_langsmith
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Configure LangSmith tracing
-if LANGSMITH_TRACING and LANGSMITH_API_KEY:
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_API_KEY"] = LANGSMITH_API_KEY
-    os.environ["LANGCHAIN_ENDPOINT"] = LANGSMITH_ENDPOINT
-    os.environ["LANGCHAIN_PROJECT"] = LANGSMITH_PROJECT
-    logger.info(f"LangSmith tracing enabled for project: {LANGSMITH_PROJECT}")
+# Configure LangSmith tracing (centralized)
+configure_langsmith()
 
 
 class EmailSummarizer:

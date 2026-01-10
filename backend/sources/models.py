@@ -87,18 +87,19 @@ class TrendValidation(BaseModel):
     momentum: float = 0.0    # Week-over-week % change
     trend_direction: Literal["rising", "stable", "declining"] = "stable"
     related_queries: list[str] = []
-    audience_tags: list[Literal["builder", "founder"]] = []  # Who this appeals to
+    audience_tags: list[Literal["technical", "strategic"]] = []  # Who this appeals to
     trend_score: int = 0     # Composite 0-100 score
     validated_at: datetime = Field(default_factory=datetime.utcnow)
     api_source: Literal["serpapi", "pytrends", "cached"] = "serpapi"
+    content_source: Optional[str] = None  # Original source (e.g., 'newsletter', 'youtube')
 
 
 class TopicAnalysis(BaseModel):
     """Analysis of topics from a content source, validated against Google Trends."""
-    source: Literal["producthunt", "hackernews", "youtube", "newsletter", "manual"]
+    source: Literal["producthunt", "hackernews", "youtube", "newsletter", "manual", "global"]
     source_date: datetime
     topics: list[TrendValidation]
-    top_builder_topics: list[str] = []  # Filtered for technical builders
-    top_founder_topics: list[str] = []  # Filtered for non-tech founders
+    top_technical_topics: list[str] = []  # Filtered for technical topics
+    top_strategic_topics: list[str] = []  # Filtered for strategic topics
     summary: str = ""  # LLM-generated summary of validated trends
     created_at: datetime = Field(default_factory=datetime.utcnow)

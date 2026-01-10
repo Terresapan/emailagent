@@ -313,18 +313,51 @@ async def get_latest_analysis(
     """
     Get the most recent topic analysis, optionally filtered by source.
     
-    Args:
-        source: Filter by source ('producthunt', 'hackernews', 'youtube', 'newsletter')
+    If specific source requested (e.g. 'newsletter') and not found, 
+    filter from latest 'global' analysis.
     """
     from db import TopicAnalysisDB
     from schemas import TopicAnalysisResponse, TrendValidationResponse
     
     query = db.query(TopicAnalysisDB)
     
+    # Try exact match first
     if source:
         query = query.filter(TopicAnalysisDB.source == source)
     
     analysis = query.order_by(TopicAnalysisDB.created_at.desc()).first()
+    
+    # Fallback: If specific source requested but not found, check global
+    if not analysis and source and source != "global":
+        global_analysis = db.query(TopicAnalysisDB).filter(
+            TopicAnalysisDB.source == "global"
+        ).order_by(TopicAnalysisDB.created_at.desc()).first()
+        
+        if global_analysis:
+            # Filter topics by content_source
+            # Handle source mapping (e.g. 'newsletter' should match 'newsletter' and 'weekly_newsletter')
+            filtered_topics = []
+            for t in (global_analysis.topics_json or []):
+                content_source = t.get('content_source', '')
+                if not content_source: 
+                    continue
+                    
+                # Loose matching to handle weekly variants
+                if source in content_source:
+                    filtered_topics.append(t)
+            
+            if filtered_topics:
+                # Return partial view of global analysis
+                return TopicAnalysisResponse(
+                    id=global_analysis.id,
+                    source=source, # Pretend it's the requested source
+                    source_date=global_analysis.source_date,
+                    topics=[TrendValidationResponse(**t) for t in filtered_topics],
+                    top_builder_topics=global_analysis.top_builder_topics or [],
+                    top_founder_topics=global_analysis.top_founder_topics or [],
+                    summary=global_analysis.summary, # Keep global summary
+                    created_at=global_analysis.created_at,
+                )
     
     if not analysis:
         return None
@@ -386,6 +419,7 @@ async def get_analysis_history(
 async def validate_topics(
     topics: Optional[str] = None,
     source: str = Query(..., description="Source type: 'producthunt', 'hackernews', 'youtube', 'newsletter', 'manual', or 'all'"),
+    force: bool = Query(False, description="Force run even on Saturday (for manual testing)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -397,139 +431,186 @@ async def validate_topics(
     import sys
     sys.path.insert(0, '/app')
     
-    from sources.google_trends import GoogleTrendsClient
-    from sources.validation_service import TopicValidationService
-    from db import TopicAnalysisDB, ProductHuntInsightDB, HackerNewsInsightDB, YouTubeInsightDB
+    from processor.google_trend.graph import TrendGraph
+    from db import TopicAnalysisDB, ProductHuntInsightDB, YouTubeInsightDB
     from models import Digest
     from sources.models import ProductHuntInsight, HackerNewsInsight, YouTubeInsight
     from schemas import TopicAnalysisResponse, TrendValidationResponse
     
-    service = TopicValidationService()
-    
     if source == "all":
-        # Global run: Validate top topics from ALL sources
-        analyses = []
+        import json
         
-        # 1. Newsletter (Daily Digest) - Use Digest model
-        daily = db.query(Digest).filter(Digest.digest_type == "daily").order_by(Digest.date.desc()).first()
-        if daily and daily.newsletter_summaries:
-            # Extract top 3 candidates manually to save quota
-            candidates = service.extract_topics_from_newsletter(daily.newsletter_summaries)[:3]
-            if candidates:
-                analyses.append(service.validate_and_analyze("newsletter", candidates, daily.date))
+        # Check day of week (0=Monday, 6=Sunday)
+        today = datetime.now()
+        day_of_week = today.weekday()
         
-        # 2. Product Hunt - Extract topics directly from JSON
-        ph_db = db.query(ProductHuntInsightDB).order_by(ProductHuntInsightDB.date.desc()).first()
-        if ph_db and ph_db.launches_json:
-            # Extract topics directly from launches_json (list of dicts)
-            candidates = set()
-            for launch in ph_db.launches_json[:5]:  # Top 5 launches
-                if isinstance(launch, dict):
-                    name = launch.get('name', '')
-                    if name and len(name) < 50:
-                        candidates.add(name)
-                    for topic in launch.get('topics', []):
-                        if topic and len(topic) > 2:
-                            candidates.add(topic)
-            candidates = list(candidates)[:3]  # Limit to 3
-            if candidates:
-                analyses.append(service.validate_and_analyze("producthunt", candidates, ph_db.date))
-                
-        # 3. Hacker News - Extract from JSON directly
-        hn_db = db.query(HackerNewsInsightDB).order_by(HackerNewsInsightDB.date.desc()).first()
-        if hn_db and hn_db.top_themes:
-            # top_themes is already a list of topic strings
-            candidates = hn_db.top_themes[:3]
-            if candidates:
-                analyses.append(service.validate_and_analyze("hackernews", candidates, hn_db.date))
-
-        # 4. YouTube - Extract from JSON directly  
-        yt_db = db.query(YouTubeInsightDB).order_by(YouTubeInsightDB.date.desc()).first()
-        if yt_db and yt_db.key_topics:
-            # key_topics is already a list of topic strings
-            candidates = yt_db.key_topics[:3]
-            if candidates:
-                analyses.append(service.validate_and_analyze("youtube", candidates, yt_db.date))
-
-        # Save all to DB
-        saved_analyses = []
-        for analysis in analyses:
-            # Check for existing analysis for this source and date
-            existing = db.query(TopicAnalysisDB).filter(
-                TopicAnalysisDB.source == analysis.source,
-                TopicAnalysisDB.source_date == analysis.source_date
-            ).first()
-            if existing:
-                db.delete(existing)
-                db.commit()  # Flush delete before inserting
-            
-            db_obj = TopicAnalysisDB(
-                source=analysis.source,
-                source_date=analysis.source_date,
-                topics_json=[t.model_dump(mode='json') for t in analysis.topics], # Store as list of dicts
-                top_builder_topics=analysis.top_builder_topics,
-                top_founder_topics=analysis.top_founder_topics,
-                summary=analysis.summary,
-                created_at=datetime.utcnow()
-            )
-            db.add(db_obj)
-            db.commit()  # Commit each insert individually
-            saved_analyses.append(db_obj)
-        
-        db.commit()
-        
-        # Send Email
-        try:
-            from sources.email_delivery import AnalysisEmailService
-            from sources.gmail.client import GmailClient
-            
-            # Use 'manual' or a mock client if context requires, but here we assume credentials exist
-            email_service = AnalysisEmailService(GmailClient())
-            
-            # Convert DB objects back to Pydantic for email service
-            from sources.models import TopicAnalysis as TopicAnalysisPydantic, TrendValidation as TrendValidationPydantic
-            pydantic_analyses = []
-            for db_obj in saved_analyses:
-                pydantic_analyses.append(TopicAnalysisPydantic(
-                    source=db_obj.source,
-                    source_date=db_obj.source_date,
-                    topics=[TrendValidationPydantic(**t) for t in db_obj.topics_json],
-                    top_builder_topics=db_obj.top_builder_topics,
-                    top_founder_topics=db_obj.top_founder_topics,
-                    summary=db_obj.summary,
-                    created_at=db_obj.created_at
-                ))
-            
-            email_service.send_analysis_email(pydantic_analyses)
-            
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-            
-        # Return the first one just to match schema
-        if saved_analyses:
-            first = saved_analyses[0]
-            val_response = TopicAnalysisResponse(
-                id=first.id,
-                source=first.source,
-                source_date=first.source_date,
-                topics=[TrendValidationResponse(**t) for t in first.topics_json],
-                top_builder_topics=first.top_builder_topics,
-                top_founder_topics=first.top_founder_topics,
-                summary=first.summary,
-                created_at=first.created_at
-            )
-            return val_response
-        else:
+        if day_of_week == 5 and not force:  # Saturday (skip unless forced)
             return TopicAnalysisResponse(
                 id=0,
-                source="all",
-                source_date=datetime.utcnow(),
+                source="global",
+                source_date=today.date(),
+                topics=[],
+                top_technical_topics=[],
+                top_strategic_topics=[],
+                summary="Saturday - No validation scheduled (use force=true to override)",
+                created_at=today
+            )
+        
+        is_sunday = day_of_week == 6
+        inputs = []  # List of {'source': str, 'content': str}
+        
+        if is_sunday:
+            # SUNDAY: Weekly sources
+            
+            # 1. Newsletter Deep Dive (weekly)
+            weekly_digest = db.query(Digest).filter(
+                Digest.digest_type == "weekly"
+            ).order_by(Digest.date.desc()).first()
+            if weekly_digest and weekly_digest.deepdive_summaries:
+                inputs.append({
+                    "source": "weekly_newsletter", 
+                    "content": weekly_digest.deepdive_summaries
+                })
+            
+            # 2. Product Hunt Weekly
+            ph_weekly = db.query(ProductHuntInsightDB).filter(
+                ProductHuntInsightDB.period == "weekly"
+            ).order_by(ProductHuntInsightDB.date.desc()).first()
+            if ph_weekly and ph_weekly.launches_json:
+                content = json.dumps(ph_weekly.launches_json[:10], default=str)
+                inputs.append({
+                    "source": "weekly_producthunt", 
+                    "content": content
+                })
+            
+            # 3. YouTube Weekly
+            yt_weekly = db.query(YouTubeInsightDB).filter(
+                YouTubeInsightDB.period == "weekly"
+            ).order_by(YouTubeInsightDB.date.desc()).first()
+            if yt_weekly:
+                content = f"Topics: {yt_weekly.key_topics}\nSummary: {yt_weekly.trend_summary}"
+                inputs.append({
+                    "source": "weekly_youtube", 
+                    "content": content
+                })
+        
+        else:
+            # MON-FRI: Daily sources
+            
+            # 1. Newsletter (daily)
+            daily_digest = db.query(Digest).filter(
+                Digest.digest_type == "daily"
+            ).order_by(Digest.date.desc()).first()
+            if daily_digest and daily_digest.newsletter_summaries:
+                inputs.append({
+                    "source": "newsletter", 
+                    "content": daily_digest.newsletter_summaries
+                })
+            
+            # 2. Product Hunt (daily)
+            ph_daily = db.query(ProductHuntInsightDB).filter(
+                ProductHuntInsightDB.period == "daily"
+            ).order_by(ProductHuntInsightDB.date.desc()).first()
+            if ph_daily and ph_daily.launches_json:
+                content = json.dumps(ph_daily.launches_json[:10], default=str)
+                inputs.append({
+                    "source": "producthunt", 
+                    "content": content
+                })
+            
+            # 3. YouTube (daily)
+            yt_daily = db.query(YouTubeInsightDB).filter(
+                YouTubeInsightDB.period == "daily"
+            ).order_by(YouTubeInsightDB.date.desc()).first()
+            if yt_daily:
+                content = f"Topics: {yt_daily.key_topics}\nSummary: {yt_daily.trend_summary}"
+                inputs.append({
+                    "source": "youtube", 
+                    "content": content
+                })
+        
+        if not inputs:
+            return TopicAnalysisResponse(
+                id=0,
+                source="global",
+                source_date=today.date(),
                 topics=[],
                 top_builder_topics=[],
                 top_founder_topics=[],
-                summary="No insights found to validate",
-                created_at=datetime.utcnow()
+                summary="No content found to analyze",
+                created_at=today
             )
+        
+        # Run Trend Graph
+        graph = TrendGraph()
+        analysis = graph.process(inputs, source_type="weekly" if is_sunday else "daily")
+        
+        if not analysis:
+            return TopicAnalysisResponse(
+                id=0,
+                source="global",
+                source_date=today.date(),
+                topics=[],
+                top_builder_topics=[],
+                top_founder_topics=[],
+                summary="Analysis failed or returned empty",
+                created_at=today
+            )
+
+        # Save to DB
+        existing = db.query(TopicAnalysisDB).filter(
+            TopicAnalysisDB.source == "global",
+            TopicAnalysisDB.source_date == today.date()
+        ).first()
+        if existing:
+            db.delete(existing)
+            db.commit()
+        
+        db_obj = TopicAnalysisDB(
+            source="global",
+            source_date=today.date(),
+            topics_json=[t.model_dump(mode='json') for t in analysis.topics],
+            top_builder_topics=analysis.top_technical_topics,
+            top_founder_topics=analysis.top_strategic_topics,
+            summary=analysis.summary,
+            created_at=datetime.utcnow()
+        )
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj) # Ensure we get the ID back
+        
+        # Send Email
+        try:
+            from sources.gmail.client import GmailClient
+            
+            # Reconstruct full analysis object for email service (which expects pydantic model not ORM)
+            from sources.models import TopicAnalysis
+            analysis_for_email = TopicAnalysis(
+                source="global",
+                source_date=db_obj.source_date,
+                topics=analysis.topics,
+                top_technical_topics=db_obj.top_builder_topics,
+                top_strategic_topics=db_obj.top_founder_topics,
+                summary=db_obj.summary
+            )
+            
+            gmail = GmailClient()
+            gmail.send_analysis_email([analysis_for_email])
+            
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+        
+        # Return response
+        return TopicAnalysisResponse(
+            id=db_obj.id,
+            source=db_obj.source,
+            source_date=db_obj.source_date,
+            topics=[TrendValidationResponse(**t) for t in db_obj.topics_json],
+            top_technical_topics=db_obj.top_builder_topics,
+            top_strategic_topics=db_obj.top_founder_topics,
+            summary=db_obj.summary,
+            created_at=db_obj.created_at
+        )
 
     # Manual validation logic
     if not topics:
@@ -543,24 +624,47 @@ async def validate_topics(
     if len(topic_list) > 20:
         raise HTTPException(status_code=400, detail="Maximum 20 topics allowed per request")
     
-    # Validate topics
-    analysis = service.validate_and_analyze(source, topic_list)
+    # Run manual validation via simple Service or Graph?
+    # Graph expects inputs with source/content. We can mock it or just use simple validation service?
+    # Or better: Add a manual entry point to Graph or just use the old service logic (which is being deprecated).
+    # Let's adapt the Graph for manual input?
+    # Currently Graph extracts -> ranks -> validates.
+    # We just want validate.
+    # The old service had validate_and_analyze(source, topics).
+    # Since we are deprecating the service, we should probably use the Graph or key components.
+    # But for now, to keep it simple and given the user asked for graph refactor for the main flow:
+    # I will instantiate GoogleTrendsClient directly for manual mode, similar to what the service did.
+    
+    from sources.google_trends import GoogleTrendsClient
+    from sources.models import TopicAnalysis, TrendValidation
+    
+    trends = GoogleTrendsClient()
+    validations = trends.validate_topics_batch(topic_list)
+    
+    # Construct rudimentary analysis
+    analysis = TopicAnalysis(
+        source=source,
+        source_date=datetime.now().date(),
+        topics=validations,
+        top_builder_topics=[],
+        top_founder_topics=[],
+        summary=f"Manual validation of {len(validations)} topics"
+    )
     
     # Save to database
     # Check for existing manual run today
     existing = db.query(TopicAnalysisDB).filter(
         TopicAnalysisDB.source == analysis.source,
-        TopicAnalysisDB.source_date == (analysis.source_date.date() if hasattr(analysis.source_date, 'date') else analysis.source_date)
+        TopicAnalysisDB.source_date == analysis.source_date
     ).first()
     
     if existing:
         db.delete(existing)
         db.commit()  # Flush delete before inserting new record
         
-    # Use mode='json' to serialize datetime objects to ISO strings
     db_analysis = TopicAnalysisDB(
         source=analysis.source,
-        source_date=analysis.source_date.date() if hasattr(analysis.source_date, 'date') else analysis.source_date,
+        source_date=analysis.source_date,
         topics_json=[t.model_dump(mode='json') for t in analysis.topics],
         top_builder_topics=analysis.top_builder_topics,
         top_founder_topics=analysis.top_founder_topics,
@@ -571,16 +675,11 @@ async def validate_topics(
     db.commit()
     db.refresh(db_analysis)
     
-    # Return response
-    topics_response = [
-        TrendValidationResponse(**t.model_dump()) for t in analysis.topics
-    ]
-    
     return TopicAnalysisResponse(
         id=db_analysis.id,
         source=db_analysis.source,
         source_date=db_analysis.source_date,
-        topics=topics_response,
+        topics=[TrendValidationResponse(**t.model_dump()) for t in analysis.topics],
         top_builder_topics=db_analysis.top_builder_topics or [],
         top_founder_topics=db_analysis.top_founder_topics or [],
         summary=db_analysis.summary,
