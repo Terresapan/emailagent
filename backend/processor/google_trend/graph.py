@@ -41,124 +41,229 @@ configure_langsmith()
 # --- Prompts ---
 
 EXTRACTION_PROMPTS = {
-    "newsletter": """You are analyzing an AI newsletter for non-tech business owners.
 
-Extract 3-5 **searchable Google keywords**.
+"newsletter": """
+You are analyzing an AI newsletter written for non-technical business owners.
 
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "DeepSeek", "AI agents", "vibe coding"
-- NO sentences, NO phrases longer than 3 words
+Your task:
+Extract 3 to 5 **searchable Google keywords** that a founder might realistically Google.
 
-BAD (DO NOT OUTPUT):
-- "AI infrastructure spending trends" → use "AI infrastructure"
-- "The future of AI assistants" → use "AI assistants"
+Keyword rules (STRICT):
+- 1 to 3 words only
+- Nouns or short noun phrases only
+- Must stand alone as a search query
+- Prefer widely used, canonical terms
 
-Content:
-{content}
+Do NOT output:
+- Full sentences or long phrases
+- Trend descriptions or opinions
+- Overly specific or niche jargon
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
+Examples (GOOD):
+- "AI agents"
+- "vibe coding"
+- "DeepSeek"
 
-    "producthunt": """You are analyzing Product Hunt AI launches.
-
-Extract 3-5 **searchable Google keywords** - product names or tool categories.
-
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "AI spreadsheet", "no-code AI", "voice cloning"
-
-BAD (DO NOT OUTPUT):
-- "AI-powered presentation recording" → use "presentation recorder"
-- "Automated social media tool" → use "social automation"
+Examples (BAD → FIX):
+- "AI infrastructure spending trends" → "AI infrastructure"
+- "The future of AI assistants" → "AI assistants"
 
 Content:
 {content}
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+""",
 
-    "youtube": """You are analyzing AI influencer videos.
+"producthunt": """
+You are analyzing AI-related Product Hunt launches.
 
-Extract 3-5 **searchable Google keywords**.
+Your task:
+Extract 3 to 5 **searchable Google keywords** representing product names or product categories.
 
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "ChatGPT", "AI agents", "robotics automation"
+Keyword rules (STRICT):
+- 1 to 3 words only
+- Use official product names OR common category names
+- Prefer generic categories over marketing language
 
-BAD (DO NOT OUTPUT):
-- "AI-driven job displacement and future of work" → use "AI job impact"
-- "Robotic automation and surgical robots" → use "surgical robots"
-- "Platform politics and walled gardens" → use "AI platforms"
+Do NOT output:
+- Feature descriptions
+- Value propositions
+- Sentences or long phrases
 
-Content:
-{content}
+Examples (GOOD):
+- "AI spreadsheet"
+- "no-code AI"
+- "voice cloning"
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
-
-    "weekly_newsletter": """You are analyzing weekly AI essays for business leaders.
-
-Extract 3-5 **searchable Google keywords** for strategic AI topics.
-
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "AI transformation", "enterprise AI", "AI strategy"
-
-BAD (DO NOT OUTPUT):
-- "The evolution of enterprise AI adoption" → use "enterprise AI"
+Examples (BAD → FIX):
+- "AI-powered presentation recording" → "presentation recorder"
+- "Automated social media tool" → "social automation"
 
 Content:
 {content}
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+""",
 
-    "weekly_producthunt": """You are analyzing the week's best AI product launches.
+"youtube": """
+You are analyzing AI influencer video content.
 
-Extract 3-5 **searchable Google keywords** for impactful tools.
+Your task:
+Extract 3 to 5 **searchable Google keywords** representing the main AI topics discussed.
 
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "AI writing", "workflow automation", "no-code AI"
+Keyword rules (STRICT):
+- 1 to 3 words only
+- High-level topics, tools, or concepts
+- Use common terminology people already search for
 
-BAD (DO NOT OUTPUT):
-- "Best AI tools for productivity" → use "AI productivity"
+Do NOT output:
+- Sentences or abstract ideas
+- Political or philosophical framing
+- Overly broad social commentary
+
+Examples (GOOD):
+- "ChatGPT"
+- "AI agents"
+- "robotics automation"
+
+Examples (BAD → FIX):
+- "AI-driven job displacement and future of work" → "AI job impact"
+- "Robotic automation and surgical robots" → "surgical robots"
+- "Platform politics and walled gardens" → "AI platforms"
 
 Content:
 {content}
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+""",
 
-    "weekly_youtube": """You are analyzing a week of AI influencer content.
+"weekly_newsletter": """
+You are analyzing weekly AI essays written for business leaders.
 
-Extract 3-5 **searchable Google keywords** for major themes.
+Your task:
+Extract 3 to 5 **searchable Google keywords** representing strategic AI themes.
 
-STRICT FORMAT RULES:
-- Each keyword MUST be 1-3 words only
-- Examples: "AI coding", "Claude API", "open source AI"
+Keyword rules (STRICT):
+- 1 to 3 words only
+- Business-relevant and decision-oriented
+- Use established industry language
 
-BAD (DO NOT OUTPUT):
-- "The state of AI coding assistants" → use "AI coding"
+Do NOT output:
+- Narrative phrasing
+- Speculative or philosophical language
+- Full sentences
+
+Examples (GOOD):
+- "AI strategy"
+- "enterprise AI"
+- "AI transformation"
+
+Examples (BAD → FIX):
+- "The evolution of enterprise AI adoption" → "enterprise AI"
 
 Content:
 {content}
 
-Return ONLY keywords, one per line. No numbering, no explanations.""",
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+""",
+
+"weekly_producthunt": """
+You are analyzing the week's most impactful AI product launches.
+
+Your task:
+Extract 3 to 5 **searchable Google keywords** representing tools or tool categories.
+
+Keyword rules (STRICT):
+- 1 to 3 words only
+- Focus on what the tool *is*, not what it promises
+- Prefer category-level terms when possible
+
+Do NOT output:
+- Marketing slogans
+- Comparative language ("best", "top", "leading")
+- Sentences or long phrases
+
+Examples (GOOD):
+- "AI writing"
+- "workflow automation"
+- "no-code AI"
+
+Examples (BAD → FIX):
+- "Best AI tools for productivity" → "AI productivity"
+
+Content:
+{content}
+
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+""",
+
+"weekly_youtube": """
+You are analyzing a week of AI influencer videos.
+
+Your task:
+Extract 3 to 5 **searchable Google keywords** representing the dominant weekly themes.
+
+Keyword rules (STRICT):
+- 1 to 3 words only
+- Use canonical tool names or well-known AI concepts
+- Avoid niche phrasing unique to one creator
+
+Do NOT output:
+- Commentary or opinions
+- Sentences or multi-clause phrases
+
+Examples (GOOD):
+- "AI coding"
+- "Claude API"
+- "open source AI"
+
+Examples (BAD → FIX):
+- "The state of AI coding assistants" → "AI coding"
+
+Content:
+{content}
+
+Output ONLY keywords, one per line.
+No numbering. No explanations.
+"""
 }
 
-RANKING_PROMPT = """You are an expert editor for a business AI newsletter.
-Select the top 12 most relevant keywords from the list below for a non-technical founder.
+RANKING_PROMPT = """
+You are a senior editor for a business-focused AI newsletter written for non-technical founders.
 
-Criteria:
-- Trending potential (is this hot right now?)
-- Business relevance (can a founder act on this?)
-- Search interest (would people Google this?)
+Your task:
+From the input list, select EXACTLY 12 keywords that are most valuable to feature this week.
 
-STRICT RULES:
-- REMOVE DUPLICATES: Do not output case-variations (e.g. "AI Coding" vs "ai coding") or synonyms.
-- If duplicates exist, pick the most common/canonical capitalization.
-- Return ONLY the top 12 keywords as a flat list, one per line.
-- Do not include numbering, bullets, or explanations.
+If two keywords are similar in meaning, select the one with broader appeal.
 
-Input Keywords:
-{keywords}"""
+Rank implicitly by selecting only the top 12.
+
+Evaluation criteria (in order of importance):
+1. Trending momentum — actively rising or widely discussed right now
+2. Business actionability — a founder could make a decision, investment, or experiment based on this
+3. Search intent — founders are likely to Google this term
+
+Deduplication rules (STRICT):
+- Remove duplicates, near-duplicates, and trivial variations
+  (case differences, pluralization, tense, or minor wording changes)
+- If multiple variants exist, keep the most commonly used / canonical form
+
+Output rules (STRICT):
+- Output ONLY the final 12 keywords
+- One keyword per line
+- No numbering, bullets, commentary, or extra text
+- Do NOT invent new keywords
+- Do NOT rephrase keywords
+
+Input keywords:
+{keywords}
+"""
+
 
 
 # --- State Definition ---
