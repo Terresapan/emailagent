@@ -561,6 +561,129 @@ def main_youtube(gmail_client: GmailClient, dry_run: bool = False, timeframe: st
         raise
 
 
+def main_trend_validation(gmail_client: GmailClient, dry_run: bool = False):
+    """
+    Run trend validation on all sources and send consolidated email report.
+    
+    This should be called AFTER all daily processors have completed so that
+    the latest insights are available in the database.
+    
+    Args:
+        gmail_client: Initialized Gmail client
+        dry_run: If True, don't send emails
+    """
+    logger.info("=" * 60)
+    logger.info("Trend Validation Processing")
+    logger.info("=" * 60)
+    
+    from db import get_session, ProductHuntInsightDB, HackerNewsInsightDB, YouTubeInsightDB, TopicAnalysisDB, Digest
+    from sources.validation_service import TopicValidationService
+    from sources.email_delivery import AnalysisEmailService
+    from datetime import datetime
+    
+    session = get_session()
+    service = TopicValidationService()
+    
+    try:
+        analyses = []
+        
+        # 1. Newsletter (Daily Digest)
+        logger.info("Extracting topics from Newsletter...")
+        daily = session.query(Digest).filter(Digest.digest_type == "daily").order_by(Digest.date.desc()).first()
+        if daily and daily.newsletter_summaries:
+            candidates = service.extract_topics_from_newsletter(daily.newsletter_summaries)[:3]
+            if candidates:
+                logger.info(f"  Newsletter topics: {candidates}")
+                analyses.append(service.validate_and_analyze("newsletter", candidates, daily.date))
+        
+        # 2. Product Hunt
+        logger.info("Extracting topics from Product Hunt...")
+        ph_db = session.query(ProductHuntInsightDB).order_by(ProductHuntInsightDB.date.desc()).first()
+        if ph_db and ph_db.launches_json:
+            candidates = set()
+            for launch in ph_db.launches_json[:5]:
+                if isinstance(launch, dict):
+                    name = launch.get('name', '')
+                    if name and len(name) < 50:
+                        candidates.add(name)
+                    for topic in launch.get('topics', []):
+                        if topic and len(topic) > 2:
+                            candidates.add(topic)
+            candidates = list(candidates)[:3]
+            if candidates:
+                logger.info(f"  Product Hunt topics: {candidates}")
+                analyses.append(service.validate_and_analyze("producthunt", candidates, ph_db.date))
+        
+        # 3. Hacker News
+        logger.info("Extracting topics from Hacker News...")
+        hn_db = session.query(HackerNewsInsightDB).order_by(HackerNewsInsightDB.date.desc()).first()
+        if hn_db and hn_db.top_themes:
+            candidates = hn_db.top_themes[:3]
+            if candidates:
+                logger.info(f"  Hacker News topics: {candidates}")
+                analyses.append(service.validate_and_analyze("hackernews", candidates, hn_db.date))
+        
+        # 4. YouTube
+        logger.info("Extracting topics from YouTube...")
+        yt_db = session.query(YouTubeInsightDB).order_by(YouTubeInsightDB.date.desc()).first()
+        if yt_db and yt_db.key_topics:
+            candidates = yt_db.key_topics[:3]
+            if candidates:
+                logger.info(f"  YouTube topics: {candidates}")
+                analyses.append(service.validate_and_analyze("youtube", candidates, yt_db.date))
+        
+        if not analyses:
+            logger.warning("No topics found to validate. Skipping.")
+            return
+        
+        logger.info(f"✓ Validated {len(analyses)} sources")
+        
+        # Save analyses to DB
+        for analysis in analyses:
+            # Delete existing for same source/date
+            existing = session.query(TopicAnalysisDB).filter(
+                TopicAnalysisDB.source == analysis.source,
+                TopicAnalysisDB.source_date == analysis.source_date
+            ).first()
+            if existing:
+                session.delete(existing)
+            
+            db_obj = TopicAnalysisDB(
+                source=analysis.source,
+                source_date=analysis.source_date,
+                topics_json=[t.model_dump(mode='json') for t in analysis.topics],
+                top_builder_topics=analysis.top_builder_topics,
+                top_founder_topics=analysis.top_founder_topics,
+                summary=analysis.summary,
+                created_at=datetime.utcnow()
+            )
+            session.add(db_obj)
+        
+        session.commit()
+        logger.info("✓ Saved trend analyses to database")
+        
+        # Send email
+        if not dry_run:
+            try:
+                email_service = AnalysisEmailService(gmail_client)
+                email_service.send_analysis_email(analyses)
+                logger.info(f"✓ Sent trend analysis email to {DIGEST_RECIPIENT_EMAIL}")
+            except Exception as e:
+                logger.error(f"Failed to send trend analysis email: {e}")
+        else:
+            logger.info("[DRY RUN] Would send trend analysis email")
+        
+        logger.info("=" * 60)
+        logger.info("Trend Validation Complete")
+        logger.info("=" * 60)
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Trend validation failed: {e}", exc_info=True)
+    finally:
+        session.close()
+
+
 # =============================================================================
 # MAIN ORCHESTRATOR (calls processor functions)
 # =============================================================================
@@ -625,6 +748,10 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
                 future_yt = executor.submit(main_youtube, gmail_client, dry_run, timeframe="daily")
                 concurrent.futures.wait([future_digest, future_ph, future_hn, future_yt])
             logger.info("All daily processors completed")
+            
+            # Run trend validation AFTER all sources are saved to DB
+            logger.info("Running trend validation...")
+            main_trend_validation(gmail_client, dry_run)
         elif email_type == "all_weekly":
             # Sunday only: Run weekly processors
             logger.info("Running all WEEKLY processors in parallel...")

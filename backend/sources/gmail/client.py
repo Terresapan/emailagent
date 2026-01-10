@@ -416,3 +416,52 @@ class GmailClient:
         except HttpError as error:
             logger.error(f"Error sending email: {error}")
             raise
+
+    @retry(
+        stop=stop_after_attempt(LLM_MAX_RETRIES),
+    )
+    def send_html_email(self, to: str, subject: str, html_content: str):
+        """
+        Send an email with pre-rendered HTML content directly.
+        
+        Unlike send_email() which expects markdown and wraps it in a template,
+        this method sends the HTML content as-is without any transformation.
+        
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            html_content: Pre-rendered HTML content (complete document)
+        """
+        try:
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+            from utils.html_parser import html_to_text
+            
+            # Create multipart message
+            message = MIMEMultipart('alternative')
+            message['to'] = to
+            message['subject'] = subject
+            
+            # Attach plain text version (stripped HTML for clients that don't support HTML)
+            plain_text = html_to_text(html_content)
+            text_part = MIMEText(plain_text, 'plain')
+            message.attach(text_part)
+            
+            # Attach HTML version (preferred)
+            html_part = MIMEText(html_content, 'html')
+            message.attach(html_part)
+            
+            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+            
+            sent_message = self.service.users().messages().send(
+                userId=self.user_id,
+                body={'raw': raw_message}
+            ).execute()
+            
+            logger.info(f"Sent email to {to} with subject: {subject}")
+            logger.info(f"Sent message ID: {sent_message['id']}")
+            return sent_message['id']
+            
+        except HttpError as error:
+            logger.error(f"Error sending email: {error}")
+            raise

@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -33,7 +33,11 @@ from schemas import (
     HackerNewsInsightResponse,
     HackerNewsStoryResponse,
     YouTubeInsightResponse,
+    YouTubeInsightResponse,
     YouTubeVideoResponse,
+    TopicAnalysisResponse,
+    TrendValidationResponse,
+    UsageStatsResponse,
 )
 
 # In-memory process status tracking
@@ -295,6 +299,309 @@ async def get_latest_youtube_insight(
         created_at=insight.created_at or datetime.now(),
         period=insight.period,
     )
+
+
+# =============================================================================
+# TOPIC ANALYSIS ENDPOINTS (Google Trends Validation)
+# =============================================================================
+
+@app.get("/api/analysis/latest")
+async def get_latest_analysis(
+    source: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the most recent topic analysis, optionally filtered by source.
+    
+    Args:
+        source: Filter by source ('producthunt', 'hackernews', 'youtube', 'newsletter')
+    """
+    from db import TopicAnalysisDB
+    from schemas import TopicAnalysisResponse, TrendValidationResponse
+    
+    query = db.query(TopicAnalysisDB)
+    
+    if source:
+        query = query.filter(TopicAnalysisDB.source == source)
+    
+    analysis = query.order_by(TopicAnalysisDB.created_at.desc()).first()
+    
+    if not analysis:
+        return None
+    
+    # Transform topics_json to response format
+    topics = [
+        TrendValidationResponse(**t) for t in (analysis.topics_json or [])
+    ]
+    
+    return TopicAnalysisResponse(
+        id=analysis.id,
+        source=analysis.source,
+        source_date=analysis.source_date,
+        topics=topics,
+        top_builder_topics=analysis.top_builder_topics or [],
+        top_founder_topics=analysis.top_founder_topics or [],
+        summary=analysis.summary,
+        created_at=analysis.created_at,
+    )
+
+
+@app.get("/api/analysis/history")
+async def get_analysis_history(
+    source: Optional[str] = None,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """Get paginated topic analysis history."""
+    from db import TopicAnalysisDB
+    from schemas import TopicAnalysisResponse, TrendValidationResponse
+    
+    query = db.query(TopicAnalysisDB)
+    
+    if source:
+        query = query.filter(TopicAnalysisDB.source == source)
+    
+    analyses = query.order_by(TopicAnalysisDB.created_at.desc()).limit(limit).all()
+    
+    results = []
+    for analysis in analyses:
+        topics = [
+            TrendValidationResponse(**t) for t in (analysis.topics_json or [])
+        ]
+        results.append(TopicAnalysisResponse(
+            id=analysis.id,
+            source=analysis.source,
+            source_date=analysis.source_date,
+            topics=topics,
+            top_builder_topics=analysis.top_builder_topics or [],
+            top_founder_topics=analysis.top_founder_topics or [],
+            summary=analysis.summary,
+            created_at=analysis.created_at,
+        ))
+    
+    return results
+
+
+@app.post("/api/analysis/validate", response_model=TopicAnalysisResponse)
+async def validate_topics(
+    topics: Optional[str] = None,
+    source: str = Query(..., description="Source type: 'producthunt', 'hackernews', 'youtube', 'newsletter', 'manual', or 'all'"),
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger validation for topics.
+    
+    If source is 'all', runs validation for all available sources (reads latest insights from DB),
+    aggregates results, and sends an email report.
+    """
+    import sys
+    sys.path.insert(0, '/app')
+    
+    from sources.google_trends import GoogleTrendsClient
+    from sources.validation_service import TopicValidationService
+    from db import TopicAnalysisDB, ProductHuntInsightDB, HackerNewsInsightDB, YouTubeInsightDB
+    from models import Digest
+    from sources.models import ProductHuntInsight, HackerNewsInsight, YouTubeInsight
+    from schemas import TopicAnalysisResponse, TrendValidationResponse
+    
+    service = TopicValidationService()
+    
+    if source == "all":
+        # Global run: Validate top topics from ALL sources
+        analyses = []
+        
+        # 1. Newsletter (Daily Digest) - Use Digest model
+        daily = db.query(Digest).filter(Digest.digest_type == "daily").order_by(Digest.date.desc()).first()
+        if daily and daily.newsletter_summaries:
+            # Extract top 3 candidates manually to save quota
+            candidates = service.extract_topics_from_newsletter(daily.newsletter_summaries)[:3]
+            if candidates:
+                analyses.append(service.validate_and_analyze("newsletter", candidates, daily.date))
+        
+        # 2. Product Hunt - Extract topics directly from JSON
+        ph_db = db.query(ProductHuntInsightDB).order_by(ProductHuntInsightDB.date.desc()).first()
+        if ph_db and ph_db.launches_json:
+            # Extract topics directly from launches_json (list of dicts)
+            candidates = set()
+            for launch in ph_db.launches_json[:5]:  # Top 5 launches
+                if isinstance(launch, dict):
+                    name = launch.get('name', '')
+                    if name and len(name) < 50:
+                        candidates.add(name)
+                    for topic in launch.get('topics', []):
+                        if topic and len(topic) > 2:
+                            candidates.add(topic)
+            candidates = list(candidates)[:3]  # Limit to 3
+            if candidates:
+                analyses.append(service.validate_and_analyze("producthunt", candidates, ph_db.date))
+                
+        # 3. Hacker News - Extract from JSON directly
+        hn_db = db.query(HackerNewsInsightDB).order_by(HackerNewsInsightDB.date.desc()).first()
+        if hn_db and hn_db.top_themes:
+            # top_themes is already a list of topic strings
+            candidates = hn_db.top_themes[:3]
+            if candidates:
+                analyses.append(service.validate_and_analyze("hackernews", candidates, hn_db.date))
+
+        # 4. YouTube - Extract from JSON directly  
+        yt_db = db.query(YouTubeInsightDB).order_by(YouTubeInsightDB.date.desc()).first()
+        if yt_db and yt_db.key_topics:
+            # key_topics is already a list of topic strings
+            candidates = yt_db.key_topics[:3]
+            if candidates:
+                analyses.append(service.validate_and_analyze("youtube", candidates, yt_db.date))
+
+        # Save all to DB
+        saved_analyses = []
+        for analysis in analyses:
+            # Check for existing analysis for this source and date
+            existing = db.query(TopicAnalysisDB).filter(
+                TopicAnalysisDB.source == analysis.source,
+                TopicAnalysisDB.source_date == analysis.source_date
+            ).first()
+            if existing:
+                db.delete(existing)
+                db.commit()  # Flush delete before inserting
+            
+            db_obj = TopicAnalysisDB(
+                source=analysis.source,
+                source_date=analysis.source_date,
+                topics_json=[t.model_dump(mode='json') for t in analysis.topics], # Store as list of dicts
+                top_builder_topics=analysis.top_builder_topics,
+                top_founder_topics=analysis.top_founder_topics,
+                summary=analysis.summary,
+                created_at=datetime.utcnow()
+            )
+            db.add(db_obj)
+            db.commit()  # Commit each insert individually
+            saved_analyses.append(db_obj)
+        
+        db.commit()
+        
+        # Send Email
+        try:
+            from sources.email_delivery import AnalysisEmailService
+            from sources.gmail.client import GmailClient
+            
+            # Use 'manual' or a mock client if context requires, but here we assume credentials exist
+            email_service = AnalysisEmailService(GmailClient())
+            
+            # Convert DB objects back to Pydantic for email service
+            from sources.models import TopicAnalysis as TopicAnalysisPydantic, TrendValidation as TrendValidationPydantic
+            pydantic_analyses = []
+            for db_obj in saved_analyses:
+                pydantic_analyses.append(TopicAnalysisPydantic(
+                    source=db_obj.source,
+                    source_date=db_obj.source_date,
+                    topics=[TrendValidationPydantic(**t) for t in db_obj.topics_json],
+                    top_builder_topics=db_obj.top_builder_topics,
+                    top_founder_topics=db_obj.top_founder_topics,
+                    summary=db_obj.summary,
+                    created_at=db_obj.created_at
+                ))
+            
+            email_service.send_analysis_email(pydantic_analyses)
+            
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            
+        # Return the first one just to match schema
+        if saved_analyses:
+            first = saved_analyses[0]
+            val_response = TopicAnalysisResponse(
+                id=first.id,
+                source=first.source,
+                source_date=first.source_date,
+                topics=[TrendValidationResponse(**t) for t in first.topics_json],
+                top_builder_topics=first.top_builder_topics,
+                top_founder_topics=first.top_founder_topics,
+                summary=first.summary,
+                created_at=first.created_at
+            )
+            return val_response
+        else:
+            return TopicAnalysisResponse(
+                id=0,
+                source="all",
+                source_date=datetime.utcnow(),
+                topics=[],
+                top_builder_topics=[],
+                top_founder_topics=[],
+                summary="No insights found to validate",
+                created_at=datetime.utcnow()
+            )
+
+    # Manual validation logic
+    if not topics:
+         raise HTTPException(status_code=400, detail="No topics provided")
+
+    topic_list = [t.strip() for t in topics.split(",") if t.strip()]
+    
+    if not topic_list:
+        raise HTTPException(status_code=400, detail="No topics provided")
+    
+    if len(topic_list) > 20:
+        raise HTTPException(status_code=400, detail="Maximum 20 topics allowed per request")
+    
+    # Validate topics
+    analysis = service.validate_and_analyze(source, topic_list)
+    
+    # Save to database
+    # Check for existing manual run today
+    existing = db.query(TopicAnalysisDB).filter(
+        TopicAnalysisDB.source == analysis.source,
+        TopicAnalysisDB.source_date == (analysis.source_date.date() if hasattr(analysis.source_date, 'date') else analysis.source_date)
+    ).first()
+    
+    if existing:
+        db.delete(existing)
+        db.commit()  # Flush delete before inserting new record
+        
+    # Use mode='json' to serialize datetime objects to ISO strings
+    db_analysis = TopicAnalysisDB(
+        source=analysis.source,
+        source_date=analysis.source_date.date() if hasattr(analysis.source_date, 'date') else analysis.source_date,
+        topics_json=[t.model_dump(mode='json') for t in analysis.topics],
+        top_builder_topics=analysis.top_builder_topics,
+        top_founder_topics=analysis.top_founder_topics,
+        summary=analysis.summary,
+        created_at=analysis.created_at,
+    )
+    db.add(db_analysis)
+    db.commit()
+    db.refresh(db_analysis)
+    
+    # Return response
+    topics_response = [
+        TrendValidationResponse(**t.model_dump()) for t in analysis.topics
+    ]
+    
+    return TopicAnalysisResponse(
+        id=db_analysis.id,
+        source=db_analysis.source,
+        source_date=db_analysis.source_date,
+        topics=topics_response,
+        top_builder_topics=db_analysis.top_builder_topics or [],
+        top_founder_topics=db_analysis.top_founder_topics or [],
+        summary=db_analysis.summary,
+        created_at=db_analysis.created_at,
+    )
+
+
+@app.get("/api/analysis/usage")
+async def get_trends_usage():
+    """Get Google Trends API usage statistics."""
+    import sys
+    sys.path.insert(0, '/app')
+    
+    from sources.google_trends import GoogleTrendsClient
+    from schemas import UsageStatsResponse
+    
+    client = GoogleTrendsClient()
+    stats = client.get_usage_stats()
+    
+    return UsageStatsResponse(**stats)
+
 
 @app.post("/api/process", response_model=ProcessResponse)
 async def trigger_process(

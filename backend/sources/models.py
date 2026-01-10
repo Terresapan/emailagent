@@ -75,3 +75,30 @@ class YouTubeInsight(BaseModel):
     created_at: datetime
     period: Literal['daily', 'weekly'] = "daily"
 
+
+# =============================================================================
+# GOOGLE TRENDS VALIDATION MODELS
+# =============================================================================
+
+class TrendValidation(BaseModel):
+    """Validation result for a single topic against Google Trends."""
+    keyword: str
+    interest_score: int = 0  # 0-100 from Google Trends
+    momentum: float = 0.0    # Week-over-week % change
+    trend_direction: Literal["rising", "stable", "declining"] = "stable"
+    related_queries: list[str] = []
+    audience_tags: list[Literal["builder", "founder"]] = []  # Who this appeals to
+    trend_score: int = 0     # Composite 0-100 score
+    validated_at: datetime = Field(default_factory=datetime.utcnow)
+    api_source: Literal["serpapi", "pytrends", "cached"] = "serpapi"
+
+
+class TopicAnalysis(BaseModel):
+    """Analysis of topics from a content source, validated against Google Trends."""
+    source: Literal["producthunt", "hackernews", "youtube", "newsletter", "manual"]
+    source_date: datetime
+    topics: list[TrendValidation]
+    top_builder_topics: list[str] = []  # Filtered for technical builders
+    top_founder_topics: list[str] = []  # Filtered for non-tech founders
+    summary: str = ""  # LLM-generated summary of validated trends
+    created_at: datetime = Field(default_factory=datetime.utcnow)

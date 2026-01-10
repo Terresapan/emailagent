@@ -120,6 +120,25 @@ class YouTubeInsightDB(Base):
     )
 
 
+class TopicAnalysisDB(Base):
+    """DB Model for Google Trends topic validation results."""
+    __tablename__ = "topic_analyses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String(50), nullable=False)  # 'producthunt', 'hackernews', 'youtube', 'newsletter'
+    source_date = Column(Date, nullable=False)
+    topics_json = Column(JSON)              # List of TrendValidation dicts
+    top_builder_topics = Column(JSON)       # List of topic strings for builders
+    top_founder_topics = Column(JSON)       # List of topic strings for founders
+    summary = Column(Text)                  # Brief summary of validated trends
+    created_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        # One analysis per source per date
+        Index('ix_topic_analyses_source_date', 'source', 'source_date', unique=True),
+    )
+
+
 def get_session():
     """Get a new database session."""
     return SessionLocal()

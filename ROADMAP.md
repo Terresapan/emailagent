@@ -25,11 +25,12 @@ emailagent/                    # Monorepo root
 
 | Phase | Feature | Status |
 |-------|---------|--------|
-| **Phase 0** | Daily newsletter digest | ✅ Complete |
-| **Phase 1** | Weekly deep insights digest | ✅ Complete |
+| **Phase 1** | Daily newsletter digest | ✅ Complete |
+| **Phase 2** | Weekly deep insights digest | ✅ Complete |
 | **Phase 3** | PostgreSQL database (local Docker) | ✅ Complete |
 | **Phase 4a** | Product Hunt Integration | ✅ Complete |
 | **Phase 4b** | Hacker News Integration | ✅ Complete |
+| **Phase 4c** | YouTube Integration | ✅ Complete |
 | **Phase 5** | Next.js dashboard MVP | ✅ Complete |
 | **Phase 5.5** | Code quality improvements | ✅ Complete |
 
@@ -38,6 +39,7 @@ emailagent/                    # Monorepo root
 - **Weekly Deep Dive**: `python main.py --type weeklydeepdives`
 - **Product Hunt**: `python main.py --type productlaunch` (daily/weekly)
 - **Hacker News**: `python main.py --type hackernews` (daily/weekly)
+- **YouTube**: `python main.py --type youtube` (daily/weekly)
 - **Database**: PostgreSQL with raw email storage + digest upsert
 - **Dashboard**: 4-tab layout (Intelligence, Product Hunt, HackerNews, Strategy)
 - **Run Button**: Context-aware – shows which process is running across all tabs
@@ -73,7 +75,7 @@ emailagent/                    # Monorepo root
 
 ## Phase Roadmap
 
-### Phase 0-1: Core Digests ✅ COMPLETE
+### Phase 1-2: Core Digests ✅ COMPLETE
 
 - `sender_whitelist.json` with `type` field (`dailydigest` / `weeklydeepdives`)
 - `EmailSummarizer` for daily news (parallel processing via LangGraph)
@@ -125,17 +127,6 @@ emailagent/                    # Monorepo root
 
 ---
 
-#### Phase 4d: The Weekly Rewind (Weekly Aggregation) ✅ COMPLETE
-
-**Goal**: Create a strategic weekly rollup from daily data.
-
-**Features:**
-- **Hacker News**: Aggregates last 7 days of DB insights. Deduplicates stories. LLM synthesized "Meta-Themes".
-- **Product Hunt**: Standard API query for "Last 7 Days" (better for accumulating votes).
-- **Automation**: 
-  - True 7-Day Coverage enabled (Mon-Sat Cron + Sun Concurrent Fetch).
-  - "Weekly HN Rewind" ensures full context with persisted comments.
-
 #### Phase 4c: Video Platform Trending (YouTube & TikTok) 🔜 THIRD
 
 **Goal**: Discover viral topics programmatically from video platforms.
@@ -147,6 +138,19 @@ emailagent/                    # Monorepo root
 **Capabilities:**
 - **YouTube**: YouTube Data API v3 (`mostPopular`, `videoCategoryId=28` for Science & Tech)
 - **TikTok**: TikTok Research API or 3rd-party for trending hashtags
+
+---
+
+#### Phase 4d: The Weekly Rewind (Weekly Aggregation) ✅ COMPLETE
+
+**Goal**: Create a strategic weekly rollup from daily data.
+
+**Features:**
+- **Hacker News**: Aggregates last 7 days of DB insights. Deduplicates stories. LLM synthesized "Meta-Themes".
+- **Product Hunt**: Standard API query for "Last 7 Days" (better for accumulating votes).
+- **Automation**: 
+  - True 7-Day Coverage enabled (Mon-Sat Cron + Sun Concurrent Fetch).
+  - "Weekly HN Rewind" ensures full context with persisted comments.
 
 ---
 

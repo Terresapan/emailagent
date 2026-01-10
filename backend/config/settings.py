@@ -44,6 +44,11 @@ YOUTUBE_CHANNELS_PATH = os.getenv(
     str(CONFIG_DIR / "youtube_channels.json")
 )
 
+# Google Trends API settings (SerpAPI)
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+SERPAPI_MONTHLY_LIMIT = int(os.getenv("SERPAPI_MONTHLY_LIMIT", "250"))  # Free tier limit
+
+
 # LLM settings
 # Use different models for different tasks:
 # - nano: Fast extraction/summarization

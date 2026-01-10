@@ -181,4 +181,28 @@
   .status-label {
     @apply text-xs font-medium text-white;
   }
+
+  /* ===== ANALYSIS PAGE UTILITIES ===== */
+  
+  .trend-score-value {
+    @apply font-serif text-4xl font-bold tracking-tight text-white;
+  }
+  
+  .trend-label {
+    @apply text-[10px] uppercase tracking-widest text-muted-foreground font-semibold;
+  }
+
+  .audience-badge {
+    @apply text-[10px] px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-widest font-medium;
+  }
+  .audience-badge-builder {
+    @apply bg-blue-500/10 text-blue-300 border-blue-500/20;
+  }
+  .audience-badge-founder {
+    @apply bg-purple-500/10 text-purple-300 border-purple-500/20;
+  }
+
+  .trend-card {
+    @apply relative overflow-hidden bg-card/40 backdrop-blur-sm border border-white/5 p-5 rounded-xl transition-all duration-300 hover:bg-card/60 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5;
+  }
 }

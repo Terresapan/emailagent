@@ -146,3 +146,43 @@ class YouTubeInsightResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =============================================================================
+# TOPIC ANALYSIS SCHEMAS (Google Trends Validation)
+# =============================================================================
+
+class TrendValidationResponse(BaseModel):
+    """Validation result for a single topic."""
+    keyword: str
+    interest_score: int = 0
+    momentum: float = 0.0
+    trend_direction: str = "stable"  # "rising", "stable", "declining"
+    related_queries: List[str] = []
+    audience_tags: List[str] = []    # "builder", "founder"
+    trend_score: int = 0
+    api_source: str = "serpapi"
+
+
+class TopicAnalysisResponse(BaseModel):
+    """Google Trends topic analysis for a content source."""
+    id: int
+    source: str  # "producthunt", "hackernews", "youtube", "newsletter"
+    source_date: date
+    topics: List[TrendValidationResponse] = []
+    top_builder_topics: List[str] = []
+    top_founder_topics: List[str] = []
+    summary: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UsageStatsResponse(BaseModel):
+    """Google Trends API usage statistics."""
+    serpapi_used: int
+    serpapi_limit: int
+    serpapi_remaining: int
+    month: str
+    pytrends_available: bool

@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, Bell, Play } from "lucide-react";
-import BriefingCard from "@/components/BriefingCard";
-import LinkedInCard from "@/components/LinkedInCard";
-import DeepDiveCard from "@/components/DeepDiveCard";
-import ToolsCard from "@/components/ToolsCard";
-import HackerNewsCard from "@/components/HackerNewsCard";
-import YouTubeCard from "@/components/YouTubeCard";
-import NewsletterItem from "@/components/NewsletterItem";
+import BriefingCard from "@/components/briefing/BriefingCard";
+import LinkedInCard from "@/components/briefing/LinkedInCard";
+import DeepDiveCard from "@/components/briefing/DeepDiveCard";
+import ToolsCard from "@/components/briefing/ToolsCard";
+import HackerNewsCard from "@/components/briefing/HackerNewsCard";
+import YouTubeCard from "@/components/briefing/YouTubeCard";
+import NewsletterItem from "@/components/briefing/NewsletterItem";
 import { fetchLatestDigest, triggerProcess, getProcessStatus, fetchToolsInsight, fetchHackerNewsInsight, fetchYouTubeInsight, Digest, ToolsInsight, HackerNewsInsight, YouTubeInsight } from "@/lib/api";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";

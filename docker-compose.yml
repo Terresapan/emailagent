@@ -37,11 +37,21 @@ services:
     environment:
       - TZ=America/Los_Angeles
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
+    env_file:
+      - ./backend/.env
     volumes:
       # Mount API code for hot-reloading
       - ./backend/api:/app
-      # Mount shared db package
+      # Mount shared packages
       - ./backend/db:/app/db
+      - ./backend/sources:/app/sources
+      - ./backend/config:/app/config
+      - ./backend/utils:/app/utils
+      # Mount Gmail credentials for email delivery
+      - ./backend/credentials.json:/app/credentials.json:ro
+      - ./backend/token.json:/app/token.json
+      # Mount logs for usage tracking
+      - ./backend/logs:/app/logs
       # Mount docker socket to enable triggering emailagent
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
