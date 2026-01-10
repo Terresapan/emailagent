@@ -29,7 +29,9 @@ services:
 
   # FastAPI backend
   api:
-    build: ./backend/api
+    build:
+      context: ./backend
+      dockerfile: api/Dockerfile
     container_name: contentagent-api
     restart: unless-stopped
     ports:

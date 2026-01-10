@@ -151,8 +151,11 @@ Criteria:
 - Business relevance (can a founder act on this?)
 - Search interest (would people Google this?)
 
-Return ONLY the top 12 keywords as a flat list, one per line. 
-Do not include numbering, bullets, or explanations.
+STRICT RULES:
+- REMOVE DUPLICATES: Do not output case-variations (e.g. "AI Coding" vs "ai coding") or synonyms.
+- If duplicates exist, pick the most common/canonical capitalization.
+- Return ONLY the top 12 keywords as a flat list, one per line.
+- Do not include numbering, bullets, or explanations.
 
 Input Keywords:
 {keywords}"""
