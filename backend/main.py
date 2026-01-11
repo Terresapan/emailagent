@@ -611,10 +611,10 @@ def main_trend_validation(gmail_client: GmailClient, dry_run: bool = False):
             weekly_digest = session.query(Digest).filter(
                 Digest.digest_type == "weekly"
             ).order_by(Digest.date.desc()).first()
-            if weekly_digest and weekly_digest.deepdive_summaries:
+            if weekly_digest and weekly_digest.newsletter_summaries:
                 inputs.append({
                     "source": "weekly_newsletter", 
-                    "content": weekly_digest.deepdive_summaries
+                    "content": weekly_digest.newsletter_summaries
                 })
             
             # 2. Product Hunt Weekly
