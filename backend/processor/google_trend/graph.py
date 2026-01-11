@@ -285,7 +285,7 @@ class TrendGraph:
     def __init__(self):
         self.llm = ChatOpenAI(
             model=LLM_MODEL_GENERATION,
-            temperature=0.3,
+            temperature=0.1,
             max_tokens=LLM_MAX_TOKENS,
             api_key=OPENAI_API_KEY,
             timeout=LLM_TIMEOUT_SECONDS,
