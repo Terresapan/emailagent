@@ -34,6 +34,12 @@ backend/api/utils/
 backend/api/logs/
 backend/api/db/
 backend/api/sources/
+backend/api/.venv/
+backend/api/__pycache__/
+backend/api/pyproject.toml
+backend/api/uv.lock
+backend/api/credentials.json
+backend/api/token.json
 
 # Credentials (keep these private!)
 credentials.json

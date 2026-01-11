@@ -23,4 +23,5 @@ dependencies = [
     "youtube-transcript-api>=0.6.3",
     "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
+    "docker>=7.0.0",
 ]

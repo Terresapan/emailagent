@@ -44,6 +44,8 @@ services:
     volumes:
       # Mount API code for hot-reloading
       - ./backend/api:/app
+      # Mount pyproject.toml for uv to find the venv
+      - ./backend/pyproject.toml:/app/pyproject.toml:ro
       # Preserve venv from image
       - /app/.venv
       # Mount shared packages

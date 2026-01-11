@@ -797,17 +797,18 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
         elif email_type == "all_weekly":
             # Sunday only: Run weekly processors
             logger.info("Running all WEEKLY processors in parallel...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                # Weekly deep dive and weekly Product Hunt
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+                # Weekly deep dive
                 future_digest = executor.submit(main_weekly_deepdive, gmail_client, sender_configs, dry_run)
-                future_ph_weekly = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
                 
-                # Run Daily HN and YouTube first to capture Sunday's data for weekly rollup
+                # Run Daily PH, HN and YouTube first to capture Sunday's data for weekly rollup
+                future_ph_daily = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="daily")
                 future_hn_daily = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="daily")
                 future_yt_daily = executor.submit(main_youtube, gmail_client, dry_run, timeframe="daily")
-                concurrent.futures.wait([future_hn_daily, future_yt_daily])
+                concurrent.futures.wait([future_ph_daily, future_hn_daily, future_yt_daily])
                 
                 # Then run Weekly versions (aggregate from database)
+                future_ph_weekly = executor.submit(main_product_hunt, gmail_client, dry_run, timeframe="weekly")
                 future_hn_weekly = executor.submit(main_hacker_news, gmail_client, dry_run, timeframe="weekly")
                 future_yt_weekly = executor.submit(main_youtube, gmail_client, dry_run, timeframe="weekly")
                 

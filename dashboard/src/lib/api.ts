@@ -225,10 +225,19 @@ export interface ToolsInsight {
 }
 
 /**
+ * Helper to determine if today is Sunday (for weekly data display)
+ */
+function isSunday(): boolean {
+  return new Date().getDay() === 0;
+}
+
+/**
  * Fetch the latest Product Hunt tools insight.
+ * On Sundays, fetches weekly data; otherwise fetches daily.
  */
 export async function fetchToolsInsight(): Promise<ToolsInsight | null> {
-  const response = await fetch(`${API_URL}/api/tools/latest`, {
+  const period = isSunday() ? "weekly" : "daily";
+  const response = await fetch(`${API_URL}/api/tools/latest?period=${period}`, {
     cache: "no-store",
   });
 
@@ -263,9 +272,11 @@ export interface HackerNewsInsight {
 
 /**
  * Fetch the latest Hacker News insight.
+ * On Sundays, fetches weekly data; otherwise fetches daily.
  */
 export async function fetchHackerNewsInsight(): Promise<HackerNewsInsight | null> {
-  const response = await fetch(`${API_URL}/api/hackernews/latest`, {
+  const period = isSunday() ? "weekly" : "daily";
+  const response = await fetch(`${API_URL}/api/hackernews/latest?period=${period}`, {
     cache: "no-store",
   });
 
@@ -299,9 +310,11 @@ export interface YouTubeInsight {
 
 /**
  * Fetch the latest YouTube influencer insight.
+ * On Sundays, fetches weekly data; otherwise fetches daily.
  */
 export async function fetchYouTubeInsight(): Promise<YouTubeInsight | null> {
-  const response = await fetch(`${API_URL}/api/youtube/latest`, {
+  const period = isSunday() ? "weekly" : "daily";
+  const response = await fetch(`${API_URL}/api/youtube/latest?period=${period}`, {
     cache: "no-store",
   });
 

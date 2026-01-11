@@ -216,12 +216,85 @@ docker exec emailagent cat /etc/cron.d/emailagent-cron
 
 ---
 
-## Cron Schedule
+## Scheduling & Data Behavior
 
-| Type | Schedule | Time |
-|------|----------|------|
-| Daily Digest | Mon-Fri | 8:00 AM PST |
-| Weekly Deep Dive | Sunday | 8:00 AM PST |
+### Cron Schedule
+
+| Day | Job Type | Time | What Runs |
+|-----|----------|------|-----------|
+| Mon-Fri | `all` | 8:00 AM PST | Daily Newsletter + PH + HN + YouTube + Trend Analysis |
+| Saturday | Skip | - | No processing (use `force=true` to override) |
+| Sunday | `all_weekly` | 8:00 AM PST | Weekly Deep Dive + PH + HN + YouTube (daily + weekly) |
+
+### Sunday Processing Flow
+
+On Sunday, the system captures both daily AND weekly data:
+
+```
+1. Weekly Newsletter Deep Dive → Sent via email
+2. Daily PH/HN/YouTube → Capture Sunday's fresh data
+3. Weekly PH/HN/YouTube → Aggregate + analyze 7-day trends
+4. Google Trends Validation → Run on weekly sources
+```
+
+**Why both daily and weekly on Sunday?**
+- Daily captures Sunday's fresh data for the database
+- Weekly aggregates the full week (including Sunday) for trend analysis
+
+### Dashboard Auto-Detection
+
+The dashboard automatically shows the appropriate data based on the day:
+
+| Day | Dashboard Shows | API Parameter |
+|-----|-----------------|---------------|
+| Mon-Sat | Daily data | `?period=daily` |
+| Sunday | Weekly data | `?period=weekly` |
+
+### Database Behavior (UPSERT)
+
+Each data source uses UPSERT logic with unique key: `(date, period)`
+
+| Scenario | Result |
+|----------|--------|
+| Run Product Hunt daily on Monday | Creates row `(2026-01-06, daily)` |
+| Run Product Hunt daily again on Monday | **Updates** existing row (replaces content) |
+| Run Product Hunt weekly on Sunday | Creates row `(2026-01-11, weekly)` |
+| Run Product Hunt daily on Sunday | Creates row `(2026-01-11, daily)` ← separate from weekly! |
+
+**This means:**
+- ✅ Running the same job twice on the same day **updates** (no duplicates)
+- ✅ Daily and Weekly are **stored separately** in the database
+- ✅ Sunday has **both** daily and weekly rows
+
+### Dashboard Run Buttons
+
+| Button | What It Does | Timeframe |
+|--------|--------------|-----------|
+| Run Newsletter | Process daily newsletters | daily |
+| Run Product Hunt | Fetch today's PH launches | daily |
+| Run HackerNews | Fetch today's top stories | daily |
+| Run YouTube | Fetch today's influencer videos | daily |
+| Run Strategy | Process weekly deep dive essays | weekly |
+
+**Note:** Run buttons always execute with `timeframe=daily` (except Strategy). After clicking, the dashboard refreshes and displays data based on day of week (weekly on Sunday, daily otherwise).
+
+### How Weekly Aggregation Works
+
+| Source | Daily Mode | Weekly Mode |
+|--------|------------|-------------|
+| **Product Hunt** | API call (last 24h) | API call (last 7 days) |
+| **Hacker News** | API call (current top stories) | Database aggregation (HN API doesn't support historical) |
+| **YouTube** | API call (videos from last 24h) | API call (videos from last 7 days) ← Fresh view counts! |
+
+### Google Trends Validation
+
+The "Run Global Analysis" button on the Analysis page:
+
+| Day | Sources Used | Output |
+|-----|--------------|--------|
+| Mon-Fri | Latest daily Newsletter + PH + HN + YouTube | Daily trend validation |
+| Saturday | Skipped (unless `force=true`) | - |
+| Sunday | Latest weekly Newsletter + PH + YouTube | Weekly trend validation |
 
 To modify, edit `backend/scripts/crontab` and rebuild:
 

@@ -21,8 +21,6 @@ from config.settings import (
 from sources.youtube import YouTubeClient
 from sources.models import YouTubeVideo, YouTubeInsight
 from utils.logger import setup_logger
-from db import get_session
-from utils.database import get_recent_youtube_insights
 
 logger = setup_logger(__name__)
 
@@ -76,47 +74,11 @@ class YouTubeAnalyzer:
         return workflow.compile()
     
     def fetch_videos_node(self, state: YouTubeState) -> YouTubeState:
-        """Fetch recent videos (Daily) or aggregate from DB (Weekly)."""
+        """Fetch recent videos from YouTube API (days=1 for daily, days=7 for weekly)."""
         try:
-            if self.timeframe == "weekly":
-                logger.info("Fetching weekly videos from database history...")
-                session = get_session()
-                try:
-                    # Fetch last 7 days of daily insights
-                    history = get_recent_youtube_insights(session, days=7)
-                    if not history:
-                        return {"videos": [], "error": "No history found for weekly digest"}
-                    
-                    # Aggregate videos (deduplicate by ID, keep highest view count)
-                    video_map = {}
-                    for insight in history:
-                        daily_videos = insight.videos_json or []
-                        for v_data in daily_videos:
-                            v_id = v_data.get("id")
-                            if not v_id:
-                                continue
-                            
-                            if v_id not in video_map:
-                                video_map[v_id] = v_data
-                            else:
-                                # Keep version with higher view count
-                                current = video_map[v_id]
-                                if v_data.get("view_count", 0) > current.get("view_count", 0):
-                                    video_map[v_id] = v_data
-                    
-                    # Sort by view count, take top 15
-                    sorted_videos = sorted(
-                        video_map.values(),
-                        key=lambda x: x.get("view_count", 0),
-                        reverse=True
-                    )[:15]
-                    
-                    logger.info(f"Aggregated {len(sorted_videos)} unique videos from last 7 days")
-                    return {"videos": sorted_videos}
-                finally:
-                    session.close()
+            # Determine how many days to look back
+            days = 7 if self.timeframe == "weekly" else 1
             
-            # Daily mode - fetch live from YouTube
             channels = load_youtube_channels()
             
             if not channels:
@@ -135,10 +97,14 @@ class YouTubeAnalyzer:
             
             client = YouTubeClient()
             
+            # For weekly, fetch more videos per channel since we're looking at 7 days
+            videos_per_channel = 5 if self.timeframe == "weekly" else 3
+            
             videos = client.fetch_videos_from_channels(
                 channels=valid_channels,
-                videos_per_channel=3,
+                videos_per_channel=videos_per_channel,
                 fetch_transcripts=False,  # Use descriptions instead - faster & more reliable
+                days=days,
             )
             
             # Convert to dicts for state
@@ -154,7 +120,11 @@ class YouTubeAnalyzer:
                     "published_at": v.published_at.isoformat() if v.published_at else None,
                 })
             
-            logger.info(f"Fetched {len(video_dicts)} videos")
+            # For weekly, sort by view count and take top 15
+            if self.timeframe == "weekly":
+                video_dicts = sorted(video_dicts, key=lambda x: x.get("view_count", 0), reverse=True)[:15]
+            
+            logger.info(f"Fetched {len(video_dicts)} videos ({self.timeframe} mode, {days} days)")
             return {"videos": video_dicts}
             
         except Exception as e:

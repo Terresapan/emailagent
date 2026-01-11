@@ -133,7 +133,8 @@ class YouTubeClient:
         self, 
         channel_identifier: str, 
         channel_name: str,
-        max_results: int = 5
+        max_results: int = 5,
+        days: int = 1
     ) -> List[YouTubeVideo]:
         """
         Fetch recent videos from a channel's uploads playlist.
@@ -142,6 +143,7 @@ class YouTubeClient:
             channel_identifier: YouTube channel ID (UCxxx...) OR handle (@xxx)
             channel_name: Human-readable channel name (for output)
             max_results: Maximum number of videos to fetch
+            days: Number of days to look back (1 for daily, 7 for weekly)
             
         Returns:
             List of YouTubeVideo objects with basic info (no transcript yet)
@@ -192,8 +194,8 @@ class YouTubeClient:
             videos_response.raise_for_status()
             videos_data = videos_response.json()
             
-            # Calculate cutoff time (24 hours ago)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
+            # Calculate cutoff time based on days parameter
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
             
             videos = []
             skipped_old = 0
@@ -229,7 +231,7 @@ class YouTubeClient:
                 videos.append(video)
             
             if skipped_old > 0:
-                logger.info(f"Skipped {skipped_old} videos older than 24h from {channel_name}")
+                logger.info(f"Skipped {skipped_old} videos older than {days} day(s) from {channel_name}")
             logger.info(f"Fetched {len(videos)} new videos from {channel_name}")
             return videos
             
@@ -270,6 +272,7 @@ class YouTubeClient:
         channels: List[Dict],
         videos_per_channel: int = 3,
         fetch_transcripts: bool = True,
+        days: int = 1,
     ) -> List[YouTubeVideo]:
         """
         Fetch recent videos from multiple channels.
@@ -278,6 +281,7 @@ class YouTubeClient:
             channels: List of channel configs with 'channel_id' and 'name' keys
             videos_per_channel: Number of recent videos to fetch per channel
             fetch_transcripts: Whether to fetch transcripts (slower)
+            days: Number of days to look back (1 for daily, 7 for weekly)
             
         Returns:
             List of YouTubeVideo objects with transcripts (if available)
@@ -297,6 +301,7 @@ class YouTubeClient:
                 channel_identifier=channel_identifier,
                 channel_name=channel_name,
                 max_results=videos_per_channel,
+                days=days,
             )
             
             if fetch_transcripts:
