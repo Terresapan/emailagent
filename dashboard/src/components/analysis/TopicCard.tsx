@@ -7,6 +7,7 @@ import { TrendSparkline } from './TrendSparkline';
  * .trend-label
  * .audience-badge
  * .trend-card
+ * .item-meta
  */
 
 interface TopicCardProps {
@@ -17,6 +18,7 @@ interface TopicCardProps {
     relatedQueries: string[];
     audienceTags: string[];
     trendScore: number; // Composite score (0-100)
+    contentSource?: string; // Source where keyword was extracted from
 }
 
 export const TopicCard: React.FC<TopicCardProps> = ({
@@ -27,8 +29,25 @@ export const TopicCard: React.FC<TopicCardProps> = ({
     relatedQueries,
     audienceTags,
     trendScore,
+    contentSource,
 }) => {
     const isRising = momentum > 0;
+
+    // Format source for display (simple labels, no custom colors)
+    const getSourceLabel = (source?: string) => {
+        if (!source) return null;
+        const sourceMap: Record<string, string> = {
+            'newsletter': 'Newsletter',
+            'weekly_newsletter': 'Newsletter',
+            'youtube': 'YouTube',
+            'weekly_youtube': 'YouTube',
+            'producthunt': 'Product Hunt',
+            'weekly_producthunt': 'Product Hunt',
+        };
+        return sourceMap[source] || source;
+    };
+
+    const sourceLabel = getSourceLabel(contentSource);
 
     return (
         <div className="trend-card group">
@@ -90,27 +109,39 @@ export const TopicCard: React.FC<TopicCardProps> = ({
                 </div>
             </div>
 
-            {/* Related Queries */}
-            {relatedQueries.length > 0 && (
-                <div className="border-t border-white/5 pt-3">
-                    <div className="trend-label mb-2 opacity-70">Rising Context</div>
-                    <div className="flex flex-wrap gap-2">
-                        {relatedQueries.slice(0, 3).map(query => (
-                            <span
-                                key={query}
-                                className="text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default"
-                            >
-                                {query}
-                            </span>
-                        ))}
-                        {relatedQueries.length > 3 && (
-                            <span className="text-xs text-muted-foreground/50 px-2 py-1">
-                                +{relatedQueries.length - 3}
-                            </span>
-                        )}
-                    </div>
+            {/* Bottom Row: Related Queries + Source */}
+            <div className="border-t border-white/5 pt-3 flex justify-between items-end">
+                {/* Related Queries (left) */}
+                <div className="flex-1">
+                    {relatedQueries.length > 0 && (
+                        <>
+                            <div className="trend-label mb-2 opacity-70">Rising Context</div>
+                            <div className="flex flex-wrap gap-2">
+                                {relatedQueries.slice(0, 3).map(query => (
+                                    <span
+                                        key={query}
+                                        className="text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default"
+                                    >
+                                        {query}
+                                    </span>
+                                ))}
+                                {relatedQueries.length > 3 && (
+                                    <span className="text-xs text-muted-foreground/50 px-2 py-1">
+                                        +{relatedQueries.length - 3}
+                                    </span>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
-            )}
+
+                {/* Source Badge (bottom-right) */}
+                {sourceLabel && (
+                    <span className="item-meta ml-3 shrink-0">
+                        Source: <span className="font-semibold text-white/80">{sourceLabel}</span>
+                    </span>
+                )}
+            </div>
         </div>
     );
 };

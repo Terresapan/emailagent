@@ -17,6 +17,7 @@ interface TrendValidation {
     audience_tags: string[];
     trend_score: number;
     api_source: string;
+    content_source?: string; // Source where keyword was extracted from (newsletter, youtube, producthunt)
 }
 
 interface TopicAnalysis {
@@ -225,6 +226,7 @@ export default function AnalysisPage() {
                                         relatedQueries={topic.related_queries}
                                         audienceTags={topic.audience_tags}
                                         trendScore={topic.trend_score}
+                                        contentSource={topic.content_source}
                                     />
                                 ))}
                             </div>

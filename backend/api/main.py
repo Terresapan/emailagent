@@ -431,20 +431,17 @@ async def validate_topics(
     import sys
     sys.path.insert(0, '/app')
     
-    from processor.google_trend.graph import TrendGraph
-    from db import TopicAnalysisDB, ProductHuntInsightDB, YouTubeInsightDB
-    from models import Digest
-    from sources.models import ProductHuntInsight, HackerNewsInsight, YouTubeInsight
+    from db import TopicAnalysisDB
     from schemas import TopicAnalysisResponse, TrendValidationResponse
     
     if source == "all":
-        import json
+        from processor.google_trend.trend_validation import TrendValidationService
         
-        # Check day of week (0=Monday, 6=Sunday)
         today = datetime.now()
         day_of_week = today.weekday()
         
-        if day_of_week == 5 and not force:  # Saturday (skip unless forced)
+        # Saturday skip (unless forced)
+        if day_of_week == 5 and not force:
             return TopicAnalysisResponse(
                 id=0,
                 source="global",
@@ -456,80 +453,11 @@ async def validate_topics(
                 created_at=today
             )
         
-        is_sunday = day_of_week == 6
-        inputs = []  # List of {'source': str, 'content': str}
+        # Run shared validation service
+        service = TrendValidationService(db)
+        analysis = service.run(force=force)
         
-        if is_sunday:
-            # SUNDAY: Weekly sources
-            
-            # 1. Newsletter Deep Dive (weekly)
-            weekly_digest = db.query(Digest).filter(
-                Digest.digest_type == "weekly"
-            ).order_by(Digest.date.desc()).first()
-            if weekly_digest and weekly_digest.newsletter_summaries:
-                inputs.append({
-                    "source": "weekly_newsletter", 
-                    "content": weekly_digest.newsletter_summaries
-                })
-            
-            # 2. Product Hunt Weekly
-            ph_weekly = db.query(ProductHuntInsightDB).filter(
-                ProductHuntInsightDB.period == "weekly"
-            ).order_by(ProductHuntInsightDB.date.desc()).first()
-            if ph_weekly and ph_weekly.launches_json:
-                content = json.dumps(ph_weekly.launches_json[:10], default=str)
-                inputs.append({
-                    "source": "weekly_producthunt", 
-                    "content": content
-                })
-            
-            # 3. YouTube Weekly
-            yt_weekly = db.query(YouTubeInsightDB).filter(
-                YouTubeInsightDB.period == "weekly"
-            ).order_by(YouTubeInsightDB.date.desc()).first()
-            if yt_weekly:
-                content = f"Topics: {yt_weekly.key_topics}\nSummary: {yt_weekly.trend_summary}"
-                inputs.append({
-                    "source": "weekly_youtube", 
-                    "content": content
-                })
-        
-        else:
-            # MON-FRI: Daily sources
-            
-            # 1. Newsletter (daily)
-            daily_digest = db.query(Digest).filter(
-                Digest.digest_type == "daily"
-            ).order_by(Digest.date.desc()).first()
-            if daily_digest and daily_digest.newsletter_summaries:
-                inputs.append({
-                    "source": "newsletter", 
-                    "content": daily_digest.newsletter_summaries
-                })
-            
-            # 2. Product Hunt (daily)
-            ph_daily = db.query(ProductHuntInsightDB).filter(
-                ProductHuntInsightDB.period == "daily"
-            ).order_by(ProductHuntInsightDB.date.desc()).first()
-            if ph_daily and ph_daily.launches_json:
-                content = json.dumps(ph_daily.launches_json[:10], default=str)
-                inputs.append({
-                    "source": "producthunt", 
-                    "content": content
-                })
-            
-            # 3. YouTube (daily)
-            yt_daily = db.query(YouTubeInsightDB).filter(
-                YouTubeInsightDB.period == "daily"
-            ).order_by(YouTubeInsightDB.date.desc()).first()
-            if yt_daily:
-                content = f"Topics: {yt_daily.key_topics}\nSummary: {yt_daily.trend_summary}"
-                inputs.append({
-                    "source": "youtube", 
-                    "content": content
-                })
-        
-        if not inputs:
+        if not analysis:
             return TopicAnalysisResponse(
                 id=0,
                 source="global",
@@ -541,73 +469,40 @@ async def validate_topics(
                 created_at=today
             )
         
-        # Run Trend Graph
-        graph = TrendGraph()
-        analysis = graph.process(inputs, source_type="weekly" if is_sunday else "daily")
+        # Send email
+        try:
+            from sources.gmail.client import GmailClient
+            gmail = GmailClient()
+            gmail.send_analysis_email([analysis])
+        except Exception as e:
+            print(f"Failed to send email: {e}")
         
-        if not analysis:
+        # Get the saved DB object for response
+        db_obj = db.query(TopicAnalysisDB).filter(
+            TopicAnalysisDB.source == "global",
+            TopicAnalysisDB.source_date == today.date()
+        ).first()
+        
+        if not db_obj:
+            # Fallback if not found (shouldn't happen)
             return TopicAnalysisResponse(
                 id=0,
                 source="global",
                 source_date=today.date(),
-                topics=[],
-                top_builder_topics=[],
-                top_founder_topics=[],
-                summary="Analysis failed or returned empty",
+                topics=[TrendValidationResponse(**t.model_dump()) for t in analysis.topics],
+                top_technical_topics=analysis.top_technical_topics,
+                top_strategic_topics=analysis.top_strategic_topics,
+                summary=analysis.summary,
                 created_at=today
             )
-
-        # Save to DB
-        existing = db.query(TopicAnalysisDB).filter(
-            TopicAnalysisDB.source == "global",
-            TopicAnalysisDB.source_date == today.date()
-        ).first()
-        if existing:
-            db.delete(existing)
-            db.commit()
         
-        db_obj = TopicAnalysisDB(
-            source="global",
-            source_date=today.date(),
-            topics_json=[t.model_dump(mode='json') for t in analysis.topics],
-            top_builder_topics=analysis.top_technical_topics,
-            top_founder_topics=analysis.top_strategic_topics,
-            summary=analysis.summary,
-            created_at=datetime.utcnow()
-        )
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj) # Ensure we get the ID back
-        
-        # Send Email
-        try:
-            from sources.gmail.client import GmailClient
-            
-            # Reconstruct full analysis object for email service (which expects pydantic model not ORM)
-            from sources.models import TopicAnalysis
-            analysis_for_email = TopicAnalysis(
-                source="global",
-                source_date=db_obj.source_date,
-                topics=analysis.topics,
-                top_technical_topics=db_obj.top_builder_topics,
-                top_strategic_topics=db_obj.top_founder_topics,
-                summary=db_obj.summary
-            )
-            
-            gmail = GmailClient()
-            gmail.send_analysis_email([analysis_for_email])
-            
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-        
-        # Return response
         return TopicAnalysisResponse(
             id=db_obj.id,
             source=db_obj.source,
             source_date=db_obj.source_date,
             topics=[TrendValidationResponse(**t) for t in db_obj.topics_json],
-            top_technical_topics=db_obj.top_builder_topics,
-            top_strategic_topics=db_obj.top_founder_topics,
+            top_technical_topics=db_obj.top_builder_topics or [],
+            top_strategic_topics=db_obj.top_founder_topics or [],
             summary=db_obj.summary,
             created_at=db_obj.created_at
         )

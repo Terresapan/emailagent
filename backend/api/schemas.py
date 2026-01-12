@@ -162,6 +162,7 @@ class TrendValidationResponse(BaseModel):
     audience_tags: List[str] = []    # "technical", "strategic"
     trend_score: int = 0
     api_source: str = "serpapi"
+    content_source: Optional[str] = None  # Source where keyword was extracted from
 
 
 class TopicAnalysisResponse(BaseModel):

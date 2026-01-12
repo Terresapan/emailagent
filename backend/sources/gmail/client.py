@@ -501,14 +501,22 @@ class GmailClient:
         if trend.trend_direction == "declining":
             emoji = "📉"
             
+        # Audience tags (technical/strategic instead of builder/founder)
         audiences = []
-        if "builder" in trend.audience_tags:
-            audiences.append('<span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Builder</span>')
-        if "founder" in trend.audience_tags:
-            audiences.append('<span style="background:#f3e8ff;color:#7e22ce;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Founder</span>')
+        if "technical" in trend.audience_tags:
+            audiences.append('<span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Technical</span>')
+        if "strategic" in trend.audience_tags:
+            audiences.append('<span style="background:#f3e8ff;color:#7e22ce;padding:2px 6px;border-radius:10px;font-size:10px;text-transform:uppercase;font-family:\'DM Sans\',sans-serif;">Strategic</span>')
             
         audience_html = " ".join(audiences)
         
+        # Content source badge
+        source_html = ""
+        if hasattr(trend, 'content_source') and trend.content_source:
+            source_label = trend.content_source.replace('weekly_', '').replace('newsletter', 'Newsletter').replace('youtube', 'YouTube').replace('producthunt', 'Product Hunt').title()
+            source_html = f'<span style="background:#f3f4f6;color:#6b7280;padding:2px 6px;border-radius:10px;font-size:10px;font-family:\'DM Sans\',sans-serif;margin-left:6px;">Source: {source_label}</span>'
+        
+        # Related queries
         related_queries_html = ""
         if trend.related_queries:
             related_queries_html = f'<div style="margin-top:8px; font-size:11px; color:#6b7280; font-family:\'DM Sans\',sans-serif;">Context: {", ".join(trend.related_queries[:3])}</div>'
@@ -521,7 +529,7 @@ class GmailClient:
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#374151; font-family:'DM Sans',sans-serif;">
                 <span>{emoji} Momentum: {trend.momentum}%</span>
-                <div>{audience_html}</div>
+                <div>{audience_html}{source_html}</div>
             </div>
             {related_queries_html}
         </div>

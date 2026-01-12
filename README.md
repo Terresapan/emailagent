@@ -222,9 +222,9 @@ docker exec emailagent cat /etc/cron.d/emailagent-cron
 
 | Day | Job Type | Time | What Runs |
 |-----|----------|------|-----------|
-| Mon-Fri | `all` | 8:00 AM PST | Daily Newsletter + PH + HN + YouTube + Trend Analysis |
+| Mon-Fri | `all` | 8:20 AM PST | Daily Newsletter + PH + HN + YouTube + Trend Analysis |
 | Saturday | Skip | - | No processing (use `force=true` to override) |
-| Sunday | `all_weekly` | 8:00 AM PST | Weekly Deep Dive + PH + HN + YouTube (daily + weekly) |
+| Sunday | `all_weekly` | 8:20 AM PST | Weekly Deep Dive + PH + HN + YouTube (daily + weekly) |
 
 ### Sunday Processing Flow
 
@@ -307,8 +307,8 @@ docker-compose up -d --build emailagent
 To wake your Mac for scheduled processing:
 
 ```bash
-# Install wake schedule -- every day at 7:58 AM
-sudo pmset repeat wakeorpoweron MTWRFSU 07:58:00
+# Install wake schedule -- every day at 8:00 AM
+sudo pmset repeat wakeorpoweron MTWRFSU 08:00:00
 
 # Verify schedule
 pmset -g sched

@@ -307,11 +307,17 @@ def main_product_hunt(gmail_client: GmailClient, dry_run: bool = False, timefram
     if not dry_run and recipient:
         logger.info(f"Sending {timeframe} AI Tools digest to {DIGEST_RECIPIENT_EMAIL}...")
         
-        # Format launches
-        launches_text = "\n".join([
-            f"• **[{l.name}]({l.website or '#'})** ({l.votes} votes)\n  {l.tagline}"
-            for l in insight.top_launches[:10]  # Show top 10
-        ])
+        
+        # Format launches with categories
+        launches_with_categories = []
+        for l in insight.top_launches[:10]:
+            launch_line = f"• **[{l.name}]({l.website or '#'})** ({l.votes} votes)\n  {l.tagline}"
+            if l.topics:
+                categories = ", ".join(l.topics[:3])
+                launch_line += f"\n  *Categories: {categories}*"
+            launches_with_categories.append(launch_line)
+        
+        launches_text = "\n".join(launches_with_categories)
         
         # Format content angles
         angles_text = "\n".join([f"• {angle}" for angle in insight.content_angles])
@@ -565,164 +571,39 @@ def main_trend_validation(gmail_client: GmailClient, dry_run: bool = False):
     """
     Run trend validation on all sources and send consolidated email report.
     
-    Uses LLM-powered keyword extraction for better quality results.
-    Auto-detects day of week to use daily vs weekly sources.
-    
-    Schedule:
-    - Mon-Fri: Newsletter (daily), Product Hunt (daily), YouTube (daily)
-    - Saturday: No validation
-    - Sunday: Newsletter Deep Dive, PH (weekly), YouTube (weekly)
+    Uses the shared TrendValidationService for consistent behavior
+    between cron jobs and API endpoints.
     
     Args:
         gmail_client: Initialized Gmail client
         dry_run: If True, don't send emails
     """
-    from datetime import datetime
-    import json
+    from processor.google_trend.trend_validation import TrendValidationService
+    from db import get_session
     
-    # Check day of week (0=Monday, 6=Sunday)
-    today = datetime.now()
-    day_of_week = today.weekday()
-    
-    if day_of_week == 5:  # Saturday
-        logger.info("Saturday - Skipping trend validation")
-        return
-    
-    is_sunday = day_of_week == 6
-    
-    logger.info("=" * 60)
-    logger.info(f"Trend Validation Processing ({'Weekly' if is_sunday else 'Daily'})")
-    logger.info("=" * 60)
-    
-    from db import get_session, ProductHuntInsightDB, YouTubeInsightDB, TopicAnalysisDB, Digest
-    from processor.google_trend.graph import TrendGraph
-    from sources.gmail.client import GmailClient
+    logger.info("Running trend validation...")
     
     session = get_session()
-    
     try:
-        inputs = []
-        
-        if is_sunday:
-            # SUNDAY: Weekly sources
-            
-            # 1. Newsletter Deep Dive (weekly)
-            logger.info("Extracting from Weekly Newsletter Deep Dive...")
-            weekly_digest = session.query(Digest).filter(
-                Digest.digest_type == "weekly"
-            ).order_by(Digest.date.desc()).first()
-            if weekly_digest and weekly_digest.newsletter_summaries:
-                inputs.append({
-                    "source": "weekly_newsletter", 
-                    "content": weekly_digest.newsletter_summaries
-                })
-            
-            # 2. Product Hunt Weekly
-            logger.info("Extracting from Weekly Product Hunt...")
-            ph_weekly = session.query(ProductHuntInsightDB).filter(
-                ProductHuntInsightDB.period == "weekly"
-            ).order_by(ProductHuntInsightDB.date.desc()).first()
-            if ph_weekly and ph_weekly.launches_json:
-                content = json.dumps(ph_weekly.launches_json[:10], default=str)
-                inputs.append({
-                    "source": "weekly_producthunt", 
-                    "content": content
-                })
-            
-            # 3. YouTube Weekly
-            logger.info("Extracting from Weekly YouTube...")
-            yt_weekly = session.query(YouTubeInsightDB).filter(
-                YouTubeInsightDB.period == "weekly"
-            ).order_by(YouTubeInsightDB.date.desc()).first()
-            if yt_weekly:
-                content = f"Topics: {yt_weekly.key_topics}\nSummary: {yt_weekly.trend_summary}"
-                inputs.append({
-                    "source": "weekly_youtube", 
-                    "content": content
-                })
-        
-        else:
-            # MON-FRI: Daily sources
-            
-            # 1. Newsletter (daily)
-            logger.info("Extracting from Daily Newsletter...")
-            daily_digest = session.query(Digest).filter(
-                Digest.digest_type == "daily"
-            ).order_by(Digest.date.desc()).first()
-            if daily_digest and daily_digest.newsletter_summaries:
-                inputs.append({
-                    "source": "newsletter", 
-                    "content": daily_digest.newsletter_summaries
-                })
-            
-            # 2. Product Hunt (daily)
-            logger.info("Extracting from Daily Product Hunt...")
-            ph_daily = session.query(ProductHuntInsightDB).filter(
-                ProductHuntInsightDB.period == "daily"
-            ).order_by(ProductHuntInsightDB.date.desc()).first()
-            if ph_daily and ph_daily.launches_json:
-                content = json.dumps(ph_daily.launches_json[:10], default=str)
-                inputs.append({
-                    "source": "producthunt", 
-                    "content": content
-                })
-            
-            # 3. YouTube (daily)
-            logger.info("Extracting from Daily YouTube...")
-            yt_daily = session.query(YouTubeInsightDB).filter(
-                YouTubeInsightDB.period == "daily"
-            ).order_by(YouTubeInsightDB.date.desc()).first()
-            if yt_daily:
-                content = f"Topics: {yt_daily.key_topics}\nSummary: {yt_daily.trend_summary}"
-                inputs.append({
-                    "source": "youtube", 
-                    "content": content
-                })
-        
-        if not inputs:
-            logger.warning("No logic content found. Skipping validation.")
-            return
-            
-        # Run Trend Graph
-        graph = TrendGraph()
-        analysis = graph.process(inputs, source_type="weekly" if is_sunday else "daily")
+        service = TrendValidationService(session)
+        analysis = service.run()
         
         if not analysis:
-            logger.error("Analysis graph returned None")
+            logger.info("No analysis generated (Saturday or no content)")
             return
-            
-        # Save to DB
-        existing = session.query(TopicAnalysisDB).filter(
-            TopicAnalysisDB.source == "global",
-            TopicAnalysisDB.source_date == today.date()
-        ).first()
-        if existing:
-            session.delete(existing)
-            session.commit()
-            
-        db_obj = TopicAnalysisDB(
-            source="global",
-            source_date=today.date(),
-            topics_json=[t.model_dump(mode='json') for t in analysis.topics],
-            top_builder_topics=analysis.top_builder_topics,
-            top_founder_topics=analysis.top_founder_topics,
-            summary=analysis.summary,
-            created_at=datetime.utcnow()
-        )
-        session.add(db_obj)
-        session.commit()
         
-        # Send Email (use the Pydantic analysis object directly)
+        # Send email
         if not dry_run:
             gmail_client.send_analysis_email([analysis])
             logger.info("Analysis email sent successfully")
+        else:
+            logger.info("[DRY RUN] Would send analysis email")
             
     except Exception as e:
         logger.error(f"Trend validation failed: {e}", exc_info=True)
         session.rollback()
     finally:
         session.close()
-        
 
 
 
