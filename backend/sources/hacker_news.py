@@ -6,13 +6,44 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
+# Default AI/LLM search queries for filtering HackerNews stories
+DEFAULT_AI_QUERIES = [
+    "AI",
+    "LLM", 
+    "artificial intelligence",
+    "ChatGPT",
+    "Claude",
+    "GPT",
+    "machine learning",
+    "neural network",
+    "OpenAI",
+    "Anthropic",
+]
+
+
 class HackerNewsClient:
-    """Client for interacting with the official Hacker News API."""
+    """Client for interacting with HackerNews via Algolia Search API.
     
-    BASE_URL = "https://hacker-news.firebaseio.com/v0"
+    Uses the free Algolia-powered HackerNews search API to fetch AI/LLM-related
+    stories with filtering capabilities. No API key required.
+    """
     
-    def __init__(self):
+    # Algolia Search API (free, no auth required)
+    ALGOLIA_BASE_URL = "https://hn.algolia.com/api/v1"
+    
+    # Firebase API for fetching comments (Algolia doesn't include comment text)
+    FIREBASE_BASE_URL = "https://hacker-news.firebaseio.com/v0"
+    
+    def __init__(self, ai_queries: Optional[List[str]] = None):
+        """Initialize client with optional custom AI search queries.
+        
+        Args:
+            ai_queries: List of search terms to filter for AI/LLM content.
+                       Defaults to DEFAULT_AI_QUERIES if not provided.
+        """
         self.session = requests.Session()
+        self.ai_queries = ai_queries or DEFAULT_AI_QUERIES
     
     def _fetch_github_stars(self, url: Optional[str]) -> Optional[int]:
         """
@@ -54,51 +85,135 @@ class HackerNewsClient:
             logger.warning(f"Failed to fetch GitHub stars for {url}: {e}")
             return None
     
-    def _fetch_comments(self, comment_ids: List[int], limit: int = 3) -> List[str]:
+    def _fetch_comments(self, story_id: str, limit: int = 3) -> List[str]:
         """
-        Fetch text content of top root comments.
+        Fetch text content of top root comments using Firebase API.
         
         Args:
-            comment_ids: List of comment IDs (kids)
+            story_id: The story ID to fetch comments for
             limit: Maximum number of comments to fetch
             
         Returns:
-            List of comment text strings (HTML stripped/cleaned via simple extraction)
+            List of comment text strings
         """
         comments = []
-        # Take top N comments
-        target_ids = comment_ids[:limit]
-        
-        for cid in target_ids:
-            try:
-                # Short timeout for comments to avoid hanging
-                response = self.session.get(f"{self.BASE_URL}/item/{cid}.json", timeout=3)
-                if response.status_code == 200:
-                    data = response.json()
-                    # Only keep valid text comments (not deleted/dead)
-                    if data and data.get('text') and not data.get('deleted') and not data.get('dead'):
-                        comments.append(data['text'])
-            except Exception as e:
-                logger.warning(f"Failed to fetch comment {cid}: {e}")
-                continue
+        try:
+            # First get the story to find comment IDs
+            response = self.session.get(
+                f"{self.FIREBASE_BASE_URL}/item/{story_id}.json", 
+                timeout=5
+            )
+            if response.status_code != 200:
+                return comments
                 
-        return comments
-    
-    def get_top_stories(self, limit: int = 20) -> List[int]:
-        """Fetch the IDs of the current top stories."""
-        try:
-            response = self.session.get(f"{self.BASE_URL}/topstories.json", timeout=10)
-            response.raise_for_status()
-            ids = response.json()
-            return ids[:limit]
+            story_data = response.json()
+            if not story_data or 'kids' not in story_data:
+                return comments
+            
+            # Fetch top N comments
+            comment_ids = story_data['kids'][:limit]
+            
+            for cid in comment_ids:
+                try:
+                    resp = self.session.get(
+                        f"{self.FIREBASE_BASE_URL}/item/{cid}.json", 
+                        timeout=3
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if data and data.get('text') and not data.get('deleted') and not data.get('dead'):
+                            comments.append(data['text'])
+                except Exception as e:
+                    logger.warning(f"Failed to fetch comment {cid}: {e}")
+                    continue
+                    
         except Exception as e:
-            logger.error(f"Failed to fetch top stories from HN: {e}")
-            return []
-    
+            logger.warning(f"Failed to fetch comments for story {story_id}: {e}")
+            
+        return comments
+
+    def search_ai_stories(
+        self, 
+        query: Optional[str] = None,
+        min_points: int = 10,
+        limit: int = 20,
+        hours_ago: int = 24  # Only fetch stories from the last N hours
+    ) -> List[Dict]:
+        """
+        Search for recent AI/LLM-related stories using Algolia API.
+        
+        Uses search_by_date endpoint to get the most recent stories first,
+        filtered by age to ensure freshness (last 24 hours by default).
+        
+        Args:
+            query: Custom search query. If None, searches multiple AI terms.
+            min_points: Minimum upvote points for stories (default 10 for recent).
+            limit: Maximum number of stories to return.
+            hours_ago: Only include stories from the last N hours (default 24).
+            
+        Returns:
+            List of story dictionaries from Algolia API, sorted by recency.
+        """
+        import time as time_module
+        
+        # Use search_by_date for recent stories
+        endpoint = f"{self.ALGOLIA_BASE_URL}/search_by_date"
+        
+        # Calculate cutoff timestamp (stories older than this are excluded)
+        cutoff_timestamp = int(time_module.time()) - (hours_ago * 3600)
+        
+        # If custom query provided, use it directly
+        if query is not None:
+            queries = [query]
+        else:
+            # Use multiple focused searches for better AI/LLM coverage
+            queries = ["AI", "LLM", "ChatGPT", "GPT", "machine learning", "OpenAI", "Claude"]
+        
+        all_hits = []
+        seen_ids = set()
+        
+        for q in queries:
+            if len(all_hits) >= limit * 3:  # Fetch extra for filtering
+                break
+                
+            params = {
+                "query": q,
+                "tags": "story",
+                "numericFilters": f"points>{min_points},created_at_i>{cutoff_timestamp}",
+                "hitsPerPage": min(limit, 20)
+            }
+            
+            try:
+                response = self.session.get(endpoint, params=params, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                hits = data.get("hits", [])
+                
+                # Deduplicate by story ID
+                for hit in hits:
+                    story_id = hit.get("objectID")
+                    if story_id and story_id not in seen_ids:
+                        seen_ids.add(story_id)
+                        all_hits.append(hit)
+                        
+            except Exception as e:
+                logger.warning(f"Algolia search failed for query '{q}': {e}")
+                continue
+        
+        # Sort by recency (most recent first), then by points as tiebreaker
+        all_hits.sort(key=lambda x: (x.get("created_at_i", 0), x.get("points", 0)), reverse=True)
+        
+        logger.info(f"Algolia returned {len(all_hits)} recent AI-related stories from last {hours_ago}h")
+        return all_hits[:limit]
+
     def get_story_details(self, story_id: int) -> Optional[HackerNewsStory]:
-        """Fetch details for a single story."""
+        """Fetch details for a single story (used for fallback/legacy compatibility)."""
         try:
-            response = self.session.get(f"{self.BASE_URL}/item/{story_id}.json", timeout=5)
+            response = self.session.get(
+                f"{self.FIREBASE_BASE_URL}/item/{story_id}.json", 
+                timeout=5
+            )
             response.raise_for_status()
             data = response.json()
             
@@ -108,7 +223,7 @@ class HackerNewsClient:
             # Fetch top 3 comments if available
             comments = []
             if 'kids' in data:
-                comments = self._fetch_comments(data['kids'], limit=3)
+                comments = self._fetch_comments(str(story_id), limit=3)
             
             # Fetch GitHub stars if URL is a GitHub repo
             story_url = data.get('url')
@@ -129,23 +244,93 @@ class HackerNewsClient:
             logger.warning(f"Failed to fetch HN story {story_id}: {e}")
             return None
 
-    def fetch_top_stories_with_details(self, limit: int = 20) -> List[HackerNewsStory]:
-        """Fetch top stories and their full details."""
-        story_ids = self.get_top_stories(limit=limit * 2) # Fetch extra to account for skips
-        idx = 0
+    def fetch_top_stories_with_details(
+        self, 
+        limit: int = 20,
+        min_points: int = 20,
+        include_comments: bool = True
+    ) -> List[HackerNewsStory]:
+        """
+        Fetch top AI/LLM-related stories with full details using Algolia API.
+        
+        This is the main method to use for fetching filtered HN content.
+        
+        Args:
+            limit: Maximum number of stories to return.
+            min_points: Minimum upvote points for stories.
+            include_comments: Whether to fetch top comments (slower but richer).
+            
+        Returns:
+            List of HackerNewsStory objects filtered for AI/LLM content.
+        """
+        # Search for AI-related stories
+        hits = self.search_ai_stories(min_points=min_points, limit=limit)
+        
+        if not hits:
+            logger.warning("No AI stories found via Algolia, falling back to general top stories")
+            # Fallback: try broader search
+            hits = self.search_ai_stories(
+                query="technology OR programming OR startup",
+                min_points=50,
+                limit=limit
+            )
+        
         stories = []
         
-        logger.info(f"Fetching details for {len(story_ids)} trending HN stories...")
-        
-        for sid in story_ids:
+        for hit in hits:
             if len(stories) >= limit:
                 break
+            
+            try:
+                story_id = hit.get("objectID", "")
                 
-            details = self.get_story_details(sid)
-            if details:
-                stories.append(details)
-            
-            # Rate limit politeness
-            time.sleep(0.1)
-            
+                # Algolia provides most fields directly
+                story_url = hit.get("url")
+                
+                # Fetch comments if requested
+                comments = []
+                if include_comments and story_id:
+                    comments = self._fetch_comments(story_id, limit=3)
+                    time.sleep(0.05)  # Brief rate limit
+                
+                # Fetch GitHub stars
+                github_stars = self._fetch_github_stars(story_url)
+                
+                story = HackerNewsStory(
+                    id=story_id,
+                    title=hit.get("title", "Untitled"),
+                    url=story_url,
+                    score=hit.get("points", 0),
+                    comments_count=hit.get("num_comments", 0),
+                    by=hit.get("author", "unknown"),
+                    time=hit.get("created_at_i"),  # Unix timestamp
+                    comments=comments,
+                    github_stars=github_stars
+                )
+                stories.append(story)
+                
+            except Exception as e:
+                logger.warning(f"Failed to process Algolia hit: {e}")
+                continue
+        
+        logger.info(f"✓ Fetched {len(stories)} AI/LLM-related HN stories via Algolia")
         return stories
+
+    # Legacy method for backward compatibility
+    def get_top_stories(self, limit: int = 20) -> List[int]:
+        """Fetch the IDs of the current top stories (legacy method).
+        
+        Note: This still uses Firebase API. For filtered AI stories,
+        use fetch_top_stories_with_details() instead.
+        """
+        try:
+            response = self.session.get(
+                f"{self.FIREBASE_BASE_URL}/topstories.json", 
+                timeout=10
+            )
+            response.raise_for_status()
+            ids = response.json()
+            return ids[:limit]
+        except Exception as e:
+            logger.error(f"Failed to fetch top stories from HN: {e}")
+            return []

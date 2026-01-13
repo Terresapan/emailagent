@@ -1,6 +1,8 @@
 # Email Digest Agent
 
-AI-powered email digest system that processes newsletters and generates briefings + LinkedIn content.
+**AI content intelligence platform that synthesizes newsletters, Product Hunt launches, Hacker News discussions, and YouTube videos into actionable briefings with Google Trends validation.**
+
+> Transforms fragmented information sources into strategic content opportunities for creators through automated multi-source curation and trend analysis.
 
 ## Architecture
 
