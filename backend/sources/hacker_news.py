@@ -8,17 +8,30 @@ logger = setup_logger(__name__)
 
 
 # Default AI/LLM search queries for filtering HackerNews stories
+# These terms are used to search Algolia for AI-related content
 DEFAULT_AI_QUERIES = [
+    # Core AI terms
     "AI",
-    "LLM", 
+    "LLM",
     "artificial intelligence",
-    "ChatGPT",
-    "Claude",
-    "GPT",
     "machine learning",
+    "deep learning",
     "neural network",
+    # Major AI companies/labs
     "OpenAI",
     "Anthropic",
+    "DeepMind",
+    "Mistral",
+    # Major AI products/models
+    "ChatGPT",
+    "GPT-4",
+    "Claude",
+    "Gemini",
+    "Llama",
+    "Copilot",
+    # AI applications
+    "AI agents",
+    "generative AI",
 ]
 
 
@@ -135,7 +148,7 @@ class HackerNewsClient:
     def search_ai_stories(
         self, 
         query: Optional[str] = None,
-        min_points: int = 10,
+        min_points: int = 5,  # Lowered to ensure enough stories after filtering
         limit: int = 20,
         hours_ago: int = 24  # Only fetch stories from the last N hours
     ) -> List[Dict]:
@@ -152,7 +165,7 @@ class HackerNewsClient:
             hours_ago: Only include stories from the last N hours (default 24).
             
         Returns:
-            List of story dictionaries from Algolia API, sorted by recency.
+            List of story dictionaries from Algolia API, sorted by popularity.
         """
         import time as time_module
         
@@ -166,21 +179,21 @@ class HackerNewsClient:
         if query is not None:
             queries = [query]
         else:
-            # Use multiple focused searches for better AI/LLM coverage
-            queries = ["AI", "LLM", "ChatGPT", "GPT", "machine learning", "OpenAI", "Claude"]
+            # Use ALL configured AI queries for comprehensive coverage
+            # Latency is ~5s for 18 terms which is acceptable for a daily job
+            queries = self.ai_queries
         
         all_hits = []
         seen_ids = set()
         
         for q in queries:
-            if len(all_hits) >= limit * 3:  # Fetch extra for filtering
-                break
-                
+            # Don't break early - we want comprehensive coverage from all terms
             params = {
                 "query": q,
                 "tags": "story",
                 "numericFilters": f"points>{min_points},created_at_i>{cutoff_timestamp}",
-                "hitsPerPage": min(limit, 20)
+                # Fetch more per query to account for false positives that get filtered
+                "hitsPerPage": max(limit * 2, 30)
             }
             
             try:
@@ -201,10 +214,34 @@ class HackerNewsClient:
                 logger.warning(f"Algolia search failed for query '{q}': {e}")
                 continue
         
-        # Sort by recency (most recent first), then by points as tiebreaker
-        all_hits.sort(key=lambda x: (x.get("created_at_i", 0), x.get("points", 0)), reverse=True)
+        # Filter out false positives (e.g., "Air Lines" matching "AI")
+        # Check that title actually contains AI-related terms as whole words
+        import re
+        ai_pattern = re.compile(
+            r'\b(AI|LLM|GPT|ChatGPT|Claude|Gemini|Llama|Copilot|OpenAI|Anthropic|DeepMind|Mistral|'
+            r'artificial\s+intelligence|machine\s+learning|deep\s+learning|neural\s+network|'
+            r'generative|transformer|diffusion|AGI)\b',
+            re.IGNORECASE
+        )
         
-        logger.info(f"Algolia returned {len(all_hits)} recent AI-related stories from last {hours_ago}h")
+        filtered_hits = []
+        for hit in all_hits:
+            title = hit.get("title", "")
+            url = hit.get("url", "") or ""
+            # Check title and URL for actual AI-related terms
+            if ai_pattern.search(title) or ai_pattern.search(url):
+                filtered_hits.append(hit)
+            else:
+                logger.debug(f"Filtered out non-AI story: {title[:50]}")
+        
+        logger.info(f"Filtered {len(all_hits)} -> {len(filtered_hits)} truly AI-related stories")
+        all_hits = filtered_hits
+        
+        # Sort by POPULARITY (points) within the 24h window
+        # This shows "today's most important AI stories" not just "newest"
+        all_hits.sort(key=lambda x: x.get("points", 0), reverse=True)
+        
+        logger.info(f"Algolia returned {len(all_hits)} AI stories from last {hours_ago}h (sorted by popularity)")
         return all_hits[:limit]
 
     def get_story_details(self, story_id: int) -> Optional[HackerNewsStory]:
@@ -247,7 +284,7 @@ class HackerNewsClient:
     def fetch_top_stories_with_details(
         self, 
         limit: int = 20,
-        min_points: int = 20,
+        min_points: int = 5,  # Lowered to ensure enough stories after AI filtering
         include_comments: bool = True
     ) -> List[HackerNewsStory]:
         """
