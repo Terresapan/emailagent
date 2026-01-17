@@ -35,9 +35,12 @@ from schemas import (
     YouTubeInsightResponse,
     YouTubeInsightResponse,
     YouTubeVideoResponse,
-    TopicAnalysisResponse,
-    TrendValidationResponse,
     UsageStatsResponse,
+    # Discovery schemas
+    PainPointResponse,
+    AppOpportunityResponse,
+    DiscoveryBriefingResponse,
+    DiscoveryStatsResponse,
 )
 
 # In-memory process status tracking
@@ -302,299 +305,172 @@ async def get_latest_youtube_insight(
 
 
 # =============================================================================
-# TOPIC ANALYSIS ENDPOINTS (Google Trends Validation)
+# DISCOVERY ENDPOINTS (Viral App Discovery)
 # =============================================================================
 
-@app.get("/api/analysis/latest")
-async def get_latest_analysis(
-    source: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
-    """
-    Get the most recent topic analysis, optionally filtered by source.
-    
-    If specific source requested (e.g. 'newsletter') and not found, 
-    filter from latest 'global' analysis.
-    """
-    from db import TopicAnalysisDB
-    from schemas import TopicAnalysisResponse, TrendValidationResponse
-    
-    query = db.query(TopicAnalysisDB)
-    
-    # Try exact match first
-    if source:
-        query = query.filter(TopicAnalysisDB.source == source)
-    
-    analysis = query.order_by(TopicAnalysisDB.created_at.desc()).first()
-    
-    # Fallback: If specific source requested but not found, check global
-    if not analysis and source and source != "global":
-        global_analysis = db.query(TopicAnalysisDB).filter(
-            TopicAnalysisDB.source == "global"
-        ).order_by(TopicAnalysisDB.created_at.desc()).first()
-        
-        if global_analysis:
-            # Filter topics by content_source
-            # Handle source mapping (e.g. 'newsletter' should match 'newsletter' and 'weekly_newsletter')
-            filtered_topics = []
-            for t in (global_analysis.topics_json or []):
-                content_source = t.get('content_source', '')
-                if not content_source: 
-                    continue
-                    
-                # Loose matching to handle weekly variants
-                if source in content_source:
-                    filtered_topics.append(t)
-            
-            if filtered_topics:
-                # Return partial view of global analysis
-                return TopicAnalysisResponse(
-                    id=global_analysis.id,
-                    source=source, # Pretend it's the requested source
-                    source_date=global_analysis.source_date,
-                    topics=[TrendValidationResponse(**t) for t in filtered_topics],
-                    top_builder_topics=global_analysis.top_builder_topics or [],
-                    top_founder_topics=global_analysis.top_founder_topics or [],
-                    summary=global_analysis.summary, # Keep global summary
-                    created_at=global_analysis.created_at,
-                )
-    
-    if not analysis:
-        return None
-    
-    # Transform topics_json to response format
-    topics = [
-        TrendValidationResponse(**t) for t in (analysis.topics_json or [])
-    ]
-    
-    return TopicAnalysisResponse(
-        id=analysis.id,
-        source=analysis.source,
-        source_date=analysis.source_date,
-        topics=topics,
-        top_builder_topics=analysis.top_builder_topics or [],
-        top_founder_topics=analysis.top_founder_topics or [],
-        summary=analysis.summary,
-        created_at=analysis.created_at,
-    )
+# In-memory storage for last discovery run (will be replaced with DB later)
+_last_discovery_briefing = None
 
-
-@app.get("/api/analysis/history")
-async def get_analysis_history(
-    source: Optional[str] = None,
-    limit: int = 10,
-    db: Session = Depends(get_db)
-):
-    """Get paginated topic analysis history."""
-    from db import TopicAnalysisDB
-    from schemas import TopicAnalysisResponse, TrendValidationResponse
+@app.get("/api/discovery/briefing", response_model=DiscoveryBriefingResponse)
+async def get_latest_discovery_briefing():
+    """
+    Get the most recent Saturday discovery briefing.
     
-    query = db.query(TopicAnalysisDB)
+    Returns the top 20 app opportunities with scores.
+    """
+    global _last_discovery_briefing
     
-    if source:
-        query = query.filter(TopicAnalysisDB.source == source)
+    if _last_discovery_briefing is None:
+        raise HTTPException(
+            status_code=404, 
+            detail="No discovery briefing found. Run POST /api/discovery/run first."
+        )
     
-    analyses = query.order_by(TopicAnalysisDB.created_at.desc()).limit(limit).all()
-    
-    results = []
-    for analysis in analyses:
-        topics = [
-            TrendValidationResponse(**t) for t in (analysis.topics_json or [])
+    # Convert to response format
+    opportunities = []
+    for opp in _last_discovery_briefing.top_opportunities:
+        pain_points = [
+            PainPointResponse(
+                text=pp.text,
+                problem=pp.problem,
+                source=pp.source,
+                engagement=pp.engagement,
+            )
+            for pp in opp.pain_points
         ]
-        results.append(TopicAnalysisResponse(
-            id=analysis.id,
-            source=analysis.source,
-            source_date=analysis.source_date,
-            topics=topics,
-            top_builder_topics=analysis.top_builder_topics or [],
-            top_founder_topics=analysis.top_founder_topics or [],
-            summary=analysis.summary,
-            created_at=analysis.created_at,
+        opportunities.append(AppOpportunityResponse(
+            problem=opp.problem,
+            app_idea=opp.app_idea,
+            demand_score=opp.demand_score,
+            virality_score=opp.virality_score,
+            buildability_score=opp.buildability_score,
+            opportunity_score=opp.opportunity_score,
+            category=opp.category,
+            target_audience=opp.target_audience,
+            pain_points=pain_points,
         ))
     
-    return results
+    return DiscoveryBriefingResponse(
+        date=_last_discovery_briefing.date,
+        top_opportunities=opportunities,
+        total_data_points=_last_discovery_briefing.total_data_points,
+        total_pain_points_extracted=_last_discovery_briefing.total_pain_points_extracted,
+        total_candidates_filtered=_last_discovery_briefing.total_candidates_filtered,
+        arcade_calls=_last_discovery_briefing.arcade_calls,
+        serpapi_calls=_last_discovery_briefing.serpapi_calls,
+        youtube_quota=_last_discovery_briefing.youtube_quota,
+        llm_calls=_last_discovery_briefing.llm_calls,
+        estimated_cost=_last_discovery_briefing.estimated_cost,
+    )
 
 
-@app.post("/api/analysis/validate", response_model=TopicAnalysisResponse)
-async def validate_topics(
-    topics: Optional[str] = None,
-    source: str = Query(..., description="Source type: 'producthunt', 'hackernews', 'youtube', 'newsletter', 'manual', or 'all'"),
-    force: bool = Query(False, description="Force run even on Saturday (for manual testing)"),
-    db: Session = Depends(get_db)
-):
+@app.post("/api/discovery/run", response_model=DiscoveryBriefingResponse)
+async def run_discovery():
     """
-    Trigger validation for topics.
+    Trigger the Saturday discovery workflow.
     
-    If source is 'all', runs validation for all available sources (reads latest insights from DB),
-    aggregates results, and sends an email report.
+    This runs the full 4-phase discovery:
+    1. Collect data (200 Arcade + free APIs)
+    2. Extract pain points (5 LLM calls)
+    3. Filter candidates (1 LLM call)
+    4. Validate + Score (120 SerpAPI + 1 LLM call)
+    
+    Returns the briefing with top 20 opportunities.
+    
+    WARNING: This is a long-running operation (~5-10 minutes).
     """
+    global _last_discovery_briefing
+    
     import sys
     sys.path.insert(0, '/app')
     
-    from db import TopicAnalysisDB
-    from schemas import TopicAnalysisResponse, TrendValidationResponse
-    
-    if source == "all":
-        from processor.google_trend.trend_validation import TrendValidationService
+    try:
+        from processor.viral_app.graph import run_saturday_discovery
         
-        today = datetime.now()
-        day_of_week = today.weekday()
+        logger.info("Starting discovery workflow...")
+        briefing = run_saturday_discovery()
         
-        # Saturday skip (unless forced)
-        if day_of_week == 5 and not force:
-            return TopicAnalysisResponse(
-                id=0,
-                source="global",
-                source_date=today.date(),
-                topics=[],
-                top_technical_topics=[],
-                top_strategic_topics=[],
-                summary="Saturday - No validation scheduled (use force=true to override)",
-                created_at=today
-            )
+        # Store for later retrieval
+        _last_discovery_briefing = briefing
         
-        # Run shared validation service
-        service = TrendValidationService(db)
-        analysis = service.run(force=force)
+        # Convert to response
+        opportunities = []
+        for opp in briefing.top_opportunities:
+            pain_points = [
+                PainPointResponse(
+                    text=pp.text,
+                    problem=pp.problem,
+                    source=pp.source,
+                    engagement=pp.engagement,
+                )
+                for pp in opp.pain_points
+            ]
+            opportunities.append(AppOpportunityResponse(
+                problem=opp.problem,
+                app_idea=opp.app_idea,
+                demand_score=opp.demand_score,
+                virality_score=opp.virality_score,
+                buildability_score=opp.buildability_score,
+                opportunity_score=opp.opportunity_score,
+                category=opp.category,
+                target_audience=opp.target_audience,
+                pain_points=pain_points,
+            ))
         
-        if not analysis:
-            return TopicAnalysisResponse(
-                id=0,
-                source="global",
-                source_date=today.date(),
-                topics=[],
-                top_builder_topics=[],
-                top_founder_topics=[],
-                summary="No content found to analyze",
-                created_at=today
-            )
-        
-        # Send email
-        try:
-            from sources.gmail.client import GmailClient
-            gmail = GmailClient()
-            gmail.send_analysis_email([analysis])
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-        
-        # Get the saved DB object for response
-        db_obj = db.query(TopicAnalysisDB).filter(
-            TopicAnalysisDB.source == "global",
-            TopicAnalysisDB.source_date == today.date()
-        ).first()
-        
-        if not db_obj:
-            # Fallback if not found (shouldn't happen)
-            return TopicAnalysisResponse(
-                id=0,
-                source="global",
-                source_date=today.date(),
-                topics=[TrendValidationResponse(**t.model_dump()) for t in analysis.topics],
-                top_technical_topics=analysis.top_technical_topics,
-                top_strategic_topics=analysis.top_strategic_topics,
-                summary=analysis.summary,
-                created_at=today
-            )
-        
-        return TopicAnalysisResponse(
-            id=db_obj.id,
-            source=db_obj.source,
-            source_date=db_obj.source_date,
-            topics=[TrendValidationResponse(**t) for t in db_obj.topics_json],
-            top_technical_topics=db_obj.top_builder_topics or [],
-            top_strategic_topics=db_obj.top_founder_topics or [],
-            summary=db_obj.summary,
-            created_at=db_obj.created_at
+        return DiscoveryBriefingResponse(
+            date=briefing.date,
+            top_opportunities=opportunities,
+            total_data_points=briefing.total_data_points,
+            total_pain_points_extracted=briefing.total_pain_points_extracted,
+            total_candidates_filtered=briefing.total_candidates_filtered,
+            arcade_calls=briefing.arcade_calls,
+            serpapi_calls=briefing.serpapi_calls,
+            youtube_quota=briefing.youtube_quota,
+            llm_calls=briefing.llm_calls,
+            estimated_cost=briefing.estimated_cost,
         )
-
-    # Manual validation logic
-    if not topics:
-         raise HTTPException(status_code=400, detail="No topics provided")
-
-    topic_list = [t.strip() for t in topics.split(",") if t.strip()]
-    
-    if not topic_list:
-        raise HTTPException(status_code=400, detail="No topics provided")
-    
-    if len(topic_list) > 20:
-        raise HTTPException(status_code=400, detail="Maximum 20 topics allowed per request")
-    
-    # Run manual validation via simple Service or Graph?
-    # Graph expects inputs with source/content. We can mock it or just use simple validation service?
-    # Or better: Add a manual entry point to Graph or just use the old service logic (which is being deprecated).
-    # Let's adapt the Graph for manual input?
-    # Currently Graph extracts -> ranks -> validates.
-    # We just want validate.
-    # The old service had validate_and_analyze(source, topics).
-    # Since we are deprecating the service, we should probably use the Graph or key components.
-    # But for now, to keep it simple and given the user asked for graph refactor for the main flow:
-    # I will instantiate GoogleTrendsClient directly for manual mode, similar to what the service did.
-    
-    from sources.google_trends import GoogleTrendsClient
-    from sources.models import TopicAnalysis, TrendValidation
-    
-    trends = GoogleTrendsClient()
-    validations = trends.validate_topics_batch(topic_list)
-    
-    # Construct rudimentary analysis
-    analysis = TopicAnalysis(
-        source=source,
-        source_date=datetime.now().date(),
-        topics=validations,
-        top_builder_topics=[],
-        top_founder_topics=[],
-        summary=f"Manual validation of {len(validations)} topics"
-    )
-    
-    # Save to database
-    # Check for existing manual run today
-    existing = db.query(TopicAnalysisDB).filter(
-        TopicAnalysisDB.source == analysis.source,
-        TopicAnalysisDB.source_date == analysis.source_date
-    ).first()
-    
-    if existing:
-        db.delete(existing)
-        db.commit()  # Flush delete before inserting new record
         
-    db_analysis = TopicAnalysisDB(
-        source=analysis.source,
-        source_date=analysis.source_date,
-        topics_json=[t.model_dump(mode='json') for t in analysis.topics],
-        top_builder_topics=analysis.top_builder_topics,
-        top_founder_topics=analysis.top_founder_topics,
-        summary=analysis.summary,
-        created_at=analysis.created_at,
-    )
-    db.add(db_analysis)
-    db.commit()
-    db.refresh(db_analysis)
+    except Exception as e:
+        logger.error(f"Discovery workflow failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Discovery failed: {str(e)}")
+
+
+@app.get("/api/discovery/stats", response_model=DiscoveryStatsResponse)
+async def get_discovery_stats():
+    """
+    Get API usage statistics for discovery.
     
-    return TopicAnalysisResponse(
-        id=db_analysis.id,
-        source=db_analysis.source,
-        source_date=db_analysis.source_date,
-        topics=[TrendValidationResponse(**t.model_dump()) for t in analysis.topics],
-        top_builder_topics=db_analysis.top_builder_topics or [],
-        top_founder_topics=db_analysis.top_founder_topics or [],
-        summary=db_analysis.summary,
-        created_at=db_analysis.created_at,
-    )
-
-
-@app.get("/api/analysis/usage")
-async def get_trends_usage():
-    """Get Google Trends API usage statistics."""
+    Returns usage for Arcade, SerpAPI, YouTube, and LLM.
+    """
     import sys
     sys.path.insert(0, '/app')
     
+    from sources.arcade_client import ArcadeClient
     from sources.google_trends import GoogleTrendsClient
-    from schemas import UsageStatsResponse
     
-    client = GoogleTrendsClient()
-    stats = client.get_usage_stats()
+    # Get stats from clients
+    try:
+        arcade_client = ArcadeClient()
+        arcade_stats = arcade_client.get_usage_stats()
+    except Exception:
+        arcade_stats = {"error": "Not configured"}
     
-    return UsageStatsResponse(**stats)
+    try:
+        trends_client = GoogleTrendsClient()
+        serpapi_stats = trends_client.get_usage_stats()
+    except Exception:
+        serpapi_stats = {"error": "Not configured"}
+    
+    global _last_discovery_briefing
+    last_run = _last_discovery_briefing.date if _last_discovery_briefing else None
+    
+    return DiscoveryStatsResponse(
+        arcade=arcade_stats,
+        serpapi=serpapi_stats,
+        youtube={"quota_per_day": 10000, "note": "Free tier"},
+        llm={"calls_per_run": 7, "estimated_cost_per_run": 0.13},
+        last_run=last_run,
+    )
 
 
 @app.post("/api/process", response_model=ProcessResponse)

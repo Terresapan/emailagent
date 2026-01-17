@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Newspaper, 
-  Archive, 
-  Settings, 
-  LineChart, 
+import {
+  Newspaper,
+  Archive,
+  Settings,
+  Rocket,
   Zap,
   Menu
 } from "lucide-react";
@@ -19,7 +19,7 @@ import { useState, useEffect } from "react";
 const navItems = [
   { href: "/", label: "Briefing", icon: Newspaper },
   { href: "/archives", label: "Archives", icon: Archive },
-  { href: "/analysis", label: "Analysis", icon: LineChart },
+  { href: "/discovery", label: "Discovery", icon: Rocket },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -35,7 +35,7 @@ export function IntelligenceRail() {
         setIsCollapsed(false);
       }
     };
-    
+
     // Initial check
     handleResize();
 
@@ -53,16 +53,16 @@ export function IntelligenceRail() {
         <div className="flex h-32 flex-col justify-between p-6">
           <div className="flex items-center justify-between">
             <div className={cn("h-8 w-1 bg-accent transition-all", isCollapsed ? "h-4" : "")} />
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="text-muted-foreground hover:text-white"
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
               <Menu className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <div className={cn("transition-opacity duration-300", isCollapsed ? "opacity-0 hidden" : "opacity-100")}>
             <h1 className="font-serif text-2xl font-bold leading-none tracking-tighter text-muted-foreground">
               The <br />
@@ -86,8 +86,8 @@ export function IntelligenceRail() {
                     variant="ghost"
                     className={cn(
                       "group w-full justify-start gap-4 overflow-hidden rounded-none py-6 text-sm font-medium tracking-widest uppercase transition-all hover:bg-white/5",
-                      isActive 
-                        ? "text-accent hover:text-accent" 
+                      isActive
+                        ? "text-accent hover:text-accent"
                         : "text-muted-foreground hover:text-white",
                       isCollapsed && "justify-center px-0"
                     )}

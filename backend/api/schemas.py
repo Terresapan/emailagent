@@ -187,3 +187,52 @@ class UsageStatsResponse(BaseModel):
     serpapi_remaining: int
     month: str
     pytrends_available: bool
+
+
+# =============================================================================
+# DISCOVERY SCHEMAS (Viral App Discovery)
+# =============================================================================
+
+class PainPointResponse(BaseModel):
+    """A pain point extracted from social media."""
+    text: str
+    problem: str
+    source: str  # "reddit", "twitter", "youtube", "producthunt"
+    engagement: int = 0
+
+
+class AppOpportunityResponse(BaseModel):
+    """A ranked app opportunity."""
+    problem: str
+    app_idea: str
+    demand_score: int = 0
+    virality_score: int = 0
+    buildability_score: int = 0
+    opportunity_score: int = 0
+    category: Optional[str] = None
+    target_audience: Optional[str] = None
+    pain_points: List[PainPointResponse] = []
+
+
+class DiscoveryBriefingResponse(BaseModel):
+    """Saturday discovery briefing result."""
+    date: datetime
+    top_opportunities: List[AppOpportunityResponse] = []
+    total_data_points: int = 0
+    total_pain_points_extracted: int = 0
+    total_candidates_filtered: int = 0
+    arcade_calls: int = 0
+    serpapi_calls: int = 0
+    youtube_quota: int = 0
+    llm_calls: int = 0
+    estimated_cost: float = 0.0
+
+
+class DiscoveryStatsResponse(BaseModel):
+    """API usage stats for discovery."""
+    arcade: dict = {}
+    serpapi: dict = {}
+    youtube: dict = {}
+    llm: dict = {}
+    last_run: Optional[datetime] = None
+

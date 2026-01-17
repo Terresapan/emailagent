@@ -317,6 +317,230 @@ class YouTubeClient:
         
         logger.info(f"Fetched {len(all_videos)} total videos from {len(channels)} channels")
         return all_videos
+    
+    def get_video_comments(
+        self,
+        video_id: str,
+        max_results: int = 100,
+    ) -> list[dict]:
+        """
+        Fetch top-level comments from a video for pain point mining.
+        
+        Uses commentThreads API (costs ~1 quota unit per call).
+        
+        Args:
+            video_id: YouTube video ID
+            max_results: Maximum comments to fetch (max 100 per call)
+            
+        Returns:
+            List of comment dicts with 'text', 'author', 'likes', 'published_at'
+        """
+        try:
+            response = self.session.get(
+                f"{self.BASE_URL}/commentThreads",
+                params={
+                    "part": "snippet",
+                    "videoId": video_id,
+                    "maxResults": min(max_results, 100),
+                    "order": "relevance",  # Top comments first
+                    "textFormat": "plainText",
+                    "key": self.api_key,
+                },
+                timeout=15,
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            comments = []
+            for item in data.get("items", []):
+                snippet = item.get("snippet", {}).get("topLevelComment", {}).get("snippet", {})
+                comments.append({
+                    "text": snippet.get("textDisplay", ""),
+                    "author": snippet.get("authorDisplayName", ""),
+                    "likes": snippet.get("likeCount", 0),
+                    "published_at": snippet.get("publishedAt", ""),
+                })
+            
+            logger.info(f"Fetched {len(comments)} comments from video {video_id}")
+            return comments
+            
+        except Exception as e:
+            logger.warning(f"Failed to fetch comments for {video_id}: {e}")
+            return []
+    
+    def get_comments_from_videos(
+        self,
+        video_ids: list[str],
+        max_comments_per_video: int = 50,
+    ) -> list[dict]:
+        """
+        Fetch comments from multiple videos for pain point discovery.
+        
+        Args:
+            video_ids: List of YouTube video IDs
+            max_comments_per_video: Comments per video (default 50)
+            
+        Returns:
+            List of all comments with video_id added to each
+        """
+        all_comments = []
+        
+        for video_id in video_ids:
+            comments = self.get_video_comments(video_id, max_comments_per_video)
+            for comment in comments:
+                comment["video_id"] = video_id
+            all_comments.extend(comments)
+            time.sleep(0.5)  # Rate limiting
+        
+        logger.info(f"Fetched {len(all_comments)} total comments from {len(video_ids)} videos")
+        return all_comments
+    
+    # ==================== Viral Video Discovery ====================
+    
+    # Default queries for pain point discovery
+    DISCOVERY_QUERIES = [
+        "AI tool for small business",
+        "automate with AI",
+        "AI productivity hack",
+        "I wish there was an app",
+        "built an app in a day",
+    ]
+    
+    def search_viral_videos(
+        self,
+        query: str,
+        min_views: int = 50000,
+        max_results: int = 10,
+        published_after_days: int = 90,
+    ) -> list[dict]:
+        """
+        Search for viral videos matching a query.
+        
+        Costs: 100 quota for search + 1 per video for details
+        
+        Args:
+            query: Search query string
+            min_views: Minimum view count to qualify as "viral"
+            max_results: Max videos to return (after filtering)
+            published_after_days: Only videos from last N days
+            
+        Returns:
+            List of viral video dicts with video_id, title, views, channel
+        """
+        # Calculate publish date filter
+        published_after = (
+            datetime.now(timezone.utc) - timedelta(days=published_after_days)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        
+        try:
+            # Step 1: Search for videos (100 quota)
+            search_response = self.session.get(
+                f"{self.BASE_URL}/search",
+                params={
+                    "part": "snippet",
+                    "q": query,
+                    "type": "video",
+                    "order": "viewCount",  # Most viewed first
+                    "publishedAfter": published_after,
+                    "maxResults": min(max_results * 2, 50),  # Fetch extra for filtering
+                    "key": self.api_key,
+                },
+                timeout=15,
+            )
+            search_response.raise_for_status()
+            search_data = search_response.json()
+            
+            video_ids = [
+                item["id"]["videoId"]
+                for item in search_data.get("items", [])
+            ]
+            
+            if not video_ids:
+                return []
+            
+            # Step 2: Get video details for view counts (1 quota per video)
+            details_response = self.session.get(
+                f"{self.BASE_URL}/videos",
+                params={
+                    "part": "snippet,statistics",
+                    "id": ",".join(video_ids),
+                    "key": self.api_key,
+                },
+                timeout=15,
+            )
+            details_response.raise_for_status()
+            details_data = details_response.json()
+            
+            # Step 3: Filter by view count and build results
+            viral_videos = []
+            for item in details_data.get("items", []):
+                view_count = int(item.get("statistics", {}).get("viewCount", 0))
+                comment_count = int(item.get("statistics", {}).get("commentCount", 0))
+                
+                if view_count >= min_views and comment_count > 50:
+                    snippet = item.get("snippet", {})
+                    viral_videos.append({
+                        "video_id": item["id"],
+                        "title": snippet.get("title", ""),
+                        "channel": snippet.get("channelTitle", ""),
+                        "channel_id": snippet.get("channelId", ""),
+                        "views": view_count,
+                        "comments": comment_count,
+                        "published_at": snippet.get("publishedAt", ""),
+                        "description": snippet.get("description", "")[:500],
+                    })
+                    
+                    if len(viral_videos) >= max_results:
+                        break
+            
+            logger.info(f"Found {len(viral_videos)} viral videos for query: '{query}'")
+            return viral_videos
+            
+        except Exception as e:
+            logger.error(f"Failed to search viral videos for '{query}': {e}")
+            return []
+    
+    def search_for_discovery(
+        self,
+        queries: list[str] = None,
+        min_views: int = 50000,
+        videos_per_query: int = 5,
+    ) -> list[dict]:
+        """
+        Search multiple queries to find viral videos for pain point discovery.
+        
+        Uses ~500-600 quota for 5 queries (well under 10K daily limit).
+        
+        Args:
+            queries: List of search queries (defaults to DISCOVERY_QUERIES)
+            min_views: Minimum view count
+            videos_per_query: Videos to keep per query
+            
+        Returns:
+            Deduplicated list of viral videos across all queries
+        """
+        if queries is None:
+            queries = self.DISCOVERY_QUERIES
+        
+        all_videos = {}  # Use dict to dedupe by video_id
+        
+        for query in queries:
+            videos = self.search_viral_videos(
+                query=query,
+                min_views=min_views,
+                max_results=videos_per_query,
+            )
+            for video in videos:
+                # Dedupe by video_id
+                if video["video_id"] not in all_videos:
+                    video["query"] = query  # Track which query found it
+                    all_videos[video["video_id"]] = video
+            
+            time.sleep(0.5)  # Rate limiting between queries
+        
+        result = list(all_videos.values())
+        logger.info(f"Discovery search found {len(result)} unique viral videos from {len(queries)} queries")
+        return result
 
 
 # Convenience function for testing
@@ -330,3 +554,18 @@ def fetch_influencer_videos(limit_per_channel: int = 3) -> List[YouTubeVideo]:
         channels=channels,
         videos_per_channel=limit_per_channel,
     )
+
+
+def fetch_video_comments(video_id: str, max_results: int = 100) -> list[dict]:
+    """Fetch comments from a single video."""
+    client = YouTubeClient()
+    return client.get_video_comments(video_id, max_results)
+
+
+def search_viral_for_discovery(
+    queries: list[str] = None,
+    min_views: int = 50000,
+) -> list[dict]:
+    """Search for viral videos for pain point discovery."""
+    client = YouTubeClient()
+    return client.search_for_discovery(queries, min_views)

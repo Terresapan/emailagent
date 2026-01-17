@@ -136,7 +136,33 @@ docker exec emailagent uv run python main.py --type youtube --dry-run
 
 > **Setup Required**: Edit `backend/config/youtube_channels.json` with your influencer channel IDs before running.
 
-### 6. Parallel Execution
+### 6. Saturday Discovery (Viral App Ideas)
+Finds viral app opportunities by mining pain points from Reddit, Twitter, YouTube comments, and Product Hunt reviews.
+
+**Run via CLI:**
+```bash
+# Full discovery workflow (takes 5-10 minutes)
+docker exec emailagent uv run python main.py --type discovery
+
+# Dry run (no email sent)
+docker exec emailagent uv run python main.py --type discovery --dry-run
+```
+
+**Run via API:**
+```bash
+# Trigger discovery and get results
+curl -X POST http://localhost:8000/api/discovery/run
+
+# Get latest briefing (from previous run)
+curl http://localhost:8000/api/discovery/briefing
+
+# Check API usage stats
+curl http://localhost:8000/api/discovery/stats
+```
+
+> **Scheduled**: Runs automatically every Saturday at 8:20 AM (see `backend/scripts/crontab`)
+
+### 7. Parallel Execution
 
 **Parallel Daily Run:**
 Runs generic email digest AND daily Product Hunt analysis in parallel.

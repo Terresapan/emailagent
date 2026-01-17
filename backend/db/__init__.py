@@ -139,6 +139,25 @@ class TopicAnalysisDB(Base):
     )
 
 
+class DiscoveryBriefingDB(Base):
+    """DB Model for Saturday viral app discovery briefings."""
+    __tablename__ = "discovery_briefings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, unique=True, index=True)  # One briefing per Saturday
+    opportunities_json = Column(JSON)          # List of AppOpportunity dicts
+    pain_points_json = Column(JSON)            # List of raw PainPoint dicts
+    total_data_points = Column(Integer)
+    total_pain_points = Column(Integer)
+    total_candidates = Column(Integer)
+    arcade_calls = Column(Integer)
+    serpapi_calls = Column(Integer)
+    youtube_quota = Column(Integer)
+    llm_calls = Column(Integer)
+    estimated_cost = Column(Float)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 def get_session():
     """Get a new database session."""
     return SessionLocal()

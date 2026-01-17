@@ -44,9 +44,15 @@ YOUTUBE_CHANNELS_PATH = os.getenv(
     str(CONFIG_DIR / "youtube_channels.json")
 )
 
-# Google Trends API settings (SerpAPI)
-SERPAPI_KEY = os.getenv("SERPAPI_KEY")
-SERPAPI_MONTHLY_LIMIT = int(os.getenv("SERPAPI_MONTHLY_LIMIT", "250"))  # Free tier limit
+# Google Trends API settings (SerpAPI) - Dual key support
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")  # Legacy single key
+SERPAPI_KEY_ONE = os.getenv("SERPAPI_KEY_ONE")  # Primary key (250/month)
+SERPAPI_KEY_TWO = os.getenv("SERPAPI_KEY_TWO")  # Secondary key (250/month)
+SERPAPI_MONTHLY_LIMIT = int(os.getenv("SERPAPI_MONTHLY_LIMIT", "500"))  # Combined limit
+
+# Arcade.dev API settings (for Reddit + Twitter access)
+ARCADE_API_KEY = os.getenv("ARCADE_API_KEY")
+ARCADE_USER_ID = os.getenv("ARCADE_USER_ID", "discovery@emailagent.local")
 
 
 # LLM settings

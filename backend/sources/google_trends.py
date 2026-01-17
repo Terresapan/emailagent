@@ -31,16 +31,33 @@ class GoogleTrendsClient:
     """
     Hybrid Google Trends client.
     
-    Primary: SerpAPI (reliable, 250 free/month)
+    Primary: SerpAPI (reliable, 500 free/month with dual keys)
     Fallback: pytrends (free but unreliable)
+    
+    Supports dual key rotation for 500 calls/month (250 per key).
     """
     
     SERPAPI_BASE_URL = "https://serpapi.com/search"
     USAGE_FILE = Path(settings.BASE_DIR) / "logs" / "serpapi_usage.json"
     
-    def __init__(self, serpapi_key: Optional[str] = None):
-        self.serpapi_key = serpapi_key or settings.SERPAPI_KEY
-        self.monthly_limit = settings.SERPAPI_MONTHLY_LIMIT
+    def __init__(
+        self, 
+        serpapi_key: Optional[str] = None,
+        serpapi_key_one: Optional[str] = None,
+        serpapi_key_two: Optional[str] = None,
+    ):
+        """
+        Initialize Google Trends client with dual key support.
+        
+        Args:
+            serpapi_key: Legacy single key (for backwards compatibility)
+            serpapi_key_one: Primary key (250/month)
+            serpapi_key_two: Secondary key (250/month)
+        """
+        # Support both legacy single key and new dual key setup
+        self.serpapi_key_one = serpapi_key_one or settings.SERPAPI_KEY_ONE or serpapi_key or settings.SERPAPI_KEY
+        self.serpapi_key_two = serpapi_key_two or settings.SERPAPI_KEY_TWO
+        self.monthly_limit = settings.SERPAPI_MONTHLY_LIMIT  # Combined limit (500)
         self._load_usage()
         
         # Try to import pytrends for fallback
@@ -52,7 +69,7 @@ class GoogleTrendsClient:
             logger.warning("pytrends not installed - fallback unavailable")
     
     def _load_usage(self):
-        """Load monthly usage counter from file."""
+        """Load monthly usage counters from file (per-key tracking)."""
         try:
             if self.USAGE_FILE.exists():
                 with open(self.USAGE_FILE, "r") as f:
@@ -61,7 +78,9 @@ class GoogleTrendsClient:
                     if data.get("month") != datetime.now().strftime("%Y-%m"):
                         self._reset_usage()
                     else:
-                        self.monthly_usage = data.get("count", 0)
+                        self.usage_key_one = data.get("key_one", 0)
+                        self.usage_key_two = data.get("key_two", 0)
+                        self.monthly_usage = self.usage_key_one + self.usage_key_two
             else:
                 self._reset_usage()
         except Exception as e:
@@ -69,40 +88,67 @@ class GoogleTrendsClient:
             self._reset_usage()
     
     def _reset_usage(self):
-        """Reset the monthly usage counter."""
+        """Reset the monthly usage counters."""
+        self.usage_key_one = 0
+        self.usage_key_two = 0
         self.monthly_usage = 0
         self._save_usage()
     
     def _save_usage(self):
-        """Save monthly usage counter to file."""
+        """Save monthly usage counters to file."""
         try:
             self.USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(self.USAGE_FILE, "w") as f:
                 json.dump({
                     "month": datetime.now().strftime("%Y-%m"),
-                    "count": self.monthly_usage
+                    "key_one": self.usage_key_one,
+                    "key_two": self.usage_key_two,
+                    "count": self.usage_key_one + self.usage_key_two
                 }, f)
         except Exception as e:
             logger.warning(f"Failed to save usage file: {e}")
     
-    def _increment_usage(self):
-        """Increment and save usage counter."""
-        self.monthly_usage += 1
+    def _increment_usage(self, key_used: str):
+        """Increment and save usage counter for the key used."""
+        if key_used == "key_one":
+            self.usage_key_one += 1
+        else:
+            self.usage_key_two += 1
+        self.monthly_usage = self.usage_key_one + self.usage_key_two
         self._save_usage()
+    
+    def _get_active_key(self) -> tuple[Optional[str], str]:
+        """
+        Get the active SerpAPI key with rotation.
+        
+        Returns:
+            (api_key, key_name) - the key to use and its identifier
+        """
+        # Use key_one first until exhausted (250 limit per key)
+        per_key_limit = 250
+        
+        if self.serpapi_key_one and self.usage_key_one < per_key_limit:
+            return self.serpapi_key_one, "key_one"
+        elif self.serpapi_key_two and self.usage_key_two < per_key_limit:
+            return self.serpapi_key_two, "key_two"
+        else:
+            return None, ""
     
     def _can_use_serpapi(self) -> bool:
         """Check if we can use SerpAPI (have key and quota)."""
-        return bool(self.serpapi_key) and self.monthly_usage < self.monthly_limit
+        key, _ = self._get_active_key()
+        return key is not None
     
     def _get_serpapi_trends(self, keyword: str) -> Optional[dict]:
         """
-        Fetch trend data from SerpAPI.
+        Fetch trend data from SerpAPI with automatic key rotation.
         
         Returns dict with:
             - interest_over_time: list of {date, value} dicts
             - related_queries: list of query strings
         """
-        if not self._can_use_serpapi():
+        api_key, key_name = self._get_active_key()
+        if not api_key:
             return None
         
         try:
@@ -111,14 +157,14 @@ class GoogleTrendsClient:
                 "engine": "google_trends",
                 "q": keyword,
                 "data_type": "TIMESERIES",
-                "api_key": self.serpapi_key,
+                "api_key": api_key,
             }
             
             response = requests.get(self.SERPAPI_BASE_URL, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
             
-            self._increment_usage()
+            self._increment_usage(key_name)
             
             # Extract interest over time
             interest_data = []
@@ -387,11 +433,13 @@ class GoogleTrendsClient:
         return results
     
     def get_usage_stats(self) -> dict:
-        """Get current API usage statistics."""
+        """Get current API usage statistics with per-key breakdown."""
         return {
             "serpapi_used": self.monthly_usage,
             "serpapi_limit": self.monthly_limit,
             "serpapi_remaining": max(0, self.monthly_limit - self.monthly_usage),
+            "key_one_used": self.usage_key_one,
+            "key_two_used": self.usage_key_two,
             "month": datetime.now().strftime("%Y-%m"),
             "pytrends_available": self.pytrends_available
         }

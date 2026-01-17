@@ -5,9 +5,10 @@ This module uses the shared db package for models and session management.
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB, YouTubeInsightDB
+from db import Digest as DigestModel, Email as EmailModel, get_session, HackerNewsInsightDB, ProductHuntInsightDB, YouTubeInsightDB, DiscoveryBriefingDB
 from sqlalchemy.orm import Session
 from sources.models import HackerNewsInsight, ProductHuntInsight, YouTubeInsight
+from processor.viral_app.models import SaturdayBriefing
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -358,3 +359,95 @@ def get_recent_youtube_insights(session: Session, days: int = 7) -> List[YouTube
     except Exception as e:
         logger.error(f"Failed to fetch recent YouTube insights: {e}")
         return []
+
+
+def save_discovery_briefing(session: Session, briefing: SaturdayBriefing) -> Optional[int]:
+    """
+    Save Saturday discovery briefing to database.
+    
+    Uses UPSERT logic: if a briefing already exists for today,
+    it will be updated instead of creating a duplicate.
+    
+    Args:
+        session: The SQLAlchemy session object.
+        briefing: SaturdayBriefing object from discovery workflow.
+        
+    Returns:
+        Briefing ID if saved successfully, None otherwise.
+    """
+    try:
+        briefing_date = briefing.date.date() if hasattr(briefing.date, 'date') else briefing.date
+        
+        # UPSERT: Check if briefing exists for today
+        existing = session.query(DiscoveryBriefingDB).filter_by(
+            date=briefing_date
+        ).first()
+        
+        # Serialize opportunities to JSON
+        opportunities_json = [
+            {
+                "problem": opp.problem,
+                "app_idea": opp.app_idea,
+                "demand_score": opp.demand_score,
+                "virality_score": opp.virality_score,
+                "buildability_score": opp.buildability_score,
+                "opportunity_score": opp.opportunity_score,
+                "category": opp.category,
+                "target_audience": opp.target_audience,
+                "pain_points": [
+                    {"text": pp.text, "problem": pp.problem, "source": pp.source}
+                    for pp in opp.pain_points
+                ] if opp.pain_points else [],
+            }
+            for opp in briefing.top_opportunities
+        ]
+        
+        if existing:
+            # Update existing
+            existing.opportunities_json = opportunities_json
+            existing.total_data_points = briefing.total_data_points
+            existing.total_pain_points = briefing.total_pain_points_extracted
+            existing.total_candidates = briefing.total_candidates_filtered
+            existing.arcade_calls = briefing.arcade_calls
+            existing.serpapi_calls = briefing.serpapi_calls
+            existing.youtube_quota = briefing.youtube_quota
+            existing.llm_calls = briefing.llm_calls
+            existing.estimated_cost = briefing.estimated_cost
+            existing.created_at = datetime.now()
+            briefing_record = existing
+            logger.info(f"Updated existing discovery briefing for {briefing_date} (ID: {existing.id})")
+        else:
+            # Create new
+            briefing_record = DiscoveryBriefingDB(
+                date=briefing_date,
+                opportunities_json=opportunities_json,
+                total_data_points=briefing.total_data_points,
+                total_pain_points=briefing.total_pain_points_extracted,
+                total_candidates=briefing.total_candidates_filtered,
+                arcade_calls=briefing.arcade_calls,
+                serpapi_calls=briefing.serpapi_calls,
+                youtube_quota=briefing.youtube_quota,
+                llm_calls=briefing.llm_calls,
+                estimated_cost=briefing.estimated_cost,
+                created_at=datetime.now(),
+            )
+            session.add(briefing_record)
+            logger.info(f"Created new discovery briefing for {briefing_date}")
+        
+        session.flush()
+        return briefing_record.id
+        
+    except Exception as e:
+        logger.error(f"Database transaction failed for discovery briefing: {e}")
+        raise
+
+
+def get_latest_discovery_briefing(session: Session) -> Optional[DiscoveryBriefingDB]:
+    """Get the most recent discovery briefing."""
+    try:
+        return session.query(DiscoveryBriefingDB).order_by(
+            DiscoveryBriefingDB.date.desc()
+        ).first()
+    except Exception as e:
+        logger.error(f"Failed to fetch latest discovery briefing: {e}")
+        return None

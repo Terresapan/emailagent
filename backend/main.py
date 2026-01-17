@@ -567,45 +567,6 @@ def main_youtube(gmail_client: GmailClient, dry_run: bool = False, timeframe: st
         raise
 
 
-def main_trend_validation(gmail_client: GmailClient, dry_run: bool = False):
-    """
-    Run trend validation on all sources and send consolidated email report.
-    
-    Uses the shared TrendValidationService for consistent behavior
-    between cron jobs and API endpoints.
-    
-    Args:
-        gmail_client: Initialized Gmail client
-        dry_run: If True, don't send emails
-    """
-    from processor.google_trend.trend_validation import TrendValidationService
-    from db import get_session
-    
-    logger.info("Running trend validation...")
-    
-    session = get_session()
-    try:
-        service = TrendValidationService(session)
-        analysis = service.run()
-        
-        if not analysis:
-            logger.info("No analysis generated (Saturday or no content)")
-            return
-        
-        # Send email
-        if not dry_run:
-            gmail_client.send_analysis_email([analysis])
-            logger.info("Analysis email sent successfully")
-        else:
-            logger.info("[DRY RUN] Would send analysis email")
-            
-    except Exception as e:
-        logger.error(f"Trend validation failed: {e}", exc_info=True)
-        session.rollback()
-    finally:
-        session.close()
-
-
 
 # =============================================================================
 # MAIN ORCHESTRATOR (calls processor functions)
@@ -671,10 +632,6 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
                 future_yt = executor.submit(main_youtube, gmail_client, dry_run, timeframe="daily")
                 concurrent.futures.wait([future_digest, future_ph, future_hn, future_yt])
             logger.info("All daily processors completed")
-            
-            # Run trend validation AFTER all sources are saved to DB
-            logger.info("Running trend validation...")
-            main_trend_validation(gmail_client, dry_run)
         elif email_type == "all_weekly":
             # Sunday only: Run weekly processors
             logger.info("Running all WEEKLY processors in parallel...")
@@ -700,6 +657,62 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
             main_hacker_news(gmail_client, dry_run, timeframe=timeframe)
         elif email_type == "youtube":
             main_youtube(gmail_client, dry_run, timeframe=timeframe)
+        elif email_type == "discovery":
+            # Saturday discovery workflow for viral app ideas
+            logger.info("Running Saturday discovery workflow...")
+            from processor.viral_app.graph import run_saturday_discovery
+            from utils.database import save_discovery_briefing
+            from db import get_session
+            
+            briefing = run_saturday_discovery()
+            logger.info(f"Discovery complete! Found {len(briefing.top_opportunities)} opportunities")
+            logger.info(f"API usage - Arcade: {briefing.arcade_calls}, SerpAPI: {briefing.serpapi_calls}")
+            
+            # Save to database
+            if not dry_run:
+                session = get_session()
+                try:
+                    briefing_id = save_discovery_briefing(session, briefing)
+                    session.commit()
+                    logger.info(f"✓ Saved discovery briefing to database (ID: {briefing_id})")
+                except Exception as e:
+                    session.rollback()
+                    logger.error(f"Failed to save discovery briefing: {e}")
+                finally:
+                    session.close()
+            
+            # Send email with top opportunities
+            if not dry_run and DIGEST_RECIPIENT_EMAIL:
+                top_ideas = "\n".join([
+                    f"{i+1}. **{opp.app_idea}** (Score: {opp.opportunity_score})\n   {opp.problem}"
+                    for i, opp in enumerate(briefing.top_opportunities[:10])
+                ])
+                email_body = f"""# 🚀 Saturday Discovery Briefing – {date.today()}
+
+## Top 10 Viral App Ideas
+
+{top_ideas}
+
+---
+
+**Stats:**
+- Data points analyzed: {briefing.total_data_points}
+- Pain points extracted: {briefing.total_pain_points_extracted}
+- API cost: ${briefing.estimated_cost:.2f}
+
+*View full briefing in dashboard: /discovery*
+"""
+                try:
+                    msg_id = gmail_client.send_email(
+                        to=DIGEST_RECIPIENT_EMAIL,
+                        subject=f"Saturday Discovery Briefing – {date.today()}",
+                        body=email_body
+                    )
+                    logger.info(f"✓ Sent discovery briefing with ID: {msg_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send discovery email: {e}")
+            else:
+                logger.info("[DRY RUN] Would send discovery briefing email")
         else:
             logger.error(f"Unknown type: {email_type}")
             return
@@ -721,7 +734,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Newsletter Email Digest Agent")
     parser.add_argument(
         "--type",
-        choices=["dailydigest", "weeklydeepdives", "productlaunch", "hackernews", "youtube", "all", "all_weekly"],
+        choices=["dailydigest", "weeklydeepdives", "productlaunch", "hackernews", "youtube", "discovery", "all", "all_weekly"],
         default="dailydigest",
         help="Type of processing to run"
     )
