@@ -228,6 +228,7 @@ class DiscoveryBriefingResponse(BaseModel):
     estimated_cost: float = 0.0
 
 
+
 class DiscoveryStatsResponse(BaseModel):
     """API usage stats for discovery."""
     arcade: dict = {}
@@ -235,4 +236,22 @@ class DiscoveryStatsResponse(BaseModel):
     youtube: dict = {}
     llm: dict = {}
     last_run: Optional[datetime] = None
+
+
+class ArchivedItemCreate(BaseModel):
+    """Schema for creating an archive item."""
+    item_type: str  # 'daily', 'weekly', 'discovery', 'producthunt', 'hackernews', 'youtube'
+    reference_id: int
+    title: str
+    summary: Optional[str] = None
+    data: Optional[dict] = None  # Full payload
+
+
+class ArchivedItemResponse(ArchivedItemCreate):
+    """Schema for returning an archive item."""
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 

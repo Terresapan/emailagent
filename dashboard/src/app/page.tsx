@@ -13,6 +13,9 @@ import { fetchLatestDigest, triggerProcess, getProcessStatus, fetchToolsInsight,
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { archiveItem } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
+import { Archive as ArchiveIcon } from "lucide-react";
 
 type ViewType = "daily" | "producthunt" | "hackernews" | "youtube" | "weekly";
 
@@ -33,6 +36,44 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [processingType, setProcessingType] = useState<ViewType | null>(null);
   const [processMessage, setProcessMessage] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [archiving, setArchiving] = useState(false);
+
+  const handleArchive = async () => {
+    if (!currentDigest && activeView !== "producthunt" && activeView !== "hackernews" && activeView !== "youtube") return;
+
+    setArchiving(true);
+    try {
+      if (activeView === "producthunt" && toolsInsight) {
+        await archiveItem("producthunt", toolsInsight.id, `Product Hunt - ${toolsInsight.date}`, toolsInsight.trend_summary, toolsInsight);
+      } else if (activeView === "hackernews" && hackerNewsInsight) {
+        await archiveItem("hackernews", hackerNewsInsight.id, `Hacker News - ${hackerNewsInsight.date}`, hackerNewsInsight.summary, hackerNewsInsight);
+      } else if (activeView === "youtube" && youtubeInsight) {
+        await archiveItem("youtube", youtubeInsight.id, `YouTube - ${youtubeInsight.date}`, youtubeInsight.trend_summary, youtubeInsight);
+      } else if (currentDigest) {
+        await archiveItem(
+          activeView === "daily" ? "daily" : "weekly",
+          currentDigest.id,
+          `${activeView === "daily" ? "Daily Briefing" : "Weekly Strategy"} - ${currentDigest.date}`,
+          currentDigest.briefing?.substring(0, 200) + "...",
+          currentDigest
+        );
+      }
+
+      toast({
+        title: "Saved to Archives",
+        description: "This item has been saved for future reference.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to Archive",
+        description: "Could not save this item. it may already be archived.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   const loadDigests = async () => {
     setLoading(true);
@@ -277,6 +318,19 @@ export default function Home() {
                   {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
+
+              {/* Archive Button - Always visible, disabled if no content */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleArchive}
+                disabled={archiving || (!currentDigest && activeView !== "producthunt" && activeView !== "hackernews" && activeView !== "youtube") || (activeView === "producthunt" && !toolsInsight) || (activeView === "hackernews" && !hackerNewsInsight) || (activeView === "youtube" && !youtubeInsight)}
+                className="hover:text-accent hover:bg-accent/10 transition-colors"
+                title="Save to Archives"
+              >
+                <ArchiveIcon className={`h-4 w-4 ${archiving ? "animate-pulse" : ""}`} />
+              </Button>
+
               <Button variant="ghost" size="icon" onClick={loadDigests} disabled={loading} className="hover:text-white hover:bg-white/5">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>

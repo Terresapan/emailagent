@@ -61,8 +61,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Content Agent API",
-    description="API for viewing AI-generated briefings and LinkedIn content",
-    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -74,6 +72,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from routers import archives
+app.include_router(archives.router, prefix="/api/archives", tags=["archives"])
 
 
 @app.get("/api/health", response_model=HealthResponse)

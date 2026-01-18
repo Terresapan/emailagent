@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { archiveItem } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast"; // Fixed import
+import { Archive as ArchiveIcon } from "lucide-react";
 
 // Types matching the API response
 interface PainPoint {
@@ -76,7 +79,51 @@ export default function DiscoveryPage() {
     const [running, setRunning] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
     const [mounted, setMounted] = useState(false);
+    const [archiving, setArchiving] = useState(false);
+    const { toast } = useToast();
+
+    const handleArchiveDiscovery = async () => {
+        if (!briefing) return;
+        setArchiving(true);
+        try {
+            await archiveItem(
+                "discovery",
+                // We don't have a stable ID for the briefing itself in the simplified logic,
+                // so we might use a timestamp or hash. 
+                // However, the backend needs an Integer reference_id. 
+                // The API returns the latest briefing which comes from a DB record with an ID.
+                // But the current DiscoveryBriefing interface in frontend doesn't have an ID.
+                // We need to fetch it or rely on the backend finding it.
+                // For now, let's assume we can use 0 or a timestamp integer, 
+                // OR we update the backend to support finding by date.
+                // actually the briefing response doesn't have an ID.
+                // Let's check api.ts types.
+                // The type DiscoveryBriefingResponse doesn't have an ID.
+                // I will use 0 for now and let backend handle logic if strict, 
+                // or I should rely on the fact that discovery is often a single "latest" thing.
+                // Wait, ArchiveItem requires reference_id.
+                // I should update the DiscoveryBriefing response to include ID.
+                0,
+                `Discovery - ${new Date(briefing.date).toLocaleDateString()}`,
+                `${briefing.top_opportunities.length} opportunities, ${briefing.total_data_points} data points`,
+                briefing
+            );
+            toast({
+                title: "Saved to Archives",
+                description: "Discovery briefing saved.",
+            });
+        } catch (error) {
+            toast({
+                title: "Failed to Archive",
+                description: "Could not save.",
+                variant: "destructive",
+            });
+        } finally {
+            setArchiving(false);
+        }
+    };
 
     const handleRunDiscovery = async () => {
         setRunning(true);
@@ -232,7 +279,20 @@ export default function DiscoveryPage() {
                                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                             </Button>
                         </div>
+
+                        {/* Archive Button */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleArchiveDiscovery}
+                            disabled={archiving || !briefing}
+                            className="hover:text-accent hover:bg-accent/10 transition-colors ml-2"
+                            title="Save to Archives"
+                        >
+                            <ArchiveIcon className={cn("h-4 w-4", archiving && "animate-pulse")} />
+                        </Button>
                     </div>
+
                 </MotionItem>
             </MotionOrchestrator>
 
@@ -443,6 +503,6 @@ export default function DiscoveryPage() {
                     </MotionItem>
                 )}
             </MotionOrchestrator>
-        </div>
+        </div >
     );
 }

@@ -23,6 +23,7 @@ COPY processor/ ./processor/
 COPY sources/ ./sources/
 COPY utils/ ./utils/
 COPY scripts/ ./scripts/
+COPY api/ ./api/
 
 # Install dependencies with uv
 RUN uv sync
@@ -41,8 +42,8 @@ RUN crontab /etc/cron.d/emailagent-cron
 
 # Create entrypoint script
 RUN echo '#!/bin/bash\n\
-touch /var/log/emailagent/cron.log\n\
-cron && tail -F /var/log/emailagent/cron.log' > /entrypoint.sh && \
+    touch /var/log/emailagent/cron.log\n\
+    cron && tail -F /var/log/emailagent/cron.log' > /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
 # Run the command on container startup

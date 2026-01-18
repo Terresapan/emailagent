@@ -324,3 +324,84 @@ export async function fetchYouTubeInsight(): Promise<YouTubeInsight | null> {
 
   return response.json();
 }
+
+export interface ArchivedItem {
+  id: number;
+  item_type: "daily" | "weekly" | "discovery" | "producthunt" | "hackernews" | "youtube";
+  reference_id: number;
+  title: string;
+  summary: string | null;
+  data?: any;
+  created_at: string;
+}
+
+/**
+ * Archive an item.
+ */
+export async function archiveItem(
+  item_type: string,
+  reference_id: number,
+  title: string,
+  summary?: string,
+  data?: any
+): Promise<ArchivedItem> {
+  const response = await fetch(`${API_URL}/api/archives/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      item_type,
+      reference_id,
+      title,
+      summary,
+      data,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to archive item: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all archived items.
+ */
+export async function fetchArchives(): Promise<ArchivedItem[]> {
+  const response = await fetch(`${API_URL}/api/archives/`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch archives: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchArchiveById(id: string): Promise<ArchivedItem> {
+  const response = await fetch(`${API_URL}/api/archives/${id}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch archive: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete an archived item.
+ */
+export async function deleteArchive(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/api/archives/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete archive: ${response.statusText}`);
+  }
+}

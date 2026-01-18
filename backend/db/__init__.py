@@ -160,6 +160,25 @@ class DiscoveryBriefingDB(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+
+class ArchivedItem(Base):
+    """Archived intelligence items (Briefings, Deep Dives, Discovery, etc)."""
+    __tablename__ = "archived_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    item_type = Column(String(50), nullable=False) # 'daily', 'weekly', 'discovery', 'producthunt', 'hackernews', 'youtube'
+    reference_id = Column(Integer, nullable=False)
+    title = Column(String(255), nullable=False)
+    summary = Column(Text)
+    data = Column(JSON)  # Store full content (briefing, discovery, etc)
+    created_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        # Prevent duplicate archiving of the same item
+        Index('ix_archived_items_type_ref', 'item_type', 'reference_id', unique=True),
+    )
+
+
 def get_session():
     """Get a new database session."""
     return SessionLocal()
