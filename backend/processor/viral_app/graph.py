@@ -311,8 +311,8 @@ class DiscoveryGraph:
             {
                 "id": v.get("video_id", ""),
                 "title": v.get("title", ""),
-                "views": v.get("view_count", 0),
-                "channel": v.get("channel_name", ""),
+                "views": v.get("views", 0),
+                "channel": v.get("channel", ""),
                 "url": f"https://youtube.com/watch?v={v.get('video_id', '')}",
             }
             for v in youtube_videos
