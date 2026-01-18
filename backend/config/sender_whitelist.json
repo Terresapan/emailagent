@@ -63,5 +63,15 @@
     "name": "a16z",
     "type": "weeklydeepdives",
     "email": "a16z@substack.com"
+  },
+  {
+    "name": "Not Boring",
+    "type": "weeklydeepdives",
+    "email": "notboring@substack.com"
+  },
+  {
+    "name": "Doug O'Laughlin from Fabricated Knowledge",
+    "type": "weeklydeepdives",
+    "email": "mule@substack.com"
   }
 ]
