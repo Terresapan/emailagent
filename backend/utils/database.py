@@ -405,6 +405,8 @@ def save_discovery_briefing(session: Session, briefing: SaturdayBriefing) -> Opt
         if existing:
             # Update existing
             existing.opportunities_json = opportunities_json
+            existing.youtube_videos_json = briefing.youtube_videos  # NEW: For dashboard
+            existing.trends_data_json = briefing.trends_data  # NEW: For dashboard
             existing.total_data_points = briefing.total_data_points
             existing.total_pain_points = briefing.total_pain_points_extracted
             existing.total_candidates = briefing.total_candidates_filtered
@@ -421,6 +423,8 @@ def save_discovery_briefing(session: Session, briefing: SaturdayBriefing) -> Opt
             briefing_record = DiscoveryBriefingDB(
                 date=briefing_date,
                 opportunities_json=opportunities_json,
+                youtube_videos_json=briefing.youtube_videos,  # NEW: For dashboard
+                trends_data_json=briefing.trends_data,  # NEW: For dashboard
                 total_data_points=briefing.total_data_points,
                 total_pain_points=briefing.total_pain_points_extracted,
                 total_candidates=briefing.total_candidates_filtered,

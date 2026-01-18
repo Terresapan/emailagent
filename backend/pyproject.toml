@@ -25,4 +25,5 @@ dependencies = [
     "uvicorn>=0.27.0",
     "docker>=7.0.0",
     "arcadepy>=1.10.0",
+    "pytrends>=4.9.2",
 ]

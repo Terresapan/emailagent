@@ -59,7 +59,7 @@ ARCADE_USER_ID = os.getenv("ARCADE_USER_ID", "discovery@emailagent.local")
 # Use different models for different tasks:
 # - nano: Fast extraction/summarization
 # - mini: Higher quality content generation
-LLM_MODEL_EXTRACTION = "gpt-5-nano-2025-08-07"
+LLM_MODEL_EXTRACTION = "gpt-5-mini-2025-08-07"
 LLM_MODEL_GENERATION = "gpt-5-mini-2025-08-07"
 LLM_TEMPERATURE = 0.3
 LLM_MAX_TOKENS = 8000  # GPT-5-mini uses reasoning tokens internally; 2000 was too low

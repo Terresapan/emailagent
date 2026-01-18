@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, RefreshCw, Rocket, Zap, Hammer, TrendingUp } from 'lucide-react';
+import { Play, RefreshCw, Rocket, Zap, Hammer, TrendingUp, Youtube, ExternalLink } from 'lucide-react';
 import { OpportunityCard } from '@/components/discovery/OpportunityCard';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MotionOrchestrator, MotionItem } from "@/components/MotionOrchestrator";
@@ -41,14 +41,37 @@ interface DiscoveryBriefing {
     estimated_cost: number;
 }
 
+// New types for trends and videos
+interface TrendData {
+    keyword: string;
+    app_idea: string;
+    interest_score: number;
+    trend_score: number;
+    momentum: number;
+    trend_direction: string;
+    related_queries: string[];
+}
+
+interface VideoData {
+    id: string;
+    title: string;
+    views: number;
+    channel: string;
+    url: string;
+}
+
 const TABS = [
     { id: 'discovery', label: 'Top Ideas', icon: Rocket },
-    { id: 'stats', label: 'API Stats', icon: TrendingUp },
+    { id: 'trends', label: 'Trends', icon: TrendingUp },
+    { id: 'videos', label: 'Videos', icon: Youtube },
+    { id: 'stats', label: 'API Stats', icon: Zap },
 ];
 
 export default function DiscoveryPage() {
     const [activeTab, setActiveTab] = useState('discovery');
     const [briefing, setBriefing] = useState<DiscoveryBriefing | null>(null);
+    const [trends, setTrends] = useState<TrendData[]>([]);
+    const [videos, setVideos] = useState<VideoData[]>([]);
     const [loading, setLoading] = useState(true);
     const [running, setRunning] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -67,6 +90,9 @@ export default function DiscoveryPage() {
                 const data = await res.json();
                 setBriefing(data);
                 setLastRefresh(new Date());
+                // Refresh tabs data
+                fetchTrends();
+                fetchVideos();
                 setTimeout(() => setStatusMsg(null), 5000);
             } else {
                 const error = await res.json();
@@ -101,7 +127,41 @@ export default function DiscoveryPage() {
     useEffect(() => {
         setMounted(true);
         fetchBriefing();
+        fetchTrends();
+        fetchVideos();
     }, []);
+
+    const fetchTrends = async () => {
+        try {
+            console.log("Fetching trends...");
+            const res = await fetch('http://localhost:8000/api/discovery/trends', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                console.log("Trends data:", data);
+                setTrends(data.trends || []);
+            } else {
+                console.error("Trends fetch failed:", res.status);
+            }
+        } catch (error) {
+            console.error("Failed to fetch trends", error);
+        }
+    };
+
+    const fetchVideos = async () => {
+        try {
+            console.log("Fetching videos...");
+            const res = await fetch('http://localhost:8000/api/discovery/videos', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                console.log("Videos data:", data);
+                setVideos(data.videos || []);
+            } else {
+                console.error("Videos fetch failed:", res.status);
+            }
+        } catch (error) {
+            console.error("Failed to fetch videos", error);
+        }
+    };
 
     return (
         <div className="min-h-screen pb-20">
@@ -246,6 +306,100 @@ export default function DiscoveryPage() {
                             </div>
                         </MotionItem>
                     </div>
+                ) : activeTab === 'trends' ? (
+                    <MotionItem>
+                        <div className="space-y-6">
+                            <h2 className="section-header">Google Trends Validation ({trends.length})</h2>
+                            {trends.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {trends.map((trend, index) => (
+                                        <Card key={index} className="bg-card/50 backdrop-blur-sm border-white/5">
+                                            <CardContent className="pt-6">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="font-semibold text-white">{trend.keyword}</h3>
+                                                        <p className="text-sm text-muted-foreground line-clamp-1">{trend.app_idea}</p>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className={cn(
+                                                            "text-2xl font-bold",
+                                                            trend.trend_score >= 60 ? "text-green-400" :
+                                                                trend.trend_score >= 40 ? "text-yellow-400" : "text-muted-foreground"
+                                                        )}>
+                                                            {trend.trend_score}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">Trend Score</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-4 text-sm mb-4">
+                                                    <span className="text-muted-foreground">Interest: <span className="text-white">{trend.interest_score}</span></span>
+                                                    <span className="text-muted-foreground">Direction: <span className={cn(
+                                                        trend.trend_direction === 'rising' ? 'text-green-400' :
+                                                            trend.trend_direction === 'falling' ? 'text-red-400' : 'text-white'
+                                                    )}>{trend.trend_direction}</span></span>
+                                                </div>
+                                                {trend.related_queries.length > 0 && (
+                                                    <div>
+                                                        <div className="text-xs text-muted-foreground mb-2">Related Queries:</div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {trend.related_queries.map((q, i) => (
+                                                                <span key={i} className="text-xs px-2 py-1 bg-white/5 rounded">{q}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-16 text-center border border-dashed border-white/10 rounded-lg">
+                                    <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                                    <p className="text-muted-foreground">No trends data available. Run discovery to fetch Google Trends.</p>
+                                </div>
+                            )}
+                        </div>
+                    </MotionItem>
+                ) : activeTab === 'videos' ? (
+                    <MotionItem>
+                        <div className="space-y-6">
+                            <h2 className="section-header">YouTube Viral Videos ({videos.length})</h2>
+                            {videos.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {videos.map((video, index) => (
+                                        <a
+                                            key={index}
+                                            href={video.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block"
+                                        >
+                                            <Card className="bg-card/50 backdrop-blur-sm border-white/5 hover:border-accent/50 transition-colors">
+                                                <CardContent className="pt-6">
+                                                    <div className="flex gap-3">
+                                                        <Youtube className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="font-medium text-white line-clamp-2 text-sm">{video.title}</h3>
+                                                            <p className="text-xs text-muted-foreground mt-1">{video.channel}</p>
+                                                            <div className="flex items-center gap-2 mt-2">
+                                                                <span className="text-xs text-accent">{video.views?.toLocaleString()} views</span>
+                                                                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </a>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-16 text-center border border-dashed border-white/10 rounded-lg">
+                                    <Youtube className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                                    <p className="text-muted-foreground">No video data available. Run discovery to fetch YouTube videos.</p>
+                                </div>
+                            )}
+                        </div>
+                    </MotionItem>
                 ) : activeTab === 'stats' && briefing ? (
                     <MotionItem>
                         <Card className="bg-card/50 backdrop-blur-sm border-white/5">

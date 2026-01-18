@@ -204,18 +204,39 @@ class PainPointExtractor:
             max_points=max_points,
         )
         
+        logger.info(f"LLM extraction for {source}: data length={len(data)} chars")
+        
         try:
             response = self.llm.invoke(prompt)
             self.call_count += 1
-            logger.info(f"LLM extraction call #{self.call_count} for {source}")
-            return response.content
+            
+            content = response.content if hasattr(response, 'content') else str(response)
+            logger.info(f"LLM extraction call #{self.call_count} for {source}: response length={len(content)} chars")
+            
+            # Log first 200 chars of response for debugging
+            if content:
+                logger.debug(f"Response preview for {source}: {content[:200]}...")
+            else:
+                logger.warning(f"Empty response from LLM for {source}")
+                logger.warning(f"Full response object: {response}")
+                if hasattr(response, "response_metadata"):
+                     logger.warning(f"Response metadata: {response.response_metadata}")
+            
+            return content
         except Exception as e:
-            logger.error(f"LLM extraction failed for {source}: {e}")
+            logger.error(f"LLM extraction failed for {source}: {e}", exc_info=True)
             return ""
     
     def _parse_pain_points(self, raw_output: str, source: str) -> list[PainPoint]:
         """Parse LLM output into PainPoint objects."""
         pain_points = []
+        
+        if not raw_output:
+            logger.warning(f"Empty LLM output for {source}")
+            return []
+        
+        # Log output length for debugging
+        logger.debug(f"Raw output length for {source}: {len(raw_output)} chars")
         
         # Split by separator
         entries = raw_output.split("---")
@@ -231,9 +252,9 @@ class PainPointExtractor:
             
             for line in entry.split("\n"):
                 line = line.strip()
-                if line.startswith("QUOTE:"):
+                if line.upper().startswith("QUOTE:"):
                     quote = line[6:].strip()
-                elif line.startswith("PROBLEM:"):
+                elif line.upper().startswith("PROBLEM:"):
                     problem = line[8:].strip()
             
             if problem:  # At minimum we need a problem
@@ -241,9 +262,28 @@ class PainPointExtractor:
                     text=quote or problem,
                     problem=problem,
                     source=source,
-                    source_id="",  # Will be populated later if needed
+                    source_id="",
                     extracted_at=datetime.now(),
                 ))
+        
+        # Fallback: if no pain points parsed but output exists, try alternative formats
+        if not pain_points and len(raw_output) > 50:
+            logger.warning(f"Standard parsing failed for {source}, trying fallback...")
+            # Try parsing numbered lists like "1. Problem description"
+            for line in raw_output.split("\n"):
+                line = line.strip()
+                # Match numbered items like "1. ", "1) ", "- "
+                if line and (line[0].isdigit() or line.startswith("-")):
+                    # Remove numbering
+                    text = line.lstrip("0123456789.-) ").strip()
+                    if len(text) > 20:  # Must be substantial
+                        pain_points.append(PainPoint(
+                            text=text,
+                            problem=text,
+                            source=source,
+                            source_id="",
+                            extracted_at=datetime.now(),
+                        ))
         
         logger.info(f"Parsed {len(pain_points)} pain points from {source}")
         return pain_points

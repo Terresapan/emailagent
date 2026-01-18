@@ -572,14 +572,15 @@ def main_youtube(gmail_client: GmailClient, dry_run: bool = False, timeframe: st
 # MAIN ORCHESTRATOR (calls processor functions)
 # =============================================================================
 
-def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str = "daily"):
+def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str = "daily", test_mode: bool = False):
     """
     Main execution function.
     
     Args:
-        email_type: 'dailydigest', 'weeklydeepdives', 'productlaunch', 'all'
+        email_type: 'dailydigest', 'weeklydeepdives', 'productlaunch', 'all', 'discovery'
         dry_run: If True, don't mark emails as read or create drafts
         timeframe: 'daily' (default) or 'weekly' - mostly for productlaunch
+        test_mode: For discovery - limit API calls for cheaper testing
     """
     logger.info("=" * 60)
     logger.info(f"Email Agent Starting - Type: {email_type} (Timeframe: {timeframe})")
@@ -659,12 +660,12 @@ def main(email_type: str = "dailydigest", dry_run: bool = False, timeframe: str 
             main_youtube(gmail_client, dry_run, timeframe=timeframe)
         elif email_type == "discovery":
             # Saturday discovery workflow for viral app ideas
-            logger.info("Running Saturday discovery workflow...")
+            logger.info(f"Running Saturday discovery workflow... {'(TEST MODE)' if test_mode else ''}")
             from processor.viral_app.graph import run_saturday_discovery
             from utils.database import save_discovery_briefing
             from db import get_session
             
-            briefing = run_saturday_discovery()
+            briefing = run_saturday_discovery(test_mode=test_mode)
             logger.info(f"Discovery complete! Found {len(briefing.top_opportunities)} opportunities")
             logger.info(f"API usage - Arcade: {briefing.arcade_calls}, SerpAPI: {briefing.serpapi_calls}")
             
@@ -749,6 +750,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Run without modifying emails or sending digests"
     )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="For discovery: limit API calls (~7 Arcade instead of ~135) for testing"
+    )
     
     args = parser.parse_args()
-    main(email_type=args.type, dry_run=args.dry_run, timeframe=args.timeframe)
+    main(email_type=args.type, dry_run=args.dry_run, timeframe=args.timeframe, test_mode=getattr(args, 'test_mode', False))

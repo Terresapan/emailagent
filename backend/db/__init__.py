@@ -147,6 +147,8 @@ class DiscoveryBriefingDB(Base):
     date = Column(Date, nullable=False, unique=True, index=True)  # One briefing per Saturday
     opportunities_json = Column(JSON)          # List of AppOpportunity dicts
     pain_points_json = Column(JSON)            # List of raw PainPoint dicts
+    youtube_videos_json = Column(JSON)         # List of {id, title, views, url}
+    trends_data_json = Column(JSON)            # List of {keyword, interest_score, related_queries, trend_direction}
     total_data_points = Column(Integer)
     total_pain_points = Column(Integer)
     total_candidates = Column(Integer)

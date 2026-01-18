@@ -69,7 +69,7 @@ app = FastAPI(
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -308,60 +308,112 @@ async def get_latest_youtube_insight(
 # DISCOVERY ENDPOINTS (Viral App Discovery)
 # =============================================================================
 
-# In-memory storage for last discovery run (will be replaced with DB later)
+# In-memory cache for running discovery (cleared after each run)
 _last_discovery_briefing = None
 
 @app.get("/api/discovery/briefing", response_model=DiscoveryBriefingResponse)
-async def get_latest_discovery_briefing():
+async def get_latest_discovery_briefing(db: Session = Depends(get_db)):
     """
-    Get the most recent Saturday discovery briefing.
+    Get the most recent Saturday discovery briefing from database.
     
     Returns the top 20 app opportunities with scores.
     """
-    global _last_discovery_briefing
+    from utils.database import get_latest_discovery_briefing as db_get_latest
+    from db import DiscoveryBriefingDB
     
-    if _last_discovery_briefing is None:
+    # Try to get from database first
+    briefing_db = db.query(DiscoveryBriefingDB).order_by(
+        DiscoveryBriefingDB.date.desc()
+    ).first()
+    
+    if briefing_db is None:
         raise HTTPException(
             status_code=404, 
-            detail="No discovery briefing found. Run POST /api/discovery/run first."
+            detail="No discovery briefing found. Run POST /api/discovery/run or use the CLI."
         )
     
-    # Convert to response format
+    # Convert database record to response format
     opportunities = []
-    for opp in _last_discovery_briefing.top_opportunities:
+    for opp_data in (briefing_db.opportunities_json or []):
         pain_points = [
             PainPointResponse(
-                text=pp.text,
-                problem=pp.problem,
-                source=pp.source,
-                engagement=pp.engagement,
+                text=pp.get("text", ""),
+                problem=pp.get("problem", ""),
+                source=pp.get("source", ""),
+                engagement=pp.get("engagement", 0),
             )
-            for pp in opp.pain_points
+            for pp in opp_data.get("pain_points", [])
         ]
         opportunities.append(AppOpportunityResponse(
-            problem=opp.problem,
-            app_idea=opp.app_idea,
-            demand_score=opp.demand_score,
-            virality_score=opp.virality_score,
-            buildability_score=opp.buildability_score,
-            opportunity_score=opp.opportunity_score,
-            category=opp.category,
-            target_audience=opp.target_audience,
+            problem=opp_data.get("problem", ""),
+            app_idea=opp_data.get("app_idea", ""),
+            demand_score=opp_data.get("demand_score", 0),
+            virality_score=opp_data.get("virality_score", 0),
+            buildability_score=opp_data.get("buildability_score", 0),
+            opportunity_score=opp_data.get("opportunity_score", 0),
+            category=opp_data.get("category", ""),
+            target_audience=opp_data.get("target_audience", ""),
             pain_points=pain_points,
         ))
     
     return DiscoveryBriefingResponse(
-        date=_last_discovery_briefing.date,
+        date=briefing_db.date,
         top_opportunities=opportunities,
-        total_data_points=_last_discovery_briefing.total_data_points,
-        total_pain_points_extracted=_last_discovery_briefing.total_pain_points_extracted,
-        total_candidates_filtered=_last_discovery_briefing.total_candidates_filtered,
-        arcade_calls=_last_discovery_briefing.arcade_calls,
-        serpapi_calls=_last_discovery_briefing.serpapi_calls,
-        youtube_quota=_last_discovery_briefing.youtube_quota,
-        llm_calls=_last_discovery_briefing.llm_calls,
-        estimated_cost=_last_discovery_briefing.estimated_cost,
+        total_data_points=briefing_db.total_data_points or 0,
+        total_pain_points_extracted=briefing_db.total_pain_points or 0,
+        total_candidates_filtered=briefing_db.total_candidates or 0,
+        arcade_calls=briefing_db.arcade_calls or 0,
+        serpapi_calls=briefing_db.serpapi_calls or 0,
+        youtube_quota=briefing_db.youtube_quota or 0,
+        llm_calls=briefing_db.llm_calls or 0,
+        estimated_cost=briefing_db.estimated_cost or 0.0,
     )
+
+
+@app.get("/api/discovery/videos")
+async def get_discovery_videos(db: Session = Depends(get_db)):
+    """
+    Get YouTube videos collected during discovery.
+    
+    Returns list of viral videos with titles, views, and links.
+    """
+    from db import DiscoveryBriefingDB
+    
+    briefing_db = db.query(DiscoveryBriefingDB).order_by(
+        DiscoveryBriefingDB.date.desc()
+    ).first()
+    
+    if briefing_db is None or not briefing_db.youtube_videos_json:
+        return {"videos": [], "message": "No video data available"}
+    
+    return {
+        "videos": briefing_db.youtube_videos_json,
+        "date": briefing_db.date,
+        "count": len(briefing_db.youtube_videos_json),
+    }
+
+
+@app.get("/api/discovery/trends")
+async def get_discovery_trends(db: Session = Depends(get_db)):
+    """
+    Get Google Trends validation data from discovery.
+    
+    Returns keywords with interest scores and related queries.
+    """
+    from db import DiscoveryBriefingDB
+    
+    briefing_db = db.query(DiscoveryBriefingDB).order_by(
+        DiscoveryBriefingDB.date.desc()
+    ).first()
+    
+    if briefing_db is None or not briefing_db.trends_data_json:
+        return {"trends": [], "message": "No trends data available"}
+    
+    return {
+        "trends": briefing_db.trends_data_json,
+        "date": briefing_db.date,
+        "count": len(briefing_db.trends_data_json),
+    }
 
 
 @app.post("/api/discovery/run", response_model=DiscoveryBriefingResponse)

@@ -147,51 +147,109 @@ class GoogleTrendsClient:
             - interest_over_time: list of {date, value} dicts
             - related_queries: list of query strings
         """
-        api_key, key_name = self._get_active_key()
-        if not api_key:
-            return None
-        
-        try:
-            # Fetch interest over time
-            params = {
-                "engine": "google_trends",
-                "q": keyword,
-                "data_type": "TIMESERIES",
-                "api_key": api_key,
-            }
+        # Try up to 2 times (once per key)
+        for attempt in range(2):
+            api_key, key_name = self._get_active_key()
+            if not api_key:
+                return None
             
-            response = requests.get(self.SERPAPI_BASE_URL, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            self._increment_usage(key_name)
-            
-            # Extract interest over time
-            interest_data = []
-            timeline = data.get("interest_over_time", {}).get("timeline_data", [])
-            for point in timeline:
-                values = point.get("values", [])
-                if values:
-                    interest_data.append({
-                        "date": point.get("date"),
-                        "value": values[0].get("extracted_value", 0)
-                    })
-            
-            # Note: Related queries would require a separate API call (doubling usage)
-            # Skipping to conserve API quota - can be enabled if needed
-            related = []
-            
-            return {
-                "interest_over_time": interest_data,
-                "related_queries": related
-            }
-            
-        except requests.RequestException as e:
-            logger.error(f"SerpAPI request failed for '{keyword}': {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Error parsing SerpAPI response for '{keyword}': {e}")
-            return None
+            try:
+                # Fetch interest over time
+                params = {
+                    "engine": "google_trends",
+                    "q": keyword,
+                    "data_type": "TIMESERIES",
+                    "api_key": api_key,
+                    "date": "today 12-m",  # Last 12 months for seasonal context
+                }
+                
+                response = requests.get(self.SERPAPI_BASE_URL, params=params, timeout=30)
+                
+                # Handle 429 specifically for key rotation
+                if response.status_code == 429:
+                    logger.warning(f"SerpAPI key '{key_name}' exhausted (429). Switching keys...")
+                    # Mark current key as exhausted
+                    if key_name == "key_one":
+                        self.usage_key_one = 250
+                    else:
+                        self.usage_key_two = 250
+                    self._save_usage()
+                    continue  # Retry with next key
+                    
+                response.raise_for_status()
+                data = response.json()
+                
+                self._increment_usage(key_name)
+                
+                # Extract interest over time
+                interest_data = []
+                timeline = data.get("interest_over_time", {}).get("timeline_data", [])
+                for point in timeline:
+                    values = point.get("values", [])
+                    if values:
+                        interest_data.append({
+                            "date": point.get("date"),
+                            "value": values[0].get("extracted_value", 0)
+                        })
+                
+                # Fetch related queries (second API call)
+                related = []
+                try:
+                    params["data_type"] = "RELATED_QUERIES"
+                    related_response = requests.get(self.SERPAPI_BASE_URL, params=params, timeout=30)
+                    
+                    if related_response.status_code == 429:
+                         logger.warning(f"SerpAPI related queries hit 429 for '{key_name}'. Switching keys...")
+                         # Mark current key as exhausted
+                         if key_name == "key_one":
+                             self.usage_key_one = 250
+                         else:
+                             self.usage_key_two = 250
+                         self._save_usage()
+                         continue  # Retry with next key (full retry)
+                    
+                    related_response.raise_for_status()
+                    related_data = related_response.json()
+                    
+                    self._increment_usage(key_name)
+                    
+                    # Extract rising queries (more interesting than top queries)
+                    rising = related_data.get("related_queries", {}).get("rising", [])
+                    for item in rising[:5]:  # Top 5 rising queries
+                        query = item.get("query", "")
+                        if query:
+                            related.append(query)
+                    
+                    # Also get top queries if we have room
+                    if len(related) < 5:
+                        top = related_data.get("related_queries", {}).get("top", [])
+                        for item in top[:5 - len(related)]:
+                            query = item.get("query", "")
+                            if query and query not in related:
+                                related.append(query)
+                
+                    logger.info(f"Found {len(related)} related queries for '{keyword}'")
+                except requests.RequestException as e:
+                     if isinstance(e, requests.HTTPError) and e.response.status_code == 429:
+                         raise e # Re-raise to be caught by outer try-except for key rotation
+                     logger.warning(f"Failed to get related queries for '{keyword}': {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to get related queries for '{keyword}': {e}")
+                
+                return {
+                    "interest_over_time": interest_data,
+                    "related_queries": related
+                }
+                
+            except requests.RequestException as e:
+                logger.error(f"SerpAPI request failed for '{keyword}': {e}")
+                if attempt == 1: # Last attempt failed
+                    return None
+            except Exception as e:
+                logger.error(f"Error parsing SerpAPI response for '{keyword}': {e}")
+                return None
+                
+        return None
     
     def _get_pytrends_data(self, keyword: str) -> Optional[dict]:
         """

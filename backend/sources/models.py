@@ -87,7 +87,7 @@ class TrendValidation(BaseModel):
     momentum: float = 0.0    # Week-over-week % change
     trend_direction: Literal["rising", "stable", "declining"] = "stable"
     related_queries: list[str] = []
-    audience_tags: list[Literal["technical", "strategic"]] = []  # Who this appeals to
+    audience_tags: list[str] = []  # Who this appeals to (e.g., "technical", "strategic", "founder")
     trend_score: int = 0     # Composite 0-100 score
     validated_at: datetime = Field(default_factory=datetime.utcnow)
     api_source: Literal["serpapi", "pytrends", "cached"] = "serpapi"

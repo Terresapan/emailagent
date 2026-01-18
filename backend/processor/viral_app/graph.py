@@ -10,7 +10,8 @@ Orchestrates the 4-hour discovery process:
 """
 import logging
 from datetime import datetime
-from typing import TypedDict, Literal
+from typing import TypedDict, Literal, Annotated
+from operator import add
 
 from langgraph.graph import StateGraph, END
 
@@ -28,11 +29,27 @@ from sources.arcade_client import ArcadeClient
 from sources.youtube import YouTubeClient
 from sources.product_hunt import ProductHuntClient
 from sources.google_trends import GoogleTrendsClient
+from langchain_openai import ChatOpenAI
+from config.settings import LLM_MODEL_EXTRACTION
 
 logger = logging.getLogger(__name__)
 
 
 # ==================== State Definition ====================
+
+def merge_dicts(a: dict, b: dict) -> dict:
+    """Merge two dictionaries."""
+    if not a: return b
+    if not b: return a
+    # Sum simpler keys if they exist in both
+    result = a.copy()
+    for k, v in b.items():
+        if k in result and isinstance(result[k], (int, float)) and isinstance(v, (int, float)):
+            result[k] += v
+        else:
+            result[k] = v
+    return result
+
 
 class DiscoveryGraphState(TypedDict):
     """State for the LangGraph workflow."""
@@ -43,16 +60,20 @@ class DiscoveryGraphState(TypedDict):
     tweets: list[dict]
     youtube_videos: list[dict]
     youtube_comments: list[dict]
+    youtube_videos_metadata: list[dict]  # For dashboard: {id, title, views, channel, url}
     producthunt_products: list[dict]
     
-    # Extracted pain points
-    raw_pain_points: list[PainPoint]
+    # Extracted pain points - automatically merges lists from parallel nodes
+    raw_pain_points: Annotated[list[PainPoint], add]
     
     # Filtered candidates
     filtered_candidates: list[PainPoint]
     
     # Demand scores from SerpAPI
     demand_scores: dict[int, int]
+    
+    # Trends data for dashboard
+    trends_data: list[dict]  # {keyword, interest_score, related_queries, trend_direction}
     
     # Scored opportunities
     opportunities: list[AppOpportunity]
@@ -61,7 +82,7 @@ class DiscoveryGraphState(TypedDict):
     top_opportunities: list[AppOpportunity]
     
     # Metadata
-    api_usage: dict
+    api_usage: Annotated[dict, merge_dicts]
 
 
 # ==================== Target Subreddits ====================
@@ -85,7 +106,15 @@ TARGET_SUBREDDITS = [
 class DiscoveryGraph:
     """LangGraph workflow for viral app discovery."""
     
-    def __init__(self):
+    def __init__(self, test_mode: bool = False):
+        """
+        Initialize discovery workflow.
+        
+        Args:
+            test_mode: If True, limits API calls for cheaper testing
+                      (2 subreddits, 5 posts each, no comment fetching)
+        """
+        self.test_mode = test_mode
         self.arcade_client = None
         self.youtube_client = None
         self.producthunt_client = None
@@ -93,6 +122,7 @@ class DiscoveryGraph:
         self.extractor = None
         self.filter = None
         self.scorer = None
+        self.llm = None  # For scoring in validate_and_score_node
         self.graph = self._build_graph()
     
     def _init_clients(self):
@@ -111,6 +141,8 @@ class DiscoveryGraph:
             self.filter = LLMFilter()
         if self.scorer is None:
             self.scorer = Scorer()
+        if self.llm is None:
+            self.llm = ChatOpenAI(model=LLM_MODEL_EXTRACTION, temperature=0.3)
     
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow."""
@@ -118,15 +150,32 @@ class DiscoveryGraph:
         
         # Add nodes
         workflow.add_node("collect_data", self.collect_data_node)
-        workflow.add_node("extract_pain_points", self.extract_pain_points_node)
+        
+        # Parallel extraction nodes
+        workflow.add_node("extract_reddit", self.extract_reddit_node)
+        workflow.add_node("extract_twitter", self.extract_twitter_node)
+        workflow.add_node("extract_youtube", self.extract_youtube_node)
+        workflow.add_node("extract_producthunt", self.extract_producthunt_node)
+        
         workflow.add_node("filter_candidates", self.filter_candidates_node)
         workflow.add_node("validate_and_score", self.validate_and_score_node)
         workflow.add_node("rank_output", self.rank_output_node)
         
         # Define flow
         workflow.set_entry_point("collect_data")
-        workflow.add_edge("collect_data", "extract_pain_points")
-        workflow.add_edge("extract_pain_points", "filter_candidates")
+        
+        # Fan out to parallel extraction
+        workflow.add_edge("collect_data", "extract_reddit")
+        workflow.add_edge("collect_data", "extract_twitter")
+        workflow.add_edge("collect_data", "extract_youtube")
+        workflow.add_edge("collect_data", "extract_producthunt")
+        
+        # Fan in to filter
+        workflow.add_edge("extract_reddit", "filter_candidates")
+        workflow.add_edge("extract_twitter", "filter_candidates")
+        workflow.add_edge("extract_youtube", "filter_candidates")
+        workflow.add_edge("extract_producthunt", "filter_candidates")
+        
         workflow.add_edge("filter_candidates", "validate_and_score")
         workflow.add_edge("validate_and_score", "rank_output")
         workflow.add_edge("rank_output", END)
@@ -146,28 +195,35 @@ class DiscoveryGraph:
         
         api_usage = {"arcade": 0, "youtube": 0, "producthunt": 0}
         
-        # --- Reddit via Arcade (155 calls) ---
+        # --- Reddit via Arcade ---
         reddit_posts = []
         reddit_comments = []
         
-        # Get posts from subreddits (20 calls: 10 subreddits × 2 listings)
-        for subreddit in TARGET_SUBREDDITS:
+        # Test mode: only 2 subreddits, 5 posts each (4 API calls)
+        # Full mode: 10 subreddits × 2 listings = 20 API calls
+        subreddits = TARGET_SUBREDDITS[:2] if self.test_mode else TARGET_SUBREDDITS
+        post_limit = 5 if self.test_mode else 50
+        
+        logger.info(f"Reddit collection: {'TEST MODE' if self.test_mode else 'FULL'} - {len(subreddits)} subreddits, {post_limit} posts each")
+        
+        for subreddit in subreddits:
             # Hot posts
             posts = self.arcade_client.get_subreddit_posts(
                 subreddit=subreddit,
                 listing="hot",
-                limit=50,
+                limit=post_limit,
             )
             reddit_posts.extend(posts)
             
-            # Top posts this month
-            top_posts = self.arcade_client.get_subreddit_posts(
-                subreddit=subreddit,
-                listing="top",
-                limit=50,
-                time_range="THIS_MONTH",
-            )
-            reddit_posts.extend(top_posts)
+            # Top posts this month (skip in test mode to save calls)
+            if not self.test_mode:
+                top_posts = self.arcade_client.get_subreddit_posts(
+                    subreddit=subreddit,
+                    listing="top",
+                    limit=post_limit,
+                    time_range="THIS_MONTH",
+                )
+                reddit_posts.extend(top_posts)
         
         api_usage["arcade"] = self.arcade_client.get_usage_stats()["total"]
         logger.info(f"Collected {len(reddit_posts)} Reddit posts")
@@ -185,11 +241,17 @@ class DiscoveryGraph:
                 content = self.arcade_client.get_posts_content(batch)
                 # Merge content back (simplified)
         
-        # Get comments from high-engagement posts (100 calls)
+        # Get comments from high-engagement posts
+        # Test mode: only 5 posts (5 API calls)
+        # Full mode: up to 100 posts (100 API calls)
+        comment_limit = 5 if self.test_mode else 100
+        
         high_engagement_posts = [
             p for p in reddit_posts 
             if p.get("num_comments", 0) > 10
-        ][:100]
+        ][:comment_limit]
+        
+        logger.info(f"Fetching comments from {len(high_engagement_posts)} posts")
         
         for post in high_engagement_posts:
             post_id = post.get("id") or post.get("name", "")
@@ -244,66 +306,110 @@ class DiscoveryGraph:
         api_usage["producthunt"] = 1
         logger.info(f"Collected {len(producthunt_products)} Product Hunt products")
         
+        # Store YouTube video metadata for dashboard
+        youtube_videos_metadata = [
+            {
+                "id": v.get("video_id", ""),
+                "title": v.get("title", ""),
+                "views": v.get("view_count", 0),
+                "channel": v.get("channel_name", ""),
+                "url": f"https://youtube.com/watch?v={v.get('video_id', '')}",
+            }
+            for v in youtube_videos
+        ]
+        
         return {
             "reddit_posts": reddit_posts,
             "reddit_comments": reddit_comments,
             "tweets": tweets,
             "youtube_videos": youtube_videos,
             "youtube_comments": youtube_comments,
+            "youtube_videos_metadata": youtube_videos_metadata,  # For dashboard
             "producthunt_products": producthunt_products,
             "api_usage": api_usage,
         }
     
-    def extract_pain_points_node(self, state: DiscoveryGraphState) -> dict:
-        """
-        Extract pain points from all sources.
+    def extract_reddit_node(self, state: DiscoveryGraphState) -> dict:
+        """Extract pain points from Reddit."""
+        posts = state.get("reddit_posts", [])
+        comments = state.get("reddit_comments", [])
+        logger.info(f"=== EXTRACTING FROM REDDIT (Input: {len(posts)} posts, {len(comments)} comments) ===")
         
-        Budget: 5 LLM calls (~$0.08)
-        """
-        logger.info("=== EXTRACTING PAIN POINTS ===")
-        self._init_clients()
+        try:
+            extractor = PainPointExtractor()
+            points = extractor.extract_from_reddit(
+                posts,
+                comments,
+                max_points=30,
+            )
+            logger.info(f"Reddit: {len(points)} pain points")
+            return {
+                "raw_pain_points": points,
+                "api_usage": {"llm_extraction": 1}
+            }
+        except Exception as e:
+            logger.error(f"Reddit extraction failed: {e}")
+            return {"raw_pain_points": [], "api_usage": {}}
+
+    def extract_twitter_node(self, state: DiscoveryGraphState) -> dict:
+        """Extract pain points from Twitter."""
+        tweets = state.get("tweets", [])
+        logger.info(f"=== EXTRACTING FROM TWITTER (Input: {len(tweets)} tweets) ===")
         
-        all_pain_points = []
+        try:
+            extractor = PainPointExtractor()
+            points = extractor.extract_from_twitter(
+                tweets,
+                max_points=20,
+            )
+            logger.info(f"Twitter: {len(points)} pain points")
+            return {
+                "raw_pain_points": points,
+                "api_usage": {"llm_extraction": 1}
+            }
+        except Exception as e:
+            logger.error(f"Twitter extraction failed: {e}")
+            return {"raw_pain_points": [], "api_usage": {}}
+
+    def extract_youtube_node(self, state: DiscoveryGraphState) -> dict:
+        """Extract pain points from YouTube."""
+        comments = state.get("youtube_comments", [])
+        logger.info(f"=== EXTRACTING FROM YOUTUBE (Input: {len(comments)} comments) ===")
         
-        # Reddit (1 call)
-        reddit_pps = self.extractor.extract_from_reddit(
-            state["reddit_posts"],
-            state["reddit_comments"],
-            max_points=30,
-        )
-        all_pain_points.extend(reddit_pps)
+        try:
+            extractor = PainPointExtractor()
+            points = extractor.extract_from_youtube(
+                comments,
+                max_points=25,
+            )
+            logger.info(f"YouTube: {len(points)} pain points")
+            return {
+                "raw_pain_points": points,
+                "api_usage": {"llm_extraction": 1}
+            }
+        except Exception as e:
+            logger.error(f"YouTube extraction failed: {e}")
+            return {"raw_pain_points": [], "api_usage": {}}
+
+    def extract_producthunt_node(self, state: DiscoveryGraphState) -> dict:
+        """Extract pain points from Product Hunt."""
+        products = state.get("producthunt_products", [])
+        logger.info(f"=== EXTRACTING FROM PRODUCT HUNT (Input: {len(products)} products) ===")
         
-        # Twitter (1 call)
-        twitter_pps = self.extractor.extract_from_twitter(
-            state["tweets"],
-            max_points=20,
-        )
-        all_pain_points.extend(twitter_pps)
-        
-        # YouTube (1 call)
-        youtube_pps = self.extractor.extract_from_youtube(
-            state["youtube_comments"],
-            max_points=25,
-        )
-        all_pain_points.extend(youtube_pps)
-        
-        # Product Hunt (1 call)
-        producthunt_pps = self.extractor.extract_from_producthunt(
-            state["producthunt_products"],
-            max_points=20,
-        )
-        all_pain_points.extend(producthunt_pps)
-        
-        logger.info(f"Extracted {len(all_pain_points)} total pain points")
-        
-        # Update API usage
-        api_usage = state.get("api_usage", {})
-        api_usage["llm_extraction"] = self.extractor.get_call_count()
-        
-        return {
-            "raw_pain_points": all_pain_points,
-            "api_usage": api_usage,
-        }
+        try:
+            extractor = PainPointExtractor()
+            points = extractor.extract_from_producthunt(
+                products,
+                max_points=20,
+            )
+            logger.info(f"Product Hunt: {len(points)} pain points")
+            return {
+                "raw_pain_points": points,
+                "api_usage": {"llm_extraction": 1}
+            }
+        except Exception as e:
+            logger.error(f"Product Hunt extraction failed: {e}")
+            return {"raw_pain_points": [], "api_usage": {}}
     
     def filter_candidates_node(self, state: DiscoveryGraphState) -> dict:
         """
@@ -331,45 +437,147 @@ class DiscoveryGraph:
     
     def validate_and_score_node(self, state: DiscoveryGraphState) -> dict:
         """
-        Validate with SerpAPI and score with LLM.
+        Score with LLM first, then validate with SerpAPI using app ideas.
         
-        Budget: 120 SerpAPI calls + 1 LLM call
+        Budget: 1 LLM call + 45 SerpAPI calls
         """
-        logger.info("=== VALIDATING AND SCORING ===")
+        logger.info("=== SCORING AND VALIDATING ===")
         self._init_clients()
         
         candidates = state["filtered_candidates"]
+        
+        if not candidates:
+            logger.warning("No candidates to score")
+            return {
+                "demand_scores": {},
+                "opportunities": [],
+                "api_usage": state.get("api_usage", {}),
+            }
+        
+        # First: Score all candidates with LLM to get app ideas
+        formatted = self._format_for_scoring(candidates)
+        scored_data = self._call_scoring_llm(formatted)
+        
+        # Parse scored data and collect trends
+        opportunities = []
         demand_scores = {}
+        trends_data = []  # Store for dashboard
         
-        # Validate top candidates with SerpAPI (45 calls for base validation)
-        for i, candidate in enumerate(candidates[:45]):
-            # Simple keyword extraction from problem
-            keywords = candidate.problem[:50]  # First 50 chars as query
+        for i, (pp, data) in enumerate(zip(candidates, scored_data)):
+            app_idea = data.get("app_idea", pp.problem[:50])
+            virality = data.get("virality", 50)
+            buildability = data.get("buildability", 50)
             
+            # Validate demand using the LLM-optimized keyword
             try:
+                # Use provided keyword or fallback to crude extraction
+                keywords = data.get("keyword") or " ".join(app_idea.split()[:4])
+                
                 validation = self.trends_client.validate_topic(keywords)
-                demand_scores[i] = validation.trend_score
+                demand = validation.trend_score
+                logger.info(f"Validated '{keywords}': demand={demand}, related={len(validation.related_queries)}")
+                
+                # Store full validation for dashboard
+                trends_data.append({
+                    "keyword": keywords,
+                    "app_idea": app_idea,
+                    "interest_score": validation.interest_score,
+                    "trend_score": validation.trend_score,
+                    "momentum": validation.momentum,
+                    "trend_direction": validation.trend_direction,
+                    "related_queries": validation.related_queries,
+                })
             except Exception as e:
-                logger.warning(f"Validation failed for candidate {i}: {e}")
-                demand_scores[i] = 50  # Default score
+                logger.warning(f"Validation failed for '{app_idea[:30]}': {e}")
+                demand = 50
+            
+            demand_scores[i] = demand
+            
+            # Calculate opportunity score: Demand 40%, Virality 40%, Build 20%
+            opportunity_score = int(demand * 0.4 + virality * 0.4 + buildability * 0.2)
+            
+            opportunities.append(AppOpportunity(
+                problem=pp.problem,
+                app_idea=app_idea,
+                demand_score=demand,
+                virality_score=virality,
+                buildability_score=buildability,
+                opportunity_score=opportunity_score,
+                pain_points=[pp],
+            ))
         
-        # Score all candidates with LLM (1 call)
-        opportunities = self.scorer.score_pain_points(
-            candidates,
-            demand_scores=demand_scores,
-        )
-        
-        logger.info(f"Scored {len(opportunities)} opportunities")
+        logger.info(f"Scored {len(opportunities)} opportunities, {len(trends_data)} trend validations")
         
         api_usage = state.get("api_usage", {})
         api_usage["serpapi"] = self.trends_client.get_usage_stats()["serpapi_used"]
-        api_usage["llm_scoring"] = self.scorer.get_call_count()
+        api_usage["llm_scoring"] = 1
         
         return {
             "demand_scores": demand_scores,
             "opportunities": opportunities,
+            "trends_data": trends_data,  # For dashboard
             "api_usage": api_usage,
         }
+    
+    def _format_for_scoring(self, pain_points: list) -> str:
+        """Format pain points for scoring prompt."""
+        lines = []
+        for i, pp in enumerate(pain_points, 1):
+            lines.append(f"{i}. {pp.problem}")
+        return "\n".join(lines)
+    
+    def _call_scoring_llm(self, formatted: str) -> list[dict]:
+        """Call LLM to score pain points."""
+        prompt = """For each pain point, suggest an app idea, a SEARCH KEYWORD, and score it:
+
+Pain points:
+{formatted}
+
+Output ONE LINE per item in format:
+INDEX | APP_IDEA | KEYWORD | VIRALITY (0-100) | BUILDABILITY (0-100)
+
+KEYWORD: High-volume 2-3 word search term. Focus on the PROBLEM (e.g. "create invoice") or GENERIC SOLUTION (e.g. "invoice generator"). NO punctuation.
+APP_IDEA: Catchy name + short description.
+Virality: How shareable/viral is this app?
+Buildability: How easy to build in 2-4 hours?
+
+Output:""".format(formatted=formatted)
+        
+        try:
+            response = self.llm.invoke(prompt)
+            # Parse response
+            results = []
+            for line in response.content.strip().split("\n"):
+                if "|" in line:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 5:
+                        try:
+                            results.append({
+                                "app_idea": parts[1],
+                                "keyword": parts[2],
+                                "virality": int(parts[3]),
+                                "buildability": int(parts[4]),
+                            })
+                        except (ValueError, IndexError):
+                            results.append({
+                                "app_idea": parts[1] if len(parts) > 1 else "",
+                                "keyword": parts[1].split(" - ")[0] if len(parts) > 1 else "",
+                                "virality": 50,
+                                "buildability": 50
+                            })
+                    # Fallback for old format or errors
+                    elif len(parts) >= 4:
+                         results.append({
+                            "app_idea": parts[1],
+                            # Fallback keyword extraction
+                            "keyword": " ".join(parts[1].split()[:3]), 
+                            "virality": int(parts[2]),
+                            "buildability": int(parts[3]),
+                        })
+            return results
+        except Exception as e:
+            logger.error(f"Scoring LLM failed: {e}")
+            return [{"app_idea": "", "keyword": "", "virality": 50, "buildability": 50} for _ in range(100)]
     
     def rank_output_node(self, state: DiscoveryGraphState) -> dict:
         """
@@ -403,10 +611,12 @@ class DiscoveryGraph:
             "tweets": [],
             "youtube_videos": [],
             "youtube_comments": [],
+            "youtube_videos_metadata": [],  # For dashboard
             "producthunt_products": [],
             "raw_pain_points": [],
             "filtered_candidates": [],
             "demand_scores": {},
+            "trends_data": [],  # For dashboard
             "opportunities": [],
             "top_opportunities": [],
             "api_usage": {},
@@ -421,6 +631,8 @@ class DiscoveryGraph:
         briefing = SaturdayBriefing(
             date=datetime.now(),
             top_opportunities=final_state["top_opportunities"],
+            youtube_videos=final_state.get("youtube_videos_metadata", []),  # For dashboard
+            trends_data=final_state.get("trends_data", []),  # For dashboard
             total_data_points=sum([
                 len(final_state.get("reddit_posts", [])),
                 len(final_state.get("reddit_comments", [])),
@@ -438,7 +650,7 @@ class DiscoveryGraph:
                 api_usage.get("llm_filter", 0),
                 api_usage.get("llm_scoring", 0),
             ]),
-            estimated_cost=0.13,  # ~$0.13 for 7 LLM calls
+            estimated_cost=0.15,  # ~$0.15 for LLM calls + 2x SerpAPI
         )
         
         logger.info(f"Workflow complete! Generated {len(briefing.top_opportunities)} opportunities")
@@ -446,7 +658,13 @@ class DiscoveryGraph:
 
 
 # Convenience function
-def run_saturday_discovery() -> SaturdayBriefing:
-    """Run the Saturday discovery workflow."""
-    graph = DiscoveryGraph()
+def run_saturday_discovery(test_mode: bool = False) -> SaturdayBriefing:
+    """
+    Run the Saturday discovery workflow.
+    
+    Args:
+        test_mode: If True, limits API calls for cheaper testing
+                  (~7 Arcade calls instead of ~135)
+    """
+    graph = DiscoveryGraph(test_mode=test_mode)
     return graph.run()

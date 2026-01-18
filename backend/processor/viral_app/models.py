@@ -85,6 +85,10 @@ class SaturdayBriefing:
     date: datetime
     top_opportunities: list[AppOpportunity]
     
+    # Source data for dashboard
+    youtube_videos: list[dict] = field(default_factory=list)  # {id, title, views, channel, url}
+    trends_data: list[dict] = field(default_factory=list)  # {keyword, interest_score, related_queries, trend_direction}
+    
     # Stats
     total_data_points: int = 0
     total_pain_points_extracted: int = 0

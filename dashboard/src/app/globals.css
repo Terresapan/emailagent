@@ -230,6 +230,6 @@
   }
 
   .trend-card {
-    @apply relative overflow-hidden bg-card/40 backdrop-blur-sm border border-white/5 p-5 rounded-xl transition-all duration-300 hover:bg-card/80 hover:border-accent/50 hover:shadow-2xl hover:shadow-accent/20 hover:-translate-y-1;
+    @apply relative bg-card/40 backdrop-blur-sm border border-white/5 p-5 rounded-xl transition-all duration-300 hover:bg-card/80 hover:border-accent/50 hover:shadow-2xl hover:shadow-accent/20 hover:-translate-y-1;
   }
 }
