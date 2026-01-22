@@ -49,3 +49,6 @@ token.json
 logs/
 *.log
 conductor/
+
+.gemini/
+gha-creds-*.json
