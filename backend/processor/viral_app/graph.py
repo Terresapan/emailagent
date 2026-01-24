@@ -85,20 +85,74 @@ class DiscoveryGraphState(TypedDict):
     api_usage: Annotated[dict, merge_dicts]
 
 
-# ==================== Target Subreddits ====================
+# ==================== Engagement Normalization ====================
 
-TARGET_SUBREDDITS = [
-    "smallbusiness",
-    "freelance", 
-    "Entrepreneur",
-    "startups",
-    "SideProject",
-    "consulting",
-    "realtors",
-    "ecommerce",
-    "marketing",
-    "agencies",
-]
+def normalize_engagement(engagement: int, source: str) -> int:
+    """
+    Normalize engagement scores to 0-100 scale based on source type.
+    
+    Different sources have different engagement scales:
+    - Reddit: 100 upvotes is considered good engagement
+    - YouTube: 50 likes on a comment is quite high
+    - Product Hunt: 200 votes is a successful launch
+    """
+    if engagement <= 0:
+        return 10  # Base score for items without engagement data
+    
+    thresholds = {
+        "reddit": 100,      # 100 upvotes = max score
+        "youtube": 50,      # 50 comment likes = max score  
+        "producthunt": 200, # 200 votes = max score
+        "twitter": 100,     # 100 likes = max score
+    }
+    
+    threshold = thresholds.get(source, 100)
+    
+    # Scale to 0-100, capping at 100
+    normalized = min(int((engagement / threshold) * 100), 100)
+    
+    # Ensure minimum of 10 for any positive engagement
+    return max(normalized, 10)
+
+
+# ==================== Target Subreddits (from config) ====================
+
+def load_target_subreddits() -> list[str]:
+    """Load target subreddits from config file."""
+    import json
+    from pathlib import Path
+    
+    config_path = Path(__file__).parent.parent.parent / "config" / "discovery_subreddits.json"
+    
+    try:
+        with open(config_path) as f:
+            data = json.load(f)
+            subreddits = [item["name"] for item in data]
+            logger.info(f"Loaded {len(subreddits)} subreddits from config: {subreddits}")
+            return subreddits
+    except Exception as e:
+        logger.warning(f"Failed to load subreddits config: {e}, using defaults")
+        return ["podcasting", "NewTubers", "photography", "Notion", "nocode", "bookkeeping", "freelance", "ecommerce"]
+
+TARGET_SUBREDDITS = load_target_subreddits()
+
+
+def load_twitter_queries() -> list[str]:
+    """Load Twitter discovery queries from config file."""
+    import json
+    from pathlib import Path
+    
+    config_path = Path(__file__).parent.parent.parent / "config" / "discovery_twitter_queries.json"
+    
+    try:
+        with open(config_path) as f:
+            data = json.load(f)
+            queries = [item["query"] for item in data]
+            logger.info(f"Loaded {len(queries)} Twitter queries from config")
+            return queries
+    except Exception as e:
+        logger.warning(f"Failed to load Twitter queries config: {e}, using defaults")
+        return ["I wish there was an app", "frustrated with AI tool", "why isn't there", "someone should build", "need an app that"]
 
 
 # ==================== Workflow Nodes ====================
@@ -264,23 +318,18 @@ class DiscoveryGraph:
         api_usage["arcade"] = self.arcade_client.get_usage_stats()["total"]
         logger.info(f"Collected {len(reddit_comments)} Reddit comments")
         
-        # --- Twitter via Arcade (disabled - input format issues) ---
+        # --- Twitter via Arcade (FIXED - keywords must be array) ---
         tweets = []
-        # TODO: Re-enable once X.SearchRecentTweetsByKeywords input format is fixed
-        # twitter_queries = [
-        #     "I wish there was an app",
-        #     "frustrated with AI tool",
-        #     "why isn't there",
-        #     "someone should build",
-        #     "need an app that",
-        # ]
-        # 
-        # for query in twitter_queries[:6]:
-        #     for _ in range(5):
-        #         results = self.arcade_client.search_tweets(query)
-        #         tweets.extend(results)
         
-        logger.info(f"Twitter collection disabled (API input format issue)")
+        # Load Twitter queries from config
+        twitter_queries = load_twitter_queries()
+        
+        for query in twitter_queries:
+            results = self.arcade_client.search_tweets(query, max_results=20)
+            tweets.extend(results)
+        
+        api_usage["arcade"] += len(twitter_queries)  # Count Twitter calls
+        logger.info(f"Collected {len(tweets)} tweets from Twitter")
         
         # --- YouTube (free - ~600 quota) ---
         youtube_videos = self.youtube_client.search_for_discovery(
@@ -465,8 +514,9 @@ class DiscoveryGraph:
         
         for i, (pp, data) in enumerate(zip(candidates, scored_data)):
             app_idea = data.get("app_idea", pp.problem[:50])
-            virality = data.get("virality", 50)
-            buildability = data.get("buildability", 50)
+            # Use ENGAGEMENT from source data instead of LLM-guessed virality
+            virality = normalize_engagement(pp.engagement, pp.source)
+            buildability = data.get("buildability", 50)  # Keep LLM estimate for now
             
             # Validate demand using the LLM-optimized keyword
             try:
@@ -493,17 +543,32 @@ class DiscoveryGraph:
             
             demand_scores[i] = demand
             
-            # Calculate opportunity score: Demand 40%, Virality 40%, Build 20%
+            # Search for similar products on Product Hunt (informational, not penalizing)
+            similar_products = []
+            try:
+                # Use the keyword or first few words of app idea for search
+                search_term = data.get("keyword") or " ".join(app_idea.split()[:3])
+                ph_results = self.producthunt_client.search_products(search_term, limit=3)
+                similar_products = [
+                    f"{p['name']} ({p['votes']} votes)" for p in ph_results
+                ]
+            except Exception as e:
+                logger.debug(f"PH search failed for '{app_idea[:20]}': {e}")
+            
+            # Calculate opportunity score: Demand 40%, Virality (engagement) 40%, Build 20%
             opportunity_score = int(demand * 0.4 + virality * 0.4 + buildability * 0.2)
+            
+            logger.debug(f"Scoring '{app_idea[:30]}': demand={demand}, virality={virality} (engagement={pp.engagement}), build={buildability}")
             
             opportunities.append(AppOpportunity(
                 problem=pp.problem,
                 app_idea=app_idea,
                 demand_score=demand,
-                virality_score=virality,
+                virality_score=virality,  # Now based on real engagement
                 buildability_score=buildability,
                 opportunity_score=opportunity_score,
                 pain_points=[pp],
+                similar_products=similar_products,  # NEW: from Product Hunt
             ))
         
         logger.info(f"Scored {len(opportunities)} opportunities, {len(trends_data)} trend validations")
@@ -511,6 +576,7 @@ class DiscoveryGraph:
         api_usage = state.get("api_usage", {})
         api_usage["serpapi"] = self.trends_client.get_usage_stats()["serpapi_used"]
         api_usage["llm_scoring"] = 1
+        api_usage["producthunt_search"] = len(candidates)  # Track PH API usage
         
         return {
             "demand_scores": demand_scores,
@@ -528,18 +594,28 @@ class DiscoveryGraph:
     
     def _call_scoring_llm(self, formatted: str) -> list[dict]:
         """Call LLM to score pain points."""
-        prompt = """For each pain point, suggest an app idea, a SEARCH KEYWORD, and score it:
+        prompt = """For each pain point below, provide:
+
+1. SEARCH_KEYWORD: What 2-3 words would someone type into Google to solve this problem?
+   - GOOD: "youtube summary", "invoice generator", "follow up reminder", "podcast notes"
+   - BAD: "QuickDigest", "InvoiceMaster" (these are product names, not searches)
+   - Focus on the PROBLEM or GENERIC SOLUTION, not a brand name.
+
+2. APP_IDEA: A catchy app name + short description
+
+3. VIRALITY (0-100): How shareable? Visual transformation = 90+, useful tool = 60-80
+
+4. BUILDABILITY (0-100): How easy to build in 2-4 hours? Simple UI + 1 API = 90+
 
 Pain points:
 {formatted}
 
-Output ONE LINE per item in format:
-INDEX | APP_IDEA | KEYWORD | VIRALITY (0-100) | BUILDABILITY (0-100)
+Output ONE LINE per item:
+INDEX | SEARCH_KEYWORD | APP_IDEA | VIRALITY | BUILDABILITY
 
-KEYWORD: High-volume 2-3 word search term. Focus on the PROBLEM (e.g. "create invoice") or GENERIC SOLUTION (e.g. "invoice generator"). NO punctuation.
-APP_IDEA: Catchy name + short description.
-Virality: How shareable/viral is this app?
-Buildability: How easy to build in 2-4 hours?
+Example:
+1 | youtube summary | QuickDigest — one-click video summarizer | 75 | 85
+2 | invoice generator | QuoteQuick — voice to PDF quote tool | 60 | 90
 
 Output:""".format(formatted=formatted)
         
@@ -552,27 +628,27 @@ Output:""".format(formatted=formatted)
                     parts = [p.strip() for p in line.split("|")]
                     if len(parts) >= 5:
                         try:
+                            # New format: INDEX | KEYWORD | APP_IDEA | VIRALITY | BUILDABILITY
                             results.append({
-                                "app_idea": parts[1],
-                                "keyword": parts[2],
+                                "keyword": parts[1],
+                                "app_idea": parts[2],
                                 "virality": int(parts[3]),
                                 "buildability": int(parts[4]),
                             })
                         except (ValueError, IndexError):
                             results.append({
-                                "app_idea": parts[1] if len(parts) > 1 else "",
-                                "keyword": parts[1].split(" - ")[0] if len(parts) > 1 else "",
+                                "keyword": parts[1] if len(parts) > 1 else "",
+                                "app_idea": parts[2] if len(parts) > 2 else "",
                                 "virality": 50,
                                 "buildability": 50
                             })
-                    # Fallback for old format or errors
+                    # Fallback for partial lines
                     elif len(parts) >= 4:
                          results.append({
-                            "app_idea": parts[1],
-                            # Fallback keyword extraction
-                            "keyword": " ".join(parts[1].split()[:3]), 
-                            "virality": int(parts[2]),
-                            "buildability": int(parts[3]),
+                            "keyword": parts[1],
+                            "app_idea": parts[2] if len(parts) > 2 else parts[1],
+                            "virality": int(parts[3]) if len(parts) > 3 else 50,
+                            "buildability": int(parts[4]) if len(parts) > 4 else 50,
                         })
             return results
         except Exception as e:

@@ -1,0 +1,22 @@
+[
+    {
+        "query": "I wish there was an app",
+        "category": "pain-point"
+    },
+    {
+        "query": "frustrated with AI tool",
+        "category": "frustration"
+    },
+    {
+        "query": "why isn't there",
+        "category": "gap"
+    },
+    {
+        "query": "someone should build",
+        "category": "opportunity"
+    },
+    {
+        "query": "need an app that",
+        "category": "need"
+    }
+]

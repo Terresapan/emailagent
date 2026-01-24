@@ -7,7 +7,8 @@ DATABASE_URL=postgresql://postgres:postgres@db:5432/contentagent
 
 # Run SATURDAY discovery workflow at 8:20 AM (PST)
 # Finds viral app ideas from Reddit, Twitter, YouTube, Product Hunt
-20 8 * * 6 cd /app && /usr/local/bin/uv run main.py --type discovery >> /var/log/emailagent/cron.log 2>&1
+# DISABLED: Pausing while improving the discovery pipeline
+# 20 8 * * 6 cd /app && /usr/local/bin/uv run main.py --type discovery >> /var/log/emailagent/cron.log 2>&1
 
 # Run weekly deep dives at 8:20 AM every Sunday (PST)
 20 8 * * 0 cd /app && /usr/local/bin/uv run main.py --type all_weekly >> /var/log/emailagent/cron.log 2>&1

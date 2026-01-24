@@ -1,0 +1,42 @@
+[
+    {
+        "name": "podcasting",
+        "category": "creator",
+        "description": "Podcasters sharing pain points"
+    },
+    {
+        "name": "NewTubers",
+        "category": "creator",
+        "description": "Small YouTubers seeking tools"
+    },
+    {
+        "name": "photography",
+        "category": "creator",
+        "description": "Photographers with workflow issues"
+    },
+    {
+        "name": "Notion",
+        "category": "productivity",
+        "description": "Power users wanting automation"
+    },
+    {
+        "name": "nocode",
+        "category": "builder",
+        "description": "No-code builders hitting limits"
+    },
+    {
+        "name": "bookkeeping",
+        "category": "business",
+        "description": "Small biz accounting pain"
+    },
+    {
+        "name": "freelance",
+        "category": "business",
+        "description": "Freelancers needing tools"
+    },
+    {
+        "name": "ecommerce",
+        "category": "business",
+        "description": "Online sellers with ops issues"
+    }
+]

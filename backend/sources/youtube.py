@@ -397,14 +397,30 @@ class YouTubeClient:
     
     # ==================== Viral Video Discovery ====================
     
-    # Default queries for pain point discovery
-    DISCOVERY_QUERIES = [
-        "AI tool for small business",
-        "automate with AI",
-        "AI productivity hack",
-        "I wish there was an app",
-        "built an app in a day",
-    ]
+    # Default queries for pain point discovery (loaded from config)
+    @property
+    def DISCOVERY_QUERIES(self) -> list[str]:
+        """Load discovery queries from config file."""
+        import json
+        from pathlib import Path
+        
+        config_path = Path(__file__).parent.parent / "config" / "discovery_youtube_queries.json"
+        
+        try:
+            with open(config_path) as f:
+                data = json.load(f)
+                queries = [item["query"] for item in data]
+                logger.info(f"Loaded {len(queries)} YouTube queries from config")
+                return queries
+        except Exception as e:
+            logger.warning(f"Failed to load YouTube queries config: {e}, using defaults")
+            return [
+                "AI tool for small business",
+                "automate with AI",
+                "AI productivity hack",
+                "I wish there was an app",
+                "built an app in a day",
+            ]
     
     def search_viral_videos(
         self,

@@ -355,6 +355,7 @@ async def get_latest_discovery_briefing(db: Session = Depends(get_db)):
             category=opp_data.get("category", ""),
             target_audience=opp_data.get("target_audience", ""),
             pain_points=pain_points,
+            similar_products=opp_data.get("similar_products", []),  # NEW
         ))
     
     return DiscoveryBriefingResponse(
@@ -468,6 +469,7 @@ async def run_discovery():
                 category=opp.category,
                 target_audience=opp.target_audience,
                 pain_points=pain_points,
+                similar_products=opp.similar_products,  # NEW
             ))
         
         return DiscoveryBriefingResponse(

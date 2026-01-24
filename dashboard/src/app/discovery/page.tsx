@@ -29,6 +29,7 @@ interface AppOpportunity {
     category?: string;
     target_audience?: string;
     pain_points: PainPoint[];
+    similar_products?: string[];  // NEW: from Product Hunt search
 }
 
 interface DiscoveryBriefing {
@@ -361,6 +362,7 @@ export default function DiscoveryPage() {
                                         buildabilityScore={opp.buildability_score}
                                         opportunityScore={opp.opportunity_score}
                                         sources={opp.pain_points.map(p => p.source)}
+                                        similarProducts={opp.similar_products}
                                     />
                                 ))}
                             </div>

@@ -32,10 +32,12 @@ Look for phrases like:
 - "There should be a way to..."
 
 For each pain point, output:
-1. The exact quote or paraphrase
-2. The underlying problem in 1-2 sentences
+1. SOURCE_INDEX: The index number [#N] of the post/comment it came from
+2. QUOTE: The exact text or paraphrase
+3. PROBLEM: The underlying problem in 1-2 sentences
 
 Format each pain point as:
+SOURCE_INDEX: [number]
 QUOTE: [exact text or paraphrase]
 PROBLEM: [the underlying pain point]
 ---
@@ -76,14 +78,14 @@ class PainPointExtractor:
         max_points: int = 30,
     ) -> list[PainPoint]:
         """Extract pain points from Reddit posts and comments."""
-        # Format data for LLM
-        data_text = self._format_reddit_data(posts, comments)
+        # Format data for LLM with indices
+        data_text, engagement_map = self._format_reddit_data(posts, comments)
         
         if not data_text:
             return []
         
         raw_output = self._call_llm("reddit", data_text, max_points)
-        return self._parse_pain_points(raw_output, "reddit")
+        return self._parse_pain_points_with_engagement(raw_output, "reddit", engagement_map)
     
     def extract_from_twitter(
         self,
@@ -105,13 +107,13 @@ class PainPointExtractor:
         max_points: int = 25,
     ) -> list[PainPoint]:
         """Extract pain points from YouTube comments."""
-        data_text = self._format_youtube_data(comments)
+        data_text, engagement_map = self._format_youtube_data(comments)
         
         if not data_text:
             return []
         
         raw_output = self._call_llm("youtube", data_text, max_points)
-        return self._parse_pain_points(raw_output, "youtube")
+        return self._parse_pain_points_with_engagement(raw_output, "youtube", engagement_map)
     
     def extract_from_producthunt(
         self,
@@ -119,38 +121,44 @@ class PainPointExtractor:
         max_points: int = 20,
     ) -> list[PainPoint]:
         """Extract pain points from Product Hunt reviews."""
-        data_text = self._format_producthunt_data(products)
+        data_text, engagement_map = self._format_producthunt_data(products)
         
         if not data_text:
             return []
         
         raw_output = self._call_llm("producthunt", data_text, max_points)
-        return self._parse_pain_points(raw_output, "producthunt")
+        return self._parse_pain_points_with_engagement(raw_output, "producthunt", engagement_map)
     
-    def _format_reddit_data(self, posts: list[dict], comments: list[dict]) -> str:
-        """Format Reddit data for the prompt."""
+    def _format_reddit_data(self, posts: list[dict], comments: list[dict]) -> tuple[str, dict]:
+        """Format Reddit data for the prompt with indices for engagement lookup."""
         lines = []
+        engagement_map = {}  # index -> engagement score
+        idx = 1
         
-        # Add posts
+        # Add posts with indices
         for post in posts[:50]:  # Limit to avoid token overflow
             title = post.get("title", "")
             body = post.get("body", post.get("selftext", ""))[:500]
             score = post.get("score", 0)
             subreddit = post.get("subreddit", "")
             
-            lines.append(f"[r/{subreddit} | {score} pts] {title}")
+            lines.append(f"[#{idx}] [r/{subreddit} | {score} pts] {title}")
             if body:
                 lines.append(f"  {body[:300]}")
+            engagement_map[idx] = score
+            idx += 1
         
-        # Add comments
+        # Add comments with indices
         for comment in comments[:100]:
             text = comment.get("body", comment.get("text", ""))[:300]
             score = comment.get("score", 0)
             
             if text:
-                lines.append(f"[Comment | {score} pts] {text}")
+                lines.append(f"[#{idx}] [Comment | {score} pts] {text}")
+                engagement_map[idx] = score
+                idx += 1
         
-        return "\n".join(lines)
+        return "\n".join(lines), engagement_map
     
     def _format_twitter_data(self, tweets: list[dict]) -> str:
         """Format Twitter data for the prompt."""
@@ -164,22 +172,28 @@ class PainPointExtractor:
         
         return "\n".join(lines)
     
-    def _format_youtube_data(self, comments: list[dict]) -> str:
-        """Format YouTube comments for the prompt."""
+    def _format_youtube_data(self, comments: list[dict]) -> tuple[str, dict]:
+        """Format YouTube comments for the prompt with indices for engagement lookup."""
         lines = []
+        engagement_map = {}  # index -> engagement score (likes)
+        idx = 1
         
         for comment in comments[:150]:
             text = comment.get("text", "")[:300]
             likes = comment.get("likes", comment.get("likeCount", 0))
             video_id = comment.get("video_id", "")
             
-            lines.append(f"[Video: {video_id} | {likes} likes] {text}")
+            lines.append(f"[#{idx}] [Video: {video_id} | {likes} likes] {text}")
+            engagement_map[idx] = likes
+            idx += 1
         
-        return "\n".join(lines)
+        return "\n".join(lines), engagement_map
     
-    def _format_producthunt_data(self, products: list[dict]) -> str:
-        """Format Product Hunt data for the prompt (without reviews)."""
+    def _format_producthunt_data(self, products: list[dict]) -> tuple[str, dict]:
+        """Format Product Hunt data for the prompt with indices for engagement lookup."""
         lines = []
+        engagement_map = {}  # index -> engagement score (votes)
+        idx = 1
         
         for product in products[:50]:
             name = product.get("name", "")
@@ -188,12 +202,14 @@ class PainPointExtractor:
             votes = product.get("votes", 0)
             comments_count = product.get("comments_count", 0)
             
-            lines.append(f"[{name}] ({votes} votes, {comments_count} comments)")
+            lines.append(f"[#{idx}] [{name}] ({votes} votes, {comments_count} comments)")
             lines.append(f"  Tagline: {tagline}")
             if description:
                 lines.append(f"  Description: {description}")
+            engagement_map[idx] = votes
+            idx += 1
         
-        return "\n".join(lines)
+        return "\n".join(lines), engagement_map
     
     def _call_llm(self, source: str, data: str, max_points: int) -> str:
         """Call the LLM with the extraction prompt."""
@@ -286,6 +302,85 @@ class PainPointExtractor:
                         ))
         
         logger.info(f"Parsed {len(pain_points)} pain points from {source}")
+        return pain_points
+    
+    def _parse_pain_points_with_engagement(
+        self, 
+        raw_output: str, 
+        source: str, 
+        engagement_map: dict[int, int]
+    ) -> list[PainPoint]:
+        """Parse LLM output into PainPoint objects with engagement scores from source data."""
+        pain_points = []
+        
+        if not raw_output:
+            logger.warning(f"Empty LLM output for {source}")
+            return []
+        
+        # Log output length for debugging
+        logger.debug(f"Raw output length for {source}: {len(raw_output)} chars")
+        
+        # Split by separator
+        entries = raw_output.split("---")
+        
+        for entry in entries:
+            entry = entry.strip()
+            if not entry:
+                continue
+            
+            # Parse SOURCE_INDEX, QUOTE and PROBLEM
+            source_index = None
+            quote = ""
+            problem = ""
+            
+            for line in entry.split("\n"):
+                line = line.strip()
+                if line.upper().startswith("SOURCE_INDEX:"):
+                    # Extract number from "SOURCE_INDEX: 5" or "SOURCE_INDEX: [5]" etc.
+                    idx_str = line[13:].strip().strip("[]#")
+                    try:
+                        source_index = int(idx_str)
+                    except ValueError:
+                        pass
+                elif line.upper().startswith("QUOTE:"):
+                    quote = line[6:].strip()
+                elif line.upper().startswith("PROBLEM:"):
+                    problem = line[8:].strip()
+            
+            if problem:  # At minimum we need a problem
+                # Look up engagement from the source data
+                engagement = engagement_map.get(source_index, 0) if source_index else 0
+                
+                pain_points.append(PainPoint(
+                    text=quote or problem,
+                    problem=problem,
+                    source=source,
+                    source_id=str(source_index) if source_index else "",
+                    engagement=engagement,
+                    extracted_at=datetime.now(),
+                ))
+        
+        # Fallback: if no pain points parsed but output exists, try alternative formats
+        if not pain_points and len(raw_output) > 50:
+            logger.warning(f"Standard parsing failed for {source}, trying fallback...")
+            # Try parsing numbered lists like "1. Problem description"
+            for line in raw_output.split("\n"):
+                line = line.strip()
+                # Match numbered items like "1. ", "1) ", "- "
+                if line and (line[0].isdigit() or line.startswith("-")):
+                    # Remove numbering
+                    text = line.lstrip("0123456789.-) ").strip()
+                    if len(text) > 20:  # Must be substantial
+                        pain_points.append(PainPoint(
+                            text=text,
+                            problem=text,
+                            source=source,
+                            source_id="",
+                            engagement=0,  # No engagement data in fallback
+                            extracted_at=datetime.now(),
+                        ))
+        
+        logger.info(f"Parsed {len(pain_points)} pain points from {source} (with engagement)")
         return pain_points
     
     def get_call_count(self) -> int:

@@ -11,6 +11,7 @@ interface OpportunityCardProps {
     buildabilityScore: number;
     opportunityScore: number;
     sources: string[];
+    similarProducts?: string[];  // NEW: from Product Hunt
 }
 
 export const OpportunityCard: React.FC<OpportunityCardProps> = ({
@@ -22,6 +23,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     buildabilityScore,
     opportunityScore,
     sources,
+    similarProducts,
 }) => {
     // Unique sources
     const uniqueSources = [...new Set(sources)];
@@ -83,7 +85,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                     <div className={cn("font-medium", getScoreColor(viralityScore))}>
                         {viralityScore}
                     </div>
-                    <div className="text-xs text-muted-foreground">Virality</div>
+                    <div className="text-xs text-muted-foreground">Engagement</div>
                 </div>
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
@@ -109,6 +111,16 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                     ))}
                 </div>
             </div>
+
+            {/* Similar Products from Product Hunt */}
+            {similarProducts && similarProducts.length > 0 && (
+                <div className="border-t border-white/5 pt-3 mt-3">
+                    <div className="text-xs text-muted-foreground mb-1">Similar on PH:</div>
+                    <div className="text-xs text-white/60 line-clamp-2">
+                        {similarProducts.join(', ')}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

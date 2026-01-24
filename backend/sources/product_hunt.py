@@ -125,6 +125,112 @@ class ProductHuntClient:
             logger.error(f"Error parsing Product Hunt response: {e}")
             return []
     
+    def search_products(self, query: str, limit: int = 5) -> list[dict]:
+        """
+        Search Product Hunt for products matching a query.
+        
+        Args:
+            query: Search query (e.g., "youtube summarizer", "invoice generator")
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of matching products with name, tagline, votes, url
+        """
+        # Product Hunt API uses "posts" with search topic/query
+        search_query = """
+        query SearchProducts($first: Int!, $query: String!) {
+            posts(
+                first: $first,
+                topic: $query,
+                order: VOTES
+            ) {
+                edges {
+                    node {
+                        id
+                        name
+                        tagline
+                        votesCount
+                        website
+                        url
+                    }
+                }
+            }
+        }
+        """
+        
+        variables = {
+            "first": limit,
+            "query": query,
+        }
+        
+        try:
+            response = requests.post(
+                self.API_URL,
+                headers=self.headers,
+                json={"query": search_query, "variables": variables},
+                timeout=15,
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            if "errors" in data:
+                # Topic search may fail, try alternate approach with keyword in name
+                logger.debug(f"Topic search failed for '{query}', trying keyword search")
+                return self._keyword_search(query, limit)
+            
+            posts = data.get("data", {}).get("posts", {}).get("edges", [])
+            
+            results = []
+            for edge in posts:
+                node = edge.get("node", {})
+                results.append({
+                    "name": node.get("name", ""),
+                    "tagline": node.get("tagline", ""),
+                    "votes": node.get("votesCount", 0),
+                    "url": node.get("url", node.get("website", "")),
+                })
+            
+            logger.info(f"Found {len(results)} similar products on PH for '{query}'")
+            return results
+            
+        except Exception as e:
+            logger.warning(f"Product Hunt search failed for '{query}': {e}")
+            return []
+    
+    def _keyword_search(self, query: str, limit: int = 5) -> list[dict]:
+        """
+        Fallback: Search recent high-voted products and filter by keyword.
+        
+        Product Hunt's API doesn't have true full-text search, so we fetch
+        recent products and filter client-side.
+        """
+        # Fetch recent popular products
+        products = self.fetch_ai_launches(limit=50, days=30)
+        
+        # Filter by keyword match in name or tagline
+        query_lower = query.lower()
+        query_words = query_lower.split()
+        
+        matches = []
+        for p in products:
+            name_lower = p.name.lower()
+            tagline_lower = p.tagline.lower() if p.tagline else ""
+            
+            # Check if any query word appears in name or tagline
+            if any(word in name_lower or word in tagline_lower for word in query_words):
+                matches.append({
+                    "name": p.name,
+                    "tagline": p.tagline,
+                    "votes": p.votesCount,
+                    "url": p.website or "",
+                })
+                
+                if len(matches) >= limit:
+                    break
+        
+        logger.info(f"Keyword search found {len(matches)} products for '{query}'")
+        return matches
+    
     def fetch_with_reviews(self, limit: int = 50, days: int = 7) -> list[dict]:
         """
         Fetch AI product launches for gap analysis.

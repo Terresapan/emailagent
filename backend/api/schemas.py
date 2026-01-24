@@ -212,6 +212,7 @@ class AppOpportunityResponse(BaseModel):
     category: Optional[str] = None
     target_audience: Optional[str] = None
     pain_points: List[PainPointResponse] = []
+    similar_products: List[str] = []  # NEW: from Product Hunt search
 
 
 class DiscoveryBriefingResponse(BaseModel):

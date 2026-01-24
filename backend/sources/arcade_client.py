@@ -172,24 +172,36 @@ class ArcadeClient:
     
     # ==================== Twitter Tools ====================
     
-    def search_tweets(self, keywords: str) -> list[dict]:
+    def search_tweets(self, query: str, max_results: int = 20) -> list[dict]:
         """
         Search recent tweets by keywords.
         
         Args:
-            keywords: Search query string
+            query: Search query string (will be split into keywords/phrases)
+            max_results: Max tweets to return (1-100)
             
         Returns:
             List of tweets from last 7 days
         """
+        # API expects keywords as array of strings, not single string
+        # Split query into individual words as keywords
+        keywords = query.split()
+        
+        inputs = {
+            "keywords": keywords,  # Must be array, not string
+            "max_results": min(max_results, 100),
+        }
+        
         result = self._authorize_and_execute(
             "X.SearchRecentTweetsByKeywords",
-            {"keywords": keywords}
+            inputs
         )
         self.usage["twitter"] += 1
         
-        if isinstance(result, dict) and "tweets" in result:
-            return result["tweets"]
+        # Twitter API returns tweets in 'data' key, not 'tweets'
+        if isinstance(result, dict):
+            tweets = result.get("data", result.get("tweets", []))
+            return tweets if tweets else []
         elif isinstance(result, list):
             return result
         return []
