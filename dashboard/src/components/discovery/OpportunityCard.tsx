@@ -155,7 +155,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
             {/* Similar Products from Product Hunt */}
             {similarProducts && similarProducts.length > 0 && (
                 <div className="border-t border-white/5 pt-3 mt-3">
-                    <div className="text-xs text-muted-foreground mb-1">Similar on PH:</div>
+                    <div className="text-xs text-muted-foreground mb-1">Similar Products:</div>
                     <div className="text-xs text-white/60 line-clamp-2">
                         {similarProducts.join(', ')}
                     </div>

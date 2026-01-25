@@ -29,8 +29,9 @@ from processor.viral_app.ranker import rank_opportunities
 from sources.arcade_client import ArcadeClient
 from sources.youtube import YouTubeClient
 from sources.product_hunt import ProductHuntClient
+from sources.google_trends import GoogleTrendsClient
 from langchain_openai import ChatOpenAI
-from config.settings import LLM_MODEL_EXTRACTION
+from config.settings import LLM_MODEL_EXTRACTION, ENGAGEMENT_THRESHOLDS
 
 logger = logging.getLogger(__name__)
 
@@ -102,14 +103,7 @@ def normalize_engagement(engagement: int, source: str) -> int:
     if engagement <= 0:
         return 10  # Base score for items without engagement data
     
-    thresholds = {
-        "reddit": 100,      # 100 upvotes = max score
-        "youtube": 50,      # 50 comment likes = max score  
-        "producthunt": 200, # 200 votes = max score
-        "twitter": 100,     # 100 likes = max score
-    }
-    
-    threshold = thresholds.get(source, 100)
+    threshold = ENGAGEMENT_THRESHOLDS.get(source, 100)  # Default 100 for unknown sources
     
     # Scale to 0-100, capping at 100
     normalized = min(int((engagement / threshold) * 100), 100)
@@ -199,6 +193,8 @@ class DiscoveryGraph:
             self.filter = LLMFilter()
         if self.scorer is None:
             self.scorer = Scorer()
+        if self.trends_client is None:
+            self.trends_client = GoogleTrendsClient()
         if self.llm is None:
             self.llm = ChatOpenAI(model=LLM_MODEL_EXTRACTION, temperature=0.3)
     
@@ -587,30 +583,53 @@ class DiscoveryGraph:
             app_idea = data.get("app_idea", cluster.representative[:50])
             buildability = data.get("buildability", 50)
             
-            # Use aggregated engagement from cluster (already summed across sources)
-            # Normalize based on total engagement
-            total_engagement = cluster.total_engagement
-            engagement_score = min(int(total_engagement / 2), 100)  # Scale: 200 total = 100 score
+            # Normalize engagement per source using source-specific thresholds
+            # For multi-source clusters, use weighted average of normalized scores
+            if cluster.source_breakdown:
+                weighted_scores = []
+                for source, eng in cluster.source_breakdown.items():
+                    normalized = normalize_engagement(eng, source)
+                    weighted_scores.append(normalized)
+                # Average the normalized scores (each already 0-100)
+                engagement_score = int(sum(weighted_scores) / len(weighted_scores))
+            else:
+                # Fallback for single pain point
+                primary_source = cluster.pain_points[0].source if cluster.pain_points else "unknown"
+                engagement_score = normalize_engagement(cluster.total_engagement, primary_source)
             
             # Bonus for multi-source validation
             source_bonus = (cluster.source_count - 1) * 10  # +10 per additional source
             engagement_score = min(engagement_score + source_bonus, 100)
             
-            # Search for similar products on Product Hunt (Market Validation)
+            # Search for similar products via Google (Market Validation)
+            # Search by PROBLEM DESCRIPTION, not the made-up product name
             similar_products = []
             validation_score = 0
             
             try:
-                search_term = data.get("keyword") or " ".join(app_idea.split()[:3])
-                ph_results = self.producthunt_client.search_products(search_term, limit=5)
+                # Extract the description part (after the dash), not the product name
+                # Example: "FirstPR — discover beginner-friendly repos" → "discover beginner-friendly repos"
+                if '—' in app_idea:
+                    search_query = app_idea.split('—')[1].strip()[:50]  # Description part
+                elif '-' in app_idea:
+                    search_query = app_idea.split('-')[1].strip()[:50]  # Fallback dash
+                else:
+                    # Extract key terms from the problem description
+                    problem_words = cluster.representative.lower().split()
+                    stop_words = {'i', 'a', 'the', 'to', 'for', 'and', 'or', 'is', 'are', 'want', 'need'}
+                    keywords = [w for w in problem_words if w not in stop_words and len(w) > 3][:5]
+                    search_query = " ".join(keywords) if keywords else app_idea[:30]
+                
+                google_results = self.trends_client.search_similar_products(search_query, limit=5)
                 similar_products = [
-                    f"{p['name']} ({p['votes']} votes)" for p in ph_results
+                    f"{p['name'][:50]}" for p in google_results if p.get('name')
                 ]
-                validation_score = min(len(ph_results) * 10, 50)
-                logger.debug(f"Market validation for '{app_idea[:20]}': {len(ph_results)} products -> Score {validation_score}")
+                # Score: 10 per result found, max 50
+                validation_score = min(len(google_results) * 10, 50)
+                logger.debug(f"Google validation '{search_query[:30]}': {len(google_results)} results -> Score {validation_score}")
                 
             except Exception as e:
-                logger.warning(f"PH search failed for '{app_idea[:20]}': {e}")
+                logger.warning(f"Google search failed for '{app_idea[:20]}': {e}")
                 validation_score = 0
             
             demand_scores[i] = validation_score
@@ -775,14 +794,32 @@ Output:""".format(formatted=formatted)
         # Run the graph
         final_state = self.graph.invoke(initial_state)
         
-        # Build briefing
-        api_usage = final_state.get("api_usage", {})
+        # Build briefing with ACCURATE API call counts
+        # (The accumulated api_usage dict has inflated values due to LangGraph merge_dicts)
+        
+        # Accurate counts:
+        # - LLM calls: 4 extraction + 1 filter + 1 scoring = 6 OpenAI calls
+        # - Embedding: 1 call for clustering
+        # - Arcade: Read from client at END (not accumulated during workflow)
+        # - YouTube: search calls + comment calls
+        # - ProductHunt: 1 fetch + N validation searches
+        
+        arcade_actual = self.arcade_client.get_usage_stats()["total"] if self.arcade_client else 0
+        youtube_videos_list = final_state.get("youtube_videos", [])
+        youtube_comments_list = final_state.get("youtube_comments", [])
+        filtered_clusters = final_state.get("filtered_candidates", [])
+        
+        # YouTube: 1 search call per query (5 queries) + 1 comment call per video (8-10 videos)
+        youtube_api_calls = 5 + min(len(youtube_videos_list), 10)  # 5 search + up to 10 comment calls
+        
+        # SerpAPI: Google searches for market validation (1 per filtered cluster that was scored)
+        serpapi_used = self.trends_client.get_usage_stats()["serpapi_used"] if self.trends_client else 0
         
         briefing = SaturdayBriefing(
             date=datetime.now(),
             top_opportunities=final_state["top_opportunities"],
-            youtube_videos=final_state.get("youtube_videos_metadata", []),  # For dashboard
-            trends_data=final_state.get("trends_data", []),  # For dashboard
+            youtube_videos=final_state.get("youtube_videos_metadata", []),
+            trends_data=final_state.get("trends_data", []),
             total_data_points=sum([
                 len(final_state.get("reddit_posts", [])),
                 len(final_state.get("reddit_comments", [])),
@@ -791,16 +828,12 @@ Output:""".format(formatted=formatted)
                 len(final_state.get("producthunt_products", [])),
             ]),
             total_pain_points_extracted=len(final_state.get("raw_pain_points", [])),
-            total_candidates_filtered=len(final_state.get("filtered_candidates", [])),
-            arcade_calls=api_usage.get("arcade", 0),
-            serpapi_calls=api_usage.get("serpapi", 0),
-            youtube_quota=api_usage.get("youtube", 0),
-            llm_calls=sum([
-                api_usage.get("llm_extraction", 0),
-                api_usage.get("llm_filter", 0),
-                api_usage.get("llm_scoring", 0),
-            ]),
-            estimated_cost=0.15,  # ~$0.15 for LLM calls + 2x SerpAPI
+            total_candidates_filtered=len(filtered_clusters),
+            arcade_calls=arcade_actual,  # Actual Arcade executions
+            serpapi_calls=serpapi_used,  # Google searches for validation
+            youtube_quota=youtube_api_calls,  # YouTube API calls
+            llm_calls=7,  # Accurate: 6 LLM + 1 embedding call
+            estimated_cost=round(0.01 * 7 + 0.002 * serpapi_used, 3),  # ~$0.07 LLM + ~$0.002/search
         )
         
         logger.info(f"Workflow complete! Generated {len(briefing.top_opportunities)} opportunities")

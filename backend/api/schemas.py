@@ -212,7 +212,8 @@ class AppOpportunityResponse(BaseModel):
     category: Optional[str] = None
     target_audience: Optional[str] = None
     pain_points: List[PainPointResponse] = []
-    similar_products: List[str] = []  # NEW: from Product Hunt search
+    similar_products: List[str] = []  # From Google search validation
+    source_breakdown: dict = {}  # {"reddit": 120, "youtube": 45}
 
 
 class DiscoveryBriefingResponse(BaseModel):

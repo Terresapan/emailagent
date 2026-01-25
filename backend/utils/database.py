@@ -394,7 +394,8 @@ def save_discovery_briefing(session: Session, briefing: SaturdayBriefing) -> Opt
                 "opportunity_score": opp.opportunity_score,
                 "category": opp.category,
                 "target_audience": opp.target_audience,
-                "similar_products": opp.similar_products,  # NEW: from PH search
+                "similar_products": opp.similar_products,
+                "source_breakdown": opp.source_breakdown,  # NEW: {"reddit": 120, "twitter": 45}
                 "pain_points": [
                     {"text": pp.text, "problem": pp.problem, "source": pp.source, "engagement": pp.engagement}
                     for pp in opp.pain_points

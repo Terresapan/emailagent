@@ -490,6 +490,90 @@ class GoogleTrendsClient:
         
         return results
     
+    def search_similar_products(self, query: str, limit: int = 5) -> list[dict]:
+        """
+        Search Google for similar products/apps using SerpAPI.
+        
+        Args:
+            query: Search query (e.g., "invoice generator app", "youtube summarizer tool")
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of dicts with {name, url, snippet} for similar products found
+        """
+        # Try up to 2 times (once per key) for 429 handling
+        for attempt in range(2):
+            api_key, key_name = self._get_active_key()
+            if not api_key:
+                logger.warning("No SerpAPI quota remaining for Google search")
+                return []
+            
+            try:
+                # Search Google for apps/tools matching the query
+                params = {
+                    "engine": "google",
+                    "q": f"{query} app OR tool OR software",
+                    "api_key": api_key,
+                    "num": 10,  # Request more to filter
+                }
+                
+                response = requests.get(
+                    "https://serpapi.com/search",
+                    params=params,
+                    timeout=15,
+                )
+                
+                # Handle 429 specifically for key rotation
+                if response.status_code == 429:
+                    logger.warning(f"SerpAPI key '{key_name}' exhausted (429). Switching keys...")
+                    # Mark current key as exhausted
+                    if key_name == "key_one":
+                        self.usage_key_one = 250
+                    else:
+                        self.usage_key_two = 250
+                    self._save_usage()
+                    continue  # Retry with next key
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                self._increment_usage(key_name)
+                
+                # Extract organic results
+                organic = data.get("organic_results", [])
+                
+                # Filter to likely product/app results
+                products = []
+                for result in organic:
+                    title = result.get("title", "")
+                    link = result.get("link", "")
+                    snippet = result.get("snippet", "")
+                    
+                    # Skip obvious non-product results
+                    skip_domains = ["wikipedia.org", "reddit.com", "quora.com", "youtube.com", "medium.com"]
+                    if any(domain in link for domain in skip_domains):
+                        continue
+                    
+                    products.append({
+                        "name": title,
+                        "url": link,
+                        "snippet": snippet[:100] if snippet else "",
+                    })
+                    
+                    if len(products) >= limit:
+                        break
+                
+                logger.debug(f"Google search '{query[:30]}': found {len(products)} products")
+                return products
+                
+            except Exception as e:
+                logger.warning(f"Google search failed for '{query[:30]}': {e}")
+                return []
+        
+        # Both keys exhausted
+        logger.warning("All SerpAPI keys exhausted for Google search")
+        return []
+    
     def get_usage_stats(self) -> dict:
         """Get current API usage statistics with per-key breakdown."""
         return {

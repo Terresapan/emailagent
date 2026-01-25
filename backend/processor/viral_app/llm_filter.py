@@ -59,17 +59,21 @@ PRIORITIZE clusters with:
 3. Can be solved by a simple web app (2-4 hours to build)
 4. Could go viral (visual, shareable, "wow factor")
 
-For each KEPT cluster, output on a single line:
+For each KEPT cluster, output on a single line using this EXACT format:
 INDEX | PROBLEM
 
-Where INDEX is the original number.
+Example output:
+1 | Users struggle to find beginner-friendly open source projects
+5 | Small businesses need simple store locator without coding
+12 | Podcasters want automatic timestamp extraction from episodes
+
+Where INDEX is the original number (1-based).
 Output at most {max_candidates} clusters.
 
 Clusters to filter:
 {clusters}
 
-Output the filtered list (one per line, INDEX | PROBLEM format):
-"""
+Output the filtered list (one per line, INDEX | PROBLEM format):"""
 
 
 class LLMFilter:
@@ -161,6 +165,12 @@ class LLMFilter:
             
             # Parse response
             filtered = self._parse_cluster_response(response.content, clusters)
+            
+            # Safety check: if LLM returns nothing parseable (malformed output), fallback
+            if not filtered and clusters:
+                logger.warning("LLM filter returned 0 candidates (parsing failed?). Falling back to top clusters.")
+                return sorted(clusters, key=lambda c: c.total_engagement, reverse=True)[:max_candidates]
+            
             logger.info(f"Filtered {len(clusters)} → {len(filtered)} clusters")
             return filtered
             
@@ -219,27 +229,39 @@ class LLMFilter:
         response: str, 
         original: list["PainPointCluster"],
     ) -> list["PainPointCluster"]:
-        """Parse LLM response to get filtered clusters."""
+        """Parse LLM response to get filtered clusters.
+        
+        More lenient parsing: accepts both '|' and '.' as delimiters.
+        """
+        import re
         filtered = []
+        parsed_any = False
         
         for line in response.strip().split("\n"):
             line = line.strip()
-            if not line or "|" not in line:
+            if not line:
                 continue
             
-            parts = line.split("|", 1)
-            if len(parts) != 2:
+            # Try to extract index using multiple patterns
+            # Pattern 1: "1 | Problem" (preferred)
+            # Pattern 2: "1. Problem" (common LLM drift)
+            # Pattern 3: "1: Problem" (another variant)
+            match = re.match(r'^(\d+)\s*[|.:]\s*(.+)$', line)
+            if not match:
                 continue
             
+            parsed_any = True
             try:
-                # Parse index (may have extra text)
-                index_str = parts[0].strip().split(".")[0].strip()
-                index = int(index_str) - 1  # Convert to 0-indexed
+                index = int(match.group(1)) - 1  # Convert to 0-indexed
                 
                 if 0 <= index < len(original):
                     filtered.append(original[index])
             except (ValueError, IndexError):
                 continue
+        
+        # Debug logging if parsing failed completely
+        if not parsed_any and response.strip():
+            logger.warning(f"Failed to parse any lines from LLM response. Raw response:\n{response[:500]}")
         
         return filtered
     

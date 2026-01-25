@@ -66,7 +66,16 @@ LLM_MAX_TOKENS = 8000  # GPT-5-mini uses reasoning tokens internally; 2000 was t
 
 # Embedding model for semantic similarity (clustering)
 EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI's fast, cheap embedding model
-EMBEDDING_SIMILARITY_THRESHOLD = 0.82  # Cosine similarity threshold for clustering
+EMBEDDING_SIMILARITY_THRESHOLD = 0.70  # Cosine similarity threshold (lowered from 0.82 for more clustering)
+
+# Engagement scoring thresholds (engagement needed for max 100 score)
+# Different sources have different engagement scales
+ENGAGEMENT_THRESHOLDS = {
+    "reddit": 100,      # 100 upvotes = max score
+    "youtube": 50,      # 50 comment likes = max score
+    "producthunt": 200, # 200 votes = max score
+    "twitter": 100,     # 100 likes = max score
+}
 
 # Reasoning effort settings for GPT-5-mini
 # "low" = faster, fewer reasoning tokens (good for extraction)
