@@ -64,6 +64,10 @@ LLM_MODEL_GENERATION = "gpt-5-mini-2025-08-07"
 LLM_TEMPERATURE = 0.3
 LLM_MAX_TOKENS = 8000  # GPT-5-mini uses reasoning tokens internally; 2000 was too low
 
+# Embedding model for semantic similarity (clustering)
+EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI's fast, cheap embedding model
+EMBEDDING_SIMILARITY_THRESHOLD = 0.82  # Cosine similarity threshold for clustering
+
 # Reasoning effort settings for GPT-5-mini
 # "low" = faster, fewer reasoning tokens (good for extraction)
 # "medium" = balanced (good for content generation)

@@ -23,12 +23,12 @@ from processor.viral_app.models import (
 from processor.viral_app.pain_point_extractor import PainPointExtractor
 from processor.viral_app.llm_filter import LLMFilter
 from processor.viral_app.scorer import Scorer
+from processor.viral_app.clusterer import ClusteringEngine, PainPointCluster
 from processor.viral_app.ranker import rank_opportunities
 
 from sources.arcade_client import ArcadeClient
 from sources.youtube import YouTubeClient
 from sources.product_hunt import ProductHuntClient
-from sources.google_trends import GoogleTrendsClient
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL_EXTRACTION
 
@@ -66,8 +66,11 @@ class DiscoveryGraphState(TypedDict):
     # Extracted pain points - automatically merges lists from parallel nodes
     raw_pain_points: Annotated[list[PainPoint], add]
     
-    # Filtered candidates
-    filtered_candidates: list[PainPoint]
+    # Clustered pain points (from ClusteringEngine)
+    clustered_pain_points: list  # list[PainPointCluster]
+    
+    # Filtered candidates (clusters, not individual points)
+    filtered_candidates: list  # list[PainPointCluster]
     
     # Demand scores from SerpAPI
     demand_scores: dict[int, int]
@@ -174,6 +177,7 @@ class DiscoveryGraph:
         self.producthunt_client = None
         self.trends_client = None
         self.extractor = None
+        self.clusterer = None
         self.filter = None
         self.scorer = None
         self.llm = None  # For scoring in validate_and_score_node
@@ -187,10 +191,10 @@ class DiscoveryGraph:
             self.youtube_client = YouTubeClient()
         if self.producthunt_client is None:
             self.producthunt_client = ProductHuntClient()
-        if self.trends_client is None:
-            self.trends_client = GoogleTrendsClient()
         if self.extractor is None:
             self.extractor = PainPointExtractor()
+        if self.clusterer is None:
+            self.clusterer = ClusteringEngine()
         if self.filter is None:
             self.filter = LLMFilter()
         if self.scorer is None:
@@ -211,6 +215,8 @@ class DiscoveryGraph:
         workflow.add_node("extract_youtube", self.extract_youtube_node)
         workflow.add_node("extract_producthunt", self.extract_producthunt_node)
         
+        # Clustering and filtering
+        workflow.add_node("cluster_pain_points", self.cluster_pain_points_node)
         workflow.add_node("filter_candidates", self.filter_candidates_node)
         workflow.add_node("validate_and_score", self.validate_and_score_node)
         workflow.add_node("rank_output", self.rank_output_node)
@@ -224,12 +230,14 @@ class DiscoveryGraph:
         workflow.add_edge("collect_data", "extract_youtube")
         workflow.add_edge("collect_data", "extract_producthunt")
         
-        # Fan in to filter
-        workflow.add_edge("extract_reddit", "filter_candidates")
-        workflow.add_edge("extract_twitter", "filter_candidates")
-        workflow.add_edge("extract_youtube", "filter_candidates")
-        workflow.add_edge("extract_producthunt", "filter_candidates")
+        # Fan in to clustering
+        workflow.add_edge("extract_reddit", "cluster_pain_points")
+        workflow.add_edge("extract_twitter", "cluster_pain_points")
+        workflow.add_edge("extract_youtube", "cluster_pain_points")
+        workflow.add_edge("extract_producthunt", "cluster_pain_points")
         
+        # Cluster -> Filter -> Score -> Rank
+        workflow.add_edge("cluster_pain_points", "filter_candidates")
         workflow.add_edge("filter_candidates", "validate_and_score")
         workflow.add_edge("validate_and_score", "rank_output")
         workflow.add_edge("rank_output", END)
@@ -338,8 +346,28 @@ class DiscoveryGraph:
         )
         api_usage["youtube"] = len(youtube_videos) * 100 + 50  # Rough quota estimate
         
+        # Round-robin selection: pick 2 videos per query to ensure category diversity
+        # This prevents one query from dominating the selection
         youtube_comments = []
-        video_ids = [v["video_id"] for v in youtube_videos[:10]]
+        by_query: dict[str, list[dict]] = {}
+        for video in youtube_videos:
+            query = video.get("query", "unknown")
+            if query not in by_query:
+                by_query[query] = []
+            by_query[query].append(video)
+        
+        # Take up to 2 videos from each query category
+        balanced_videos = []
+        videos_per_category = max(2, 10 // len(by_query)) if by_query else 2
+        for query, videos in by_query.items():
+            # Sort by views within category, take top N
+            sorted_videos = sorted(videos, key=lambda v: v.get("views", 0), reverse=True)
+            balanced_videos.extend(sorted_videos[:videos_per_category])
+        
+        # Cap at 10 total for comment fetching
+        video_ids = [v["video_id"] for v in balanced_videos[:10]]
+        logger.info(f"Selected {len(video_ids)} videos for comments (balanced from {len(by_query)} categories)")
+        
         youtube_comments = self.youtube_client.get_comments_from_videos(
             video_ids,
             max_comments_per_video=50,
@@ -460,17 +488,61 @@ class DiscoveryGraph:
             logger.error(f"Product Hunt extraction failed: {e}")
             return {"raw_pain_points": [], "api_usage": {}}
     
+    def cluster_pain_points_node(self, state: DiscoveryGraphState) -> dict:
+        """
+        Cluster similar pain points from different sources.
+        
+        Groups semantically similar problems to enable multi-source validation.
+        """
+        logger.info("=== CLUSTERING PAIN POINTS ===")
+        self._init_clients()
+        
+        raw_points = state.get("raw_pain_points", [])
+        logger.info(f"Input: {len(raw_points)} raw pain points")
+        
+        if not raw_points:
+            return {"clustered_pain_points": [], "api_usage": {"embedding_calls": 0}}
+        
+        try:
+            clusters = self.clusterer.cluster(raw_points)
+            
+            # Log multi-source clusters
+            multi_source = [c for c in clusters if c.source_count > 1]
+            logger.info(f"Created {len(clusters)} clusters, {len(multi_source)} have multiple sources")
+            
+            return {
+                "clustered_pain_points": clusters,
+                "api_usage": {"embedding_calls": self.clusterer.get_usage_stats()["embedding_calls"]}
+            }
+        except Exception as e:
+            logger.error(f"Clustering failed: {e}")
+            # Fallback: wrap each pain point in its own cluster
+            from processor.viral_app.clusterer import PainPointCluster
+            clusters = []
+            for pp in raw_points:
+                c = PainPointCluster(representative=pp.problem)
+                c.add_pain_point(pp)
+                clusters.append(c)
+            return {"clustered_pain_points": clusters, "api_usage": {}}
+    
     def filter_candidates_node(self, state: DiscoveryGraphState) -> dict:
         """
-        Filter pain points to actionable candidates.
+        Filter clusters to actionable candidates.
         
         Budget: 1 LLM call (~$0.02)
         """
         logger.info("=== FILTERING CANDIDATES ===")
         self._init_clients()
         
-        filtered = self.filter.filter_pain_points(
-            state["raw_pain_points"],
+        clusters = state.get("clustered_pain_points", [])
+        logger.info(f"Input: {len(clusters)} clusters")
+        
+        if not clusters:
+            return {"filtered_candidates": [], "api_usage": {"llm_filter": 0}}
+        
+        # Filter clusters using LLM
+        filtered = self.filter.filter_clusters(
+            clusters,
             max_candidates=45,
         )
         
@@ -486,104 +558,106 @@ class DiscoveryGraph:
     
     def validate_and_score_node(self, state: DiscoveryGraphState) -> dict:
         """
-        Score with LLM first, then validate with SerpAPI using app ideas.
+        Score clusters with LLM, then validate with Product Hunt.
         
-        Budget: 1 LLM call + 45 SerpAPI calls
+        Now works with PainPointCluster objects that may contain multiple sources.
         """
         logger.info("=== SCORING AND VALIDATING ===")
         self._init_clients()
         
-        candidates = state["filtered_candidates"]
+        clusters = state.get("filtered_candidates", [])
         
-        if not candidates:
-            logger.warning("No candidates to score")
+        if not clusters:
+            logger.warning("No clusters to score")
             return {
                 "demand_scores": {},
                 "opportunities": [],
                 "api_usage": state.get("api_usage", {}),
             }
         
-        # First: Score all candidates with LLM to get app ideas
-        formatted = self._format_for_scoring(candidates)
+        # First: Score all clusters with LLM to get app ideas
+        formatted = self._format_clusters_for_scoring(clusters)
         scored_data = self._call_scoring_llm(formatted)
         
-        # Parse scored data and collect trends
+        # Parse scored data and create opportunities
         opportunities = []
         demand_scores = {}
-        trends_data = []  # Store for dashboard
         
-        for i, (pp, data) in enumerate(zip(candidates, scored_data)):
-            app_idea = data.get("app_idea", pp.problem[:50])
-            # Use ENGAGEMENT from source data instead of LLM-guessed virality
-            virality = normalize_engagement(pp.engagement, pp.source)
-            buildability = data.get("buildability", 50)  # Keep LLM estimate for now
+        for i, (cluster, data) in enumerate(zip(clusters, scored_data)):
+            app_idea = data.get("app_idea", cluster.representative[:50])
+            buildability = data.get("buildability", 50)
             
-            # Validate demand using the LLM-optimized keyword
-            try:
-                # Use provided keyword or fallback to crude extraction
-                keywords = data.get("keyword") or " ".join(app_idea.split()[:4])
-                
-                validation = self.trends_client.validate_topic(keywords)
-                demand = validation.trend_score
-                logger.info(f"Validated '{keywords}': demand={demand}, related={len(validation.related_queries)}")
-                
-                # Store full validation for dashboard
-                trends_data.append({
-                    "keyword": keywords,
-                    "app_idea": app_idea,
-                    "interest_score": validation.interest_score,
-                    "trend_score": validation.trend_score,
-                    "momentum": validation.momentum,
-                    "trend_direction": validation.trend_direction,
-                    "related_queries": validation.related_queries,
-                })
-            except Exception as e:
-                logger.warning(f"Validation failed for '{app_idea[:30]}': {e}")
-                demand = 50
+            # Use aggregated engagement from cluster (already summed across sources)
+            # Normalize based on total engagement
+            total_engagement = cluster.total_engagement
+            engagement_score = min(int(total_engagement / 2), 100)  # Scale: 200 total = 100 score
             
-            demand_scores[i] = demand
+            # Bonus for multi-source validation
+            source_bonus = (cluster.source_count - 1) * 10  # +10 per additional source
+            engagement_score = min(engagement_score + source_bonus, 100)
             
-            # Search for similar products on Product Hunt (informational, not penalizing)
+            # Search for similar products on Product Hunt (Market Validation)
             similar_products = []
+            validation_score = 0
+            
             try:
-                # Use the keyword or first few words of app idea for search
                 search_term = data.get("keyword") or " ".join(app_idea.split()[:3])
-                ph_results = self.producthunt_client.search_products(search_term, limit=3)
+                ph_results = self.producthunt_client.search_products(search_term, limit=5)
                 similar_products = [
                     f"{p['name']} ({p['votes']} votes)" for p in ph_results
                 ]
+                validation_score = min(len(ph_results) * 10, 50)
+                logger.debug(f"Market validation for '{app_idea[:20]}': {len(ph_results)} products -> Score {validation_score}")
+                
             except Exception as e:
-                logger.debug(f"PH search failed for '{app_idea[:20]}': {e}")
+                logger.warning(f"PH search failed for '{app_idea[:20]}': {e}")
+                validation_score = 0
             
-            # Calculate opportunity score: Demand 40%, Virality (engagement) 40%, Build 20%
-            opportunity_score = int(demand * 0.4 + virality * 0.4 + buildability * 0.2)
+            demand_scores[i] = validation_score
             
-            logger.debug(f"Scoring '{app_idea[:30]}': demand={demand}, virality={virality} (engagement={pp.engagement}), build={buildability}")
+            # Calculate opportunity score: 
+            # Engagement 50% (Real pain) + Validation 30% (Market exists) + Build 20%
+            opportunity_score = int(engagement_score * 0.5 + validation_score * 0.3 + buildability * 0.2)
+            
+            logger.debug(f"Scoring '{app_idea[:30]}': engagement={engagement_score} (sources={cluster.source_count}), validation={validation_score}, build={buildability} -> Total {opportunity_score}")
             
             opportunities.append(AppOpportunity(
-                problem=pp.problem,
+                problem=cluster.representative,
                 app_idea=app_idea,
-                demand_score=demand,
-                virality_score=virality,  # Now based on real engagement
+                demand_score=validation_score,
+                virality_score=engagement_score,
                 buildability_score=buildability,
                 opportunity_score=opportunity_score,
-                pain_points=[pp],
-                similar_products=similar_products,  # NEW: from Product Hunt
+                pain_points=cluster.pain_points,  # All pain points from cluster
+                source_breakdown=cluster.source_breakdown,  # {"reddit": 120, "twitter": 45}
+                similar_products=similar_products,
             ))
         
-        logger.info(f"Scored {len(opportunities)} opportunities, {len(trends_data)} trend validations")
+        logger.info(f"Scored {len(opportunities)} opportunities")
+        
+        # Log multi-source opportunities
+        multi_source = [o for o in opportunities if len(o.source_breakdown) > 1]
+        if multi_source:
+            logger.info(f"  {len(multi_source)} opportunities have cross-platform validation")
         
         api_usage = state.get("api_usage", {})
-        api_usage["serpapi"] = self.trends_client.get_usage_stats()["serpapi_used"]
         api_usage["llm_scoring"] = 1
-        api_usage["producthunt_search"] = len(candidates)  # Track PH API usage
+        api_usage["producthunt_search"] = len(clusters)
         
         return {
             "demand_scores": demand_scores,
             "opportunities": opportunities,
-            "trends_data": trends_data,  # For dashboard
+            "trends_data": [],
             "api_usage": api_usage,
         }
+    
+    def _format_clusters_for_scoring(self, clusters: list) -> str:
+        """Format clusters for scoring prompt."""
+        lines = []
+        for i, cluster in enumerate(clusters, 1):
+            sources = ", ".join(cluster.source_breakdown.keys())
+            lines.append(f"{i}. [{sources}] {cluster.representative}")
+        return "\n".join(lines)
     
     def _format_for_scoring(self, pain_points: list) -> str:
         """Format pain points for scoring prompt."""

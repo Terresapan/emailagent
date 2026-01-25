@@ -30,20 +30,21 @@ class AppOpportunity:
     app_idea: str  # Suggested mini-app concept
     
     # Scores (0-100)
-    demand_score: int = 0  # From SerpAPI validation
-    virality_score: int = 0  # Novelty, wow factor, shareability
+    demand_score: int = 0  # Market validation (similar products on PH)
+    virality_score: int = 0  # Engagement score (aggregated from sources)
     buildability_score: int = 0  # Ease of building in 2-4 hours
     opportunity_score: int = 0  # Combined weighted score
     
-    # Sources
+    # Sources - supports multi-source clusters
     pain_points: list[PainPoint] = field(default_factory=list)
+    source_breakdown: dict[str, int] = field(default_factory=dict)  # {"reddit": 120, "twitter": 45}
     
     # Metadata
     category: Optional[str] = None  # e.g., "productivity", "automation"
     target_audience: Optional[str] = None  # e.g., "small business owners"
     similar_products: list[str] = field(default_factory=list)
     
-    # Trend validation
+    # Trend validation (legacy, may be empty)
     search_volume: Optional[int] = None
     trend_direction: Optional[str] = None  # "rising", "stable", "declining"
     related_queries: list[str] = field(default_factory=list)

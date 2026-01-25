@@ -93,13 +93,13 @@ class PainPointExtractor:
         max_points: int = 20,
     ) -> list[PainPoint]:
         """Extract pain points from tweets."""
-        data_text = self._format_twitter_data(tweets)
+        data_text, engagement_map = self._format_twitter_data(tweets)
         
         if not data_text:
             return []
         
         raw_output = self._call_llm("twitter", data_text, max_points)
-        return self._parse_pain_points(raw_output, "twitter")
+        return self._parse_pain_points_with_engagement(raw_output, "twitter", engagement_map)
     
     def extract_from_youtube(
         self,
@@ -160,17 +160,21 @@ class PainPointExtractor:
         
         return "\n".join(lines), engagement_map
     
-    def _format_twitter_data(self, tweets: list[dict]) -> str:
-        """Format Twitter data for the prompt."""
+    def _format_twitter_data(self, tweets: list[dict]) -> tuple[str, dict]:
+        """Format Twitter data for the prompt with indices for engagement lookup."""
         lines = []
+        engagement_map = {}  # index -> engagement score (likes)
+        idx = 1
         
         for tweet in tweets[:100]:
             text = tweet.get("text", "")[:280]
             likes = tweet.get("likes", tweet.get("like_count", 0))
             
-            lines.append(f"[{likes} likes] {text}")
+            lines.append(f"[#{idx}] [{likes} likes] {text}")
+            engagement_map[idx] = likes
+            idx += 1
         
-        return "\n".join(lines)
+        return "\n".join(lines), engagement_map
     
     def _format_youtube_data(self, comments: list[dict]) -> tuple[str, dict]:
         """Format YouTube comments for the prompt with indices for engagement lookup."""
