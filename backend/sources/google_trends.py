@@ -554,8 +554,25 @@ class GoogleTrendsClient:
                     if any(domain in link for domain in skip_domains):
                         continue
                     
+                    # Filter out "Listicles" (e.g., "10 Best Apps", "Top 5 Tools")
+                    if any(x in title.lower() for x in ["best", "top", "list of", "vs", "alternatives"]):
+                        if any(char.isdigit() for char in title):  # "10 Best..."
+                            continue
+
+                    # Clean title to get Product Name
+                    # "StoreRocket: Beautifully Designed..." -> "StoreRocket"
+                    # "Store Locator | My Site" -> "Store Locator"
+                    clean_name = title
+                    for delimiter in ["|", ":", " - ", " – ", " — "]:
+                        if delimiter in clean_name:
+                            clean_name = clean_name.split(delimiter)[0].strip()
+                    
+                    # If name is too long, it's likely a sentence not a name
+                    if len(clean_name) > 40:
+                        continue
+                        
                     products.append({
-                        "name": title,
+                        "name": clean_name,
                         "url": link,
                         "snippet": snippet[:100] if snippet else "",
                     })

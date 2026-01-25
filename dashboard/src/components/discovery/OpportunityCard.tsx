@@ -44,12 +44,12 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     sourceBreakdown,
     similarProducts,
 }) => {
-    // Score color based on value
+    // Score color based on value using semantic classes
     const getScoreColor = (score: number) => {
-        if (score >= 80) return "text-green-400";
+        if (score >= 80) return "text-primary";
         if (score >= 60) return "text-accent";
-        if (score >= 40) return "text-yellow-400";
-        return "text-muted-foreground";
+        if (score >= 40) return "text-muted-foreground";
+        return "text-destructive";
     };
 
     // Count unique sources
@@ -58,27 +58,21 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     return (
         <div className="trend-card group relative">
             {/* Rank Badge */}
-            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-white shadow-lg">
+            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-accent flex items-center justify-center status-label shadow-lg">
                 {rank}
             </div>
 
             {/* Multi-source indicator */}
             {sourceCount > 1 && (
-                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30 text-[10px] font-medium text-green-400">
+                <div className="absolute -top-2 -right-2 item-tag">
                     {sourceCount} sources
                 </div>
             )}
 
-            {/* Header Row */}
-            <div className="flex justify-between items-start mb-4 pt-2">
-                <div className="flex-1 pr-4">
-                    <h3 className="card-title-sm text-white/90 group-hover:text-white transition-colors leading-tight">
-                        {appIdea}
-                    </h3>
-                </div>
-
-                {/* Opportunity Score */}
-                <div className="text-right shrink-0">
+            {/* Header Row with Score */}
+            <div className="flex justify-between items-start mb-3 pt-2">
+                {/* Opportunity Score - Top-right for prominence */}
+                <div className="order-2 text-right shrink-0 ml-3">
                     <div className={cn("trend-score-value", getScoreColor(opportunityScore))}>
                         {opportunityScore}
                     </div>
@@ -86,63 +80,86 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                         Score
                     </div>
                 </div>
+
+                {/* App Name + Tagline - Split on em-dash */}
+                <div className="order-1 flex-1 min-w-0">
+                    {(() => {
+                        const parts = appIdea.split(/\s*[—–-]\s*/);
+                        const appName = parts[0] || appIdea;
+                        // Capitalize first letter and join with shorter en-dash
+                        const rawTagline = parts.slice(1).join(' – ');
+                        const tagline = rawTagline.charAt(0).toUpperCase() + rawTagline.slice(1);
+                        return (
+                            <>
+                                <h3 className="section-header group-hover:text-foreground transition-colors">
+                                    {appName}
+                                </h3>
+                                {tagline && (
+                                    <p className="text-sm text-muted-foreground mt-1 leading-snug">
+                                        {tagline}
+                                    </p>
+                                )}
+                            </>
+                        );
+                    })()}
+                </div>
             </div>
 
-            {/* Problem Description - Full text with scroll */}
-            <p className="text-sm text-muted-foreground mb-4 max-h-[100px] overflow-y-auto">
+            {/* Problem Description - More spacing from title */}
+            <p className="item-description mb-4 max-h-[100px] overflow-y-auto leading-relaxed">
                 {problem}
             </p>
 
             {/* Score Breakdown */}
-            <div className="grid grid-cols-3 gap-2 mb-4 border-t border-white/5 pt-4">
+            <div className="grid grid-cols-3 gap-2 mb-4 border-t border-border pt-4">
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
                         <TrendingUp className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <div className={cn("font-medium", getScoreColor(demandScore))}>
+                    <div className={cn("font-medium text-lg", getScoreColor(demandScore))}>
                         {demandScore}
                     </div>
-                    <div className="text-xs text-muted-foreground">Validation</div>
+                    <div className="trend-label">Validation</div>
                 </div>
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
                         <Zap className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <div className={cn("font-medium", getScoreColor(viralityScore))}>
+                    <div className={cn("font-medium text-lg", getScoreColor(viralityScore))}>
                         {viralityScore}
                     </div>
-                    <div className="text-xs text-muted-foreground">Engagement</div>
+                    <div className="trend-label">Engagement</div>
                 </div>
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
                         <Hammer className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <div className={cn("font-medium", getScoreColor(buildabilityScore))}>
+                    <div className={cn("font-medium text-lg", getScoreColor(buildabilityScore))}>
                         {buildabilityScore}
                     </div>
-                    <div className="text-xs text-muted-foreground">Build</div>
+                    <div className="trend-label">Build</div>
                 </div>
             </div>
 
             {/* Source Breakdown with Engagement */}
-            <div className="border-t border-white/5 pt-3">
+            <div className="border-t border-border pt-3">
                 <div className="flex flex-wrap gap-2">
                     {sourceBreakdown ? (
                         Object.entries(sourceBreakdown).map(([source, engagement]) => (
                             <span
                                 key={source}
-                                className="flex items-center gap-1 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded"
+                                className="item-tag-neutral flex items-center gap-1.5"
                             >
                                 <SourceIcon source={source} />
                                 <span className="capitalize">{source}</span>
-                                <span className="text-white/70">{engagement}</span>
+                                <span className="text-foreground/70 font-semibold">{engagement}</span>
                             </span>
                         ))
                     ) : (
                         [...new Set(sources)].map(source => (
                             <span
                                 key={source}
-                                className="flex items-center gap-1 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded capitalize"
+                                className="item-tag-neutral flex items-center gap-1.5 capitalize"
                             >
                                 <SourceIcon source={source} />
                                 {source}
@@ -152,11 +169,11 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                 </div>
             </div>
 
-            {/* Similar Products from Product Hunt */}
+            {/* Similar Products from Google Search */}
             {similarProducts && similarProducts.length > 0 && (
-                <div className="border-t border-white/5 pt-3 mt-3">
-                    <div className="text-xs text-muted-foreground mb-1">Similar Products:</div>
-                    <div className="text-xs text-white/60 line-clamp-2">
+                <div className="border-t border-border pt-3 mt-3">
+                    <div className="item-description font-semibold mb-1.5">Similar Products:</div>
+                    <div className="item-description hover:text-foreground transition-colors cursor-default">
                         {similarProducts.join(', ')}
                     </div>
                 </div>
@@ -164,4 +181,3 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         </div>
     );
 };
-
