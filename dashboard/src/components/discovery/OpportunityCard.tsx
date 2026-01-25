@@ -70,7 +70,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
             )}
 
             {/* Header Row with Score */}
-            <div className="flex justify-between items-start mb-3 pt-2">
+            <div className="flex justify-between items-start mb-4 pt-2 pb-4 border-b border-border">
                 {/* Opportunity Score - Top-right for prominence */}
                 <div className="order-2 text-right shrink-0 ml-3">
                     <div className={cn("trend-score-value", getScoreColor(opportunityScore))}>
@@ -105,10 +105,13 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                 </div>
             </div>
 
-            {/* Problem Description - More spacing from title */}
-            <p className="item-description mb-4 max-h-[100px] overflow-y-auto leading-relaxed">
-                {problem}
-            </p>
+            {/* Problem Section - Separated with its own header */}
+            <div className="mb-4">
+                <div className="item-description font-semibold mb-2">Problem:</div>
+                <p className="item-description max-h-[100px] overflow-y-auto leading-relaxed">
+                    {problem}
+                </p>
+            </div>
 
             {/* Score Breakdown */}
             <div className="grid grid-cols-3 gap-2 mb-4 border-t border-border pt-4">
