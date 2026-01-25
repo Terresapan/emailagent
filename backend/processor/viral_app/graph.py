@@ -607,18 +607,17 @@ class DiscoveryGraph:
             validation_score = 0
             
             try:
-                # Extract the description part (after the dash), not the product name
-                # Example: "FirstPR — discover beginner-friendly repos" → "discover beginner-friendly repos"
-                if '—' in app_idea:
-                    search_query = app_idea.split('—')[1].strip()[:50]  # Description part
-                elif '-' in app_idea:
-                    search_query = app_idea.split('-')[1].strip()[:50]  # Fallback dash
-                else:
-                    # Extract key terms from the problem description
-                    problem_words = cluster.representative.lower().split()
-                    stop_words = {'i', 'a', 'the', 'to', 'for', 'and', 'or', 'is', 'are', 'want', 'need'}
-                    keywords = [w for w in problem_words if w not in stop_words and len(w) > 3][:5]
-                    search_query = " ".join(keywords) if keywords else app_idea[:30]
+                # Use LLM-generated search keyword if available (better than parsing app idea)
+                search_query = data.get("keyword", "")
+                
+                # Fallback: Parse from app idea if keyword is missing/empty
+                if not search_query or len(search_query) < 3:
+                    if '—' in app_idea:
+                        search_query = app_idea.split('—')[1].strip()[:50]
+                    elif '-' in app_idea:
+                        search_query = app_idea.split('-')[1].strip()[:50]
+                    else:
+                        search_query = app_idea[:50]
                 
                 google_results = self.trends_client.search_similar_products(search_query, limit=5)
                 similar_products = [
@@ -696,19 +695,17 @@ class DiscoveryGraph:
 
 2. APP_IDEA: A catchy app name + short description
 
-3. VIRALITY (0-100): How shareable? Visual transformation = 90+, useful tool = 60-80
-
-4. BUILDABILITY (0-100): How easy to build in 2-4 hours? Simple UI + 1 API = 90+
+3. BUILDABILITY (0-100): How easy to build in 2-4 hours? Simple UI + 1 API = 90+
 
 Pain points:
 {formatted}
 
-Output ONE LINE per item:
-INDEX | SEARCH_KEYWORD | APP_IDEA | VIRALITY | BUILDABILITY
+Output ONE LINE per item using this EXACT format:
+INDEX | SEARCH_KEYWORD | APP_IDEA | BUILDABILITY
 
 Example:
-1 | youtube summary | QuickDigest — one-click video summarizer | 75 | 85
-2 | invoice generator | QuoteQuick — voice to PDF quote tool | 60 | 90
+1 | youtube summary | QuickDigest — one-click video summarizer | 85
+2 | invoice generator | QuoteQuick — voice to PDF quote tool | 90
 
 Output:""".format(formatted=formatted)
         
@@ -719,34 +716,31 @@ Output:""".format(formatted=formatted)
             for line in response.content.strip().split("\n"):
                 if "|" in line:
                     parts = [p.strip() for p in line.split("|")]
-                    if len(parts) >= 5:
+                    
+                    # Expected: INDEX | KEYWORD | APP_IDEA | BUILDABILITY
+                    if len(parts) >= 4:
                         try:
-                            # New format: INDEX | KEYWORD | APP_IDEA | VIRALITY | BUILDABILITY
                             results.append({
                                 "keyword": parts[1],
                                 "app_idea": parts[2],
-                                "virality": int(parts[3]),
-                                "buildability": int(parts[4]),
+                                "buildability": int(parts[3]),
                             })
                         except (ValueError, IndexError):
-                            results.append({
-                                "keyword": parts[1] if len(parts) > 1 else "",
-                                "app_idea": parts[2] if len(parts) > 2 else "",
-                                "virality": 50,
-                                "buildability": 50
-                            })
-                    # Fallback for partial lines
-                    elif len(parts) >= 4:
+                             # Fallback if parsing fails
+                             logger.warning(f"Failed to parse score line: {line}")
+                             continue
+                    # Fallback for old/bad format
+                    elif len(parts) >= 3:
                          results.append({
                             "keyword": parts[1],
-                            "app_idea": parts[2] if len(parts) > 2 else parts[1],
-                            "virality": int(parts[3]) if len(parts) > 3 else 50,
-                            "buildability": int(parts[4]) if len(parts) > 4 else 50,
+                            "app_idea": parts[2],
+                            "buildability": 50
                         })
             return results
+            
         except Exception as e:
-            logger.error(f"Scoring LLM failed: {e}")
-            return [{"app_idea": "", "keyword": "", "virality": 50, "buildability": 50} for _ in range(100)]
+            logger.error(f"Scoring LLM call failed: {e}")
+            return [{"app_idea": "", "keyword": "", "buildability": 50} for _ in range(100)]
     
     def rank_output_node(self, state: DiscoveryGraphState) -> dict:
         """
