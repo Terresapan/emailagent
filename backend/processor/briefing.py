@@ -6,9 +6,22 @@ Run from project root: python processor/visualize_graph.py
 import sys
 import os
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Get the absolute path to the project root (two levels up from this script)
+# Script is at: backend/processor/visualize_graph.py
+# Root is: backend/
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
 
+# Add project root to path
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# CRITICAL: Remove the script's directory from sys.path if it was added by Python
+# This prevents "import email" from importing backend/processor/email instead of stdlib
+if script_dir in sys.path:
+    sys.path.remove(script_dir)
+
+# Now we can safely import using the package path relative to backend/
 from processor.email.graph import EmailSummarizer
 
 
@@ -22,7 +35,7 @@ def main():
     
     # Generate PNG
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    png_file = os.path.join(script_dir, "graph.png")
+    png_file = os.path.join(script_dir, "briefing.png")
     print(f"Generating PNG diagram with all nodes expanded...")
     
     try:
@@ -35,7 +48,7 @@ def main():
         print("Falling back to Mermaid text file...")
         
         # Fallback to mmd file
-        mmd_file = os.path.join(script_dir, "graph.mmd")
+        mmd_file = os.path.join(script_dir, "briefing.mmd")
         mermaid_diagram = graph.draw_mermaid()
         with open(mmd_file, "w") as f:
             f.write(mermaid_diagram)
