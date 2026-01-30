@@ -24,7 +24,7 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 271 91% 65%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -118,7 +118,25 @@
 /* Neu-Editorial Utilities */
 @layer utilities {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-md border border-white/5;
+    @apply backdrop-blur-md border border-white/5;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .utitle {
+    /* Typography */
+    --font-serif: var(--font-playfair), serif;
+    --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+    --font-display: var(--font-playfair), var(--font-sans);
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: clamp(1.75rem, 12vw, 12rem);
+    line-height: 0.9;
+    padding-bottom: 0.1em;
+    /* Prevent descender clipping with gradient text */
+    letter-spacing: -0.04em;
+    color: transparent;
+    background-clip: text;
+    background-image: linear-gradient(to bottom, hsl(var(--foreground)), hsl(var(--muted-foreground)));
   }
 
   .text-giant {
