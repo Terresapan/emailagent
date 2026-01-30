@@ -24,7 +24,7 @@ const SourceIcon: React.FC<{ source: string; className?: string }> = ({ source, 
         case 'twitter':
             return <Twitter className={iconClass} />;
         case 'youtube':
-            return <Youtube className={iconClass} />;
+            return <Youtube className={cn(iconClass, "text-primary")} />;
         case 'producthunt':
             return <Package className={iconClass} />;
         default:
@@ -56,9 +56,9 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     const sourceCount = sourceBreakdown ? Object.keys(sourceBreakdown).length : new Set(sources).size;
 
     return (
-        <div className="trend-card group relative transition-all duration-300 hover:shadow-[0_0_20px_rgba(216,180,254,0.25)] hover:border-primary/30">
+        <div className="trend-card group relative transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--primary)/0.25)] hover:border-primary/30">
             {/* Rank Badge */}
-            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center status-label shadow-lg">
+            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground shadow-lg">
                 {rank}
             </div>
 

@@ -45,7 +45,7 @@ export function IntelligenceRail() {
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen border-r border-white/5 bg-card/50 backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.725,0,1)]",
+      "fixed left-0 top-0 z-40 h-screen border-r border-white/5 bg-card/50 backdrop-blur-xl transition-all duration-500 ease-out",
       isCollapsed ? "w-20" : "w-80"
     )}>
       <div className="flex h-full flex-col">
@@ -118,7 +118,7 @@ export function IntelligenceRail() {
               </div>
               <div>
                 <p className="status-label">System Status</p>
-                <p className="text-[10px] text-green-400">All Agents Online</p>
+                <p className="text-xs text-success-foreground">All Agents Online</p>
               </div>
             </div>
           </div>

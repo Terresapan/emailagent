@@ -20,7 +20,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
             <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
                 <CardHeader>
                     <div className="flex items-center gap-3">
-                        <Youtube className="h-5 w-5 text-red-500" />
+                        <Youtube className="h-5 w-5 text-primary" />
                         <CardTitle className="card-title">YouTube Influencers</CardTitle>
                     </div>
                 </CardHeader>
@@ -40,7 +40,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
             <CardHeader className="border-b border-white/5 pb-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Youtube className={cn("h-5 w-5", isWeekly ? "text-red-400" : "text-red-500")} />
+                        <Youtube className={cn("h-5 w-5", isWeekly ? "text-primary" : "text-primary")} />
                         <CardTitle className="card-title">
                             {isWeekly ? "Weekly YouTube Rewind" : "YouTube Influencers"}
                         </CardTitle>
@@ -108,7 +108,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                                                     {video.title}
                                                 </p>
                                                 <div className="flex items-center gap-3 mt-1 item-meta">
-                                                    <span className="text-red-400/80">{video.channel_name}</span>
+                                                    <span className="text-primary/80">{video.channel_name}</span>
                                                     <span className="flex items-center gap-1">
                                                         <Eye className="h-3 w-3" />
                                                         {video.view_count >= 1000
@@ -130,7 +130,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                                                 href={`https://youtube.com/watch?v=${video.id}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="shrink-0 p-1 text-muted-foreground hover:text-red-400 transition-colors"
+                                                className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
                                             >
                                                 <ExternalLink className="h-4 w-4" />
                                             </a>

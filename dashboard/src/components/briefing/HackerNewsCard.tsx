@@ -51,7 +51,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           </Badge>
         </div>
       </CardHeader>
-      
+
       <ScrollArea className="flex-1">
         <CardContent className="pt-6 space-y-8">
           {/* Developer Zeitgeist Summary */}
@@ -77,7 +77,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
               </div>
               <div className="space-y-2">
                 {insight.top_themes.map((theme, i) => (
-                  <div 
+                  <div
                     key={i}
                     className="item-card"
                   >
@@ -94,12 +94,12 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
               <div className="flex items-center gap-2 mb-4">
                 <MessageSquare className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
                 <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
-                   {isWeekly ? "Most Discussed this Week" : "Top Stories"}
+                  {isWeekly ? "Most Discussed this Week" : "Top Stories"}
                 </h3>
               </div>
               <div className="space-y-3">
                 {insight.stories.slice(0, 10).map((story, i) => (
-                  <div 
+                  <div
                     key={story.id}
                     className="item-card"
                   >
@@ -112,13 +112,13 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                           <span>{story.score} pts</span>
                           <span>{story.comments_count} comments</span>
                           {story.github_stars && (
-                            <span className="flex items-center gap-1 text-amber-400">
+                            <span className="flex items-center gap-1 text-primary">
                               ⭐ {story.github_stars >= 1000 ? `${(story.github_stars / 1000).toFixed(1)}k` : story.github_stars}
                             </span>
                           )}
                           {story.by && <span>by {story.by}</span>}
                         </div>
-                        
+
                         {/* Community Verdict */}
                         {(story.verdict || story.sentiment) && (
                           <div className="mt-2 flex items-start gap-2 bg-white/5 rounded p-2 border border-white/5">
@@ -133,7 +133,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                         )}
                       </div>
                       {story.url && (
-                        <a 
+                        <a
                           href={story.url}
                           target="_blank"
                           rel="noopener noreferrer"

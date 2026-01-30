@@ -64,7 +64,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <ScrollArea className="flex-1">
         <CardContent className="pt-6 space-y-8">
           {/* Top Launches */}
@@ -77,8 +77,8 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
             </div>
             <div className="space-y-3">
               {insight.launches.slice(0, 10).map((launch, i) => (
-                <div 
-                  key={launch.id} 
+                <div
+                  key={launch.id}
                   className="item-card"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -86,9 +86,9 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-bold text-primary">#{i + 1}</span>
                         {launch.website ? (
-                          <a 
-                            href={launch.website} 
-                            target="_blank" 
+                          <a
+                            href={launch.website}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="item-title hover:text-primary hover:underline transition-colors"
                           >
@@ -102,7 +102,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                       {launch.topics && launch.topics.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {launch.topics.slice(0, 5).map((topic, j) => (
-                            <span 
+                            <span
                               key={j}
                               className="item-tag"
                             >
@@ -135,7 +135,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                       <strong className="text-white font-semibold font-serif">{children}</strong>
                     ),
                     p: ({ children }) => (
-                      <p className="mb-2 last:mb-0 hover:text-gray-200 transition-colors duration-300">{children}</p>
+                      <p className="mb-2 last:mb-0 hover:text-foreground transition-colors duration-300">{children}</p>
                     ),
                   }}
                 >
@@ -149,14 +149,14 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           {insight.content_angles.length > 0 && (
             <div className="border-t border-white/5 pt-6">
               <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="h-4 w-4 text-yellow-500" />
+                <Lightbulb className="h-4 w-4 text-primary" />
                 <h3 className="font-serif text-lg text-white tracking-wide">Content Ideas</h3>
               </div>
               <ul className="space-y-3">
                 {insight.content_angles.map((angle, i) => (
-                  <li 
-                    key={i} 
-                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-primary/50 transition-colors duration-300 hover:text-gray-200 text-base"
+                  <li
+                    key={i}
+                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-primary/50 transition-colors duration-300 hover:text-foreground text-base"
                   >
                     {angle}
                   </li>

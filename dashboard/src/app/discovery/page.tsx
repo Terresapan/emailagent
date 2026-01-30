@@ -353,10 +353,10 @@ export default function DiscoveryPage() {
                                             rel="noopener noreferrer"
                                             className="block"
                                         >
-                                            <Card className="bg-card/50 backdrop-blur-sm border-white/5 hover:border-accent/50 transition-colors">
+                                            <Card className="bg-card/50 backdrop-blur-sm border-white/5 hover:border-primary/50 transition-colors">
                                                 <CardContent className="pt-6">
                                                     <div className="flex gap-3">
-                                                        <Youtube className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                                                        <Youtube className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                                         <div className="flex-1 min-w-0">
                                                             <h3 className="font-medium text-white line-clamp-2 text-sm">{video.title}</h3>
                                                             <p className="text-xs text-muted-foreground mt-1">{video.channel}</p>

@@ -59,65 +59,65 @@ export default function LinkedInCard({ content, className }: LinkedInCardProps) 
           // Logic: First item is "Topics", rest are "Drafts"
           const isTopics = index === 0;
           const label = isTopics ? "LinkedIn Topics" : `Draft #${index}`;
-          
-          return (
-          <div
-            key={index}
-            className={cn(
-              "group rounded-lg border transition-all duration-300",
-              expandedIndex === index 
-               ? "border-primary/30 bg-primary/5" 
-               : "border-white/5 bg-white/5 hover:border-white/10"
-            )}
-          >
-            {/* Post Header */}
-            <div
-              onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
-              className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left"
-              role="button"
-              tabIndex={0}
-            >
-              <span className={cn(
-                "text-sm font-medium transition-colors uppercase tracking-wider", // Added uppercase and tracking
-                expandedIndex === index ? "text-white" : "text-muted-foreground group-hover:text-foreground",
-                isTopics && "text-primary" // Highlight Topics
-              )}>
-                {label}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopy(post, index);
-                  }}
-                  title="Copy to clipboard"
-                >
-                  {copiedIndex === index ? (
-                    <Check className="h-4 w-4 text-green-400" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-                {expandedIndex === index ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-            </div>
 
-            {/* Post Content */}
-            {expandedIndex === index && (
-              <div className="border-t border-primary/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground hover:text-foreground transition-colors duration-300 font-sans">
-                  {post}
-                </p>
+          return (
+            <div
+              key={index}
+              className={cn(
+                "group rounded-lg border transition-all duration-300",
+                expandedIndex === index
+                  ? "border-primary/30 bg-primary/5"
+                  : "border-white/5 bg-white/5 hover:border-white/10"
+              )}
+            >
+              {/* Post Header */}
+              <div
+                onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left"
+                role="button"
+                tabIndex={0}
+              >
+                <span className={cn(
+                  "text-sm font-medium transition-colors uppercase tracking-wider", // Added uppercase and tracking
+                  expandedIndex === index ? "text-white" : "text-muted-foreground group-hover:text-foreground",
+                  isTopics && "text-primary" // Highlight Topics
+                )}>
+                  {label}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(post, index);
+                    }}
+                    title="Copy to clipboard"
+                  >
+                    {copiedIndex === index ? (
+                      <Check className="h-4 w-4 text-success-foreground" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {expandedIndex === index ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Post Content */}
+              {expandedIndex === index && (
+                <div className="border-t border-primary/10 px-4 py-4 animate-in slide-in-from-top-2 duration-200">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground hover:text-foreground transition-colors duration-300 font-sans">
+                    {post}
+                  </p>
+                </div>
+              )}
+            </div>
           );
         })}
       </CardContent>

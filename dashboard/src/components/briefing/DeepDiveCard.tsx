@@ -58,7 +58,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 transition-colors duration-300 hover:text-gray-200 hover:border-primary text-base">
+                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 transition-colors duration-300 hover:text-foreground hover:border-primary text-base">
                     {children}
                   </li>
                 ),
@@ -66,7 +66,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   <strong className="text-primary font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
                 ),
                 p: ({ children }) => (
-                  <p className="text-muted-foreground leading-7 my-4 font-sans text-lg transition-colors duration-300 hover:text-gray-200">{children}</p>
+                  <p className="text-muted-foreground leading-7 my-4 font-sans text-lg transition-colors duration-300 hover:text-foreground">{children}</p>
                 ),
                 hr: () => (
                   <hr className="my-8 border-white/10" />

@@ -61,7 +61,7 @@ export default function BriefingCard({ briefing, className }: BriefingCardProps)
                   <strong className="text-primary font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
                 ),
                 p: ({ children }) => (
-                  <p className="text-muted-foreground leading-relaxed my-3 font-sans transition-colors duration-300 hover:text-gray-200 text-lg">{children}</p>
+                  <p className="text-muted-foreground leading-relaxed my-3 font-sans transition-colors duration-300 hover:text-foreground text-lg">{children}</p>
                 ),
               }}
             >
