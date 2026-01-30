@@ -268,4 +268,12 @@
   .trend-card {
     @apply relative bg-card/40 backdrop-blur-sm border border-white/5 p-5 rounded-xl transition-all duration-300 hover:bg-card/80 hover:border-accent/50 hover:shadow-2xl hover:shadow-accent/20 hover:-translate-y-1;
   }
+
+  /* Sticky Header Glass */
+  /* Sticky Header Glass */
+  .sticky-header {
+    @apply fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 backdrop-blur-md border-b border-white/5 transition-transform duration-500 ease-in-out;
+    background-color: rgba(18, 18, 28, 0.8);
+    /* #12121C at 80% */
+  }
 }

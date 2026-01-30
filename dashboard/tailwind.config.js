@@ -36,6 +36,7 @@ module.exports = {
 					bg: '#0F0F16',
 					card: '#1A1A24',
 					surface: '#252533',
+					'surface-alt': '#12121C', // New darker surface
 					text: '#F2E9E4',
 					muted: '#888899'
 				},
