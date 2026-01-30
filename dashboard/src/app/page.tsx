@@ -398,11 +398,12 @@ export default function Home() {
                 disabled={archiving || (!currentDigest && activeView !== "producthunt" && activeView !== "hackernews" && activeView !== "youtube") || (activeView === "producthunt" && !toolsInsight) || (activeView === "hackernews" && !hackerNewsInsight) || (activeView === "youtube" && !youtubeInsight)}
                 className="hover:text-accent hover:bg-accent/10 transition-colors"
                 title="Save to Archives"
+                aria-label="Save to Archives"
               >
                 <ArchiveIcon className={`h-4 w-4 ${archiving ? "animate-pulse" : ""}`} />
               </Button>
 
-              <Button variant="ghost" size="icon" onClick={loadDigests} disabled={loading} className="hover:text-white hover:bg-white/5">
+              <Button variant="ghost" size="icon" onClick={loadDigests} disabled={loading} className="hover:text-white hover:bg-white/5" aria-label="Refresh content">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
             </div>

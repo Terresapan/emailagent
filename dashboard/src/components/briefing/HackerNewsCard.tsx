@@ -22,7 +22,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
         <CardHeader>
           <div className="flex items-center gap-3">
             <Newspaper className="h-5 w-5 text-primary" />
-            <CardTitle className="card-title">HackerNews</CardTitle>
+            <h2 className="card-title">HackerNews</h2>
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
@@ -42,9 +42,9 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Newspaper className={cn("h-5 w-5", isWeekly ? "text-primary" : "text-primary")} />
-            <CardTitle className="card-title">
+            <h2 className="card-title">
               {isWeekly ? "Weekly HN Rewind" : "HackerNews"}
-            </CardTitle>
+            </h2>
           </div>
           <Badge variant="outline" className="border-white/10 text-muted-foreground">
             {new Date(insight.date).toLocaleDateString()}
@@ -124,7 +124,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                           <div className="mt-2 flex items-start gap-2 bg-white/5 rounded p-2 border border-white/5">
                             {story.sentiment && <span className="text-sm shrink-0 mt-0.5" aria-label="Sentiment">{story.sentiment}</span>}
                             {story.verdict && (
-                              <p className="text-xs text-muted-foreground leading-snug hover:text-white transition-colors">
+                              <p className="text-sm text-muted-foreground leading-snug hover:text-white transition-colors">
                                 <span className={cn("font-semibold", isWeekly ? "text-primary/80" : "text-primary/80")}>Verdict: </span>
                                 {story.verdict}
                               </p>
@@ -138,6 +138,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                           target="_blank"
                           rel="noopener noreferrer"
                           className="shrink-0 p-1 text-muted-foreground hover:text-white transition-colors"
+                          aria-label={`Open ${story.title} in new tab`}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </a>
