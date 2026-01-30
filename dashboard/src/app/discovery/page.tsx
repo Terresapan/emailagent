@@ -361,7 +361,7 @@ export default function DiscoveryPage() {
                                                             <h3 className="font-medium text-white line-clamp-2 text-sm">{video.title}</h3>
                                                             <p className="text-xs text-muted-foreground mt-1">{video.channel}</p>
                                                             <div className="flex items-center gap-2 mt-2">
-                                                                <span className="text-xs text-accent">{video.views?.toLocaleString()} views</span>
+                                                                <span className="text-xs text-primary">{video.views?.toLocaleString()} views</span>
                                                                 <ExternalLink className="h-3 w-3 text-muted-foreground" />
                                                             </div>
                                                         </div>
