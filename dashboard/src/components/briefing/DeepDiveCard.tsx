@@ -17,7 +17,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-accent" />
+            <BookOpen className="h-5 w-5 text-primary" />
             <CardTitle className="card-title">Deep Dive Analysis</CardTitle>
           </div>
         </CardHeader>
@@ -32,7 +32,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
     <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5 overflow-hidden", className)}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center gap-3">
-          <BookOpen className="h-5 w-5 text-accent" />
+          <BookOpen className="h-5 w-5 text-primary" />
           <CardTitle className="card-title">Deep Dive Analysis</CardTitle>
         </div>
       </CardHeader>
@@ -48,7 +48,7 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   </h2>
                 ),
                 h3: ({ children }) => (
-                  <h3 className="mt-8 mb-3 text-lg font-bold text-accent font-sans tracking-wide uppercase">
+                  <h3 className="mt-8 mb-3 text-lg font-bold text-primary font-sans tracking-wide uppercase">
                     {children}
                   </h3>
                 ),
@@ -58,12 +58,12 @@ export default function DeepDiveCard({ briefing, className }: DeepDiveCardProps)
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 transition-colors duration-300 hover:text-gray-200 hover:border-accent text-base">
+                  <li className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 transition-colors duration-300 hover:text-gray-200 hover:border-primary text-base">
                     {children}
                   </li>
                 ),
                 strong: ({ children }) => (
-                  <strong className="text-accent font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
+                  <strong className="text-primary font-bold font-serif text-lg block mt-6 mb-2 first:mt-0">{children}</strong>
                 ),
                 p: ({ children }) => (
                   <p className="text-muted-foreground leading-7 my-4 font-sans text-lg transition-colors duration-300 hover:text-gray-200">{children}</p>

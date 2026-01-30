@@ -37,7 +37,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Rocket className="h-5 w-5 text-accent" />
+            <Rocket className="h-5 w-5 text-primary" />
             <CardTitle className="card-title">Product Hunt</CardTitle>
           </div>
         </CardHeader>
@@ -51,13 +51,13 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
   return (
     <Card className={cn(
       "flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
-      isWeekly ? "border-accent/30" : "border-white/5",
+      isWeekly ? "border-primary/30" : "border-white/5",
       className
     )}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Rocket className={cn("h-5 w-5", isWeekly ? "text-accent" : "text-accent")} />
+            <Rocket className={cn("h-5 w-5", isWeekly ? "text-primary" : "text-primary")} />
             <CardTitle className="card-title">
               {isWeekly ? "Weekly Product Hunt Best" : "Today's Top Launches"}
             </CardTitle>
@@ -70,8 +70,8 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           {/* Top Launches */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
-              <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
+              <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
+              <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
                 {isWeekly ? "Best of the Week" : "Top Launches"}
               </h3>
             </div>
@@ -84,13 +84,13 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-accent">#{i + 1}</span>
+                        <span className="text-2xl font-bold text-primary">#{i + 1}</span>
                         {launch.website ? (
                           <a 
                             href={launch.website} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="item-title hover:text-accent hover:underline transition-colors"
+                            className="item-title hover:text-primary hover:underline transition-colors"
                           >
                             {launch.name}
                           </a>
@@ -125,7 +125,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
           {insight.trend_summary && (
             <div className="border-t border-white/5 pt-6">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="h-4 w-4 text-accent" />
+                <TrendingUp className="h-4 w-4 text-primary" />
                 <h3 className="font-serif text-lg text-white tracking-wide">Trend Analysis</h3>
               </div>
               <div className="text-muted-foreground leading-relaxed">
@@ -156,7 +156,7 @@ export default function ToolsCard({ insight, className }: ToolsCardProps) {
                 {insight.content_angles.map((angle, i) => (
                   <li 
                     key={i} 
-                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-accent/50 transition-colors duration-300 hover:text-gray-200 text-base"
+                    className="text-muted-foreground leading-relaxed pl-4 border-l-2 border-white/10 hover:border-primary/50 transition-colors duration-300 hover:text-gray-200 text-base"
                   >
                     {angle}
                   </li>

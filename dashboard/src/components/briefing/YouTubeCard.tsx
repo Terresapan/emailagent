@@ -34,7 +34,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
     return (
         <Card className={cn(
             "flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
-            isWeekly ? "border-accent/30" : "border-white/5",
+            isWeekly ? "border-primary/30" : "border-white/5",
             className
         )}>
             <CardHeader className="border-b border-white/5 pb-6">
@@ -56,7 +56,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                     {/* Trend Summary */}
                     {insight.trend_summary && (
                         <div>
-                            <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-accent" : "text-white")}>
+                            <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-primary" : "text-white")}>
                                 {isWeekly ? "Week in Review" : "What Influencers Are Discussing"}
                             </h3>
                             <p className="text-muted-foreground leading-relaxed hover:text-white transition-colors">
@@ -69,8 +69,8 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                     {insight.key_topics.length > 0 && (
                         <div>
                             <div className="flex items-center gap-2 mb-4">
-                                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
-                                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
+                                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
+                                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
                                     Trending Topics
                                 </h3>
                             </div>
@@ -91,8 +91,8 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                     {insight.videos.length > 0 && (
                         <div>
                             <div className="flex items-center gap-2 mb-4">
-                                <Play className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
-                                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
+                                <Play className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
+                                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
                                     {isWeekly ? "Top Videos This Week" : "Recent Videos"}
                                 </h3>
                             </div>

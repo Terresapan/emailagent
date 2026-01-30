@@ -22,7 +22,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
     <div 
       className={`group rounded-xl border transition-all duration-300 ${
         isExpanded 
-          ? "border-accent/50 bg-editorial-card ring-1 ring-accent/20" 
+          ? "border-primary/50 bg-editorial-card ring-1 ring-primary/20" 
           : "border-white/5 bg-editorial-card/50 hover:border-white/10 hover:bg-editorial-card"
       }`}
     >
@@ -32,12 +32,12 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
       >
         <div className="flex items-center gap-4">
           <div className={`rounded-lg p-2 transition-colors ${
-            isExpanded ? "bg-accent/20 text-accent" : "bg-white/5 text-gray-400 group-hover:text-gray-300"
+            isExpanded ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-400 group-hover:text-gray-300"
           }`}>
             <Newspaper className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="font-serif text-lg font-semibold text-white line-clamp-1 group-hover:text-accent transition-colors">
+            <h4 className="font-serif text-lg font-semibold text-white line-clamp-1 group-hover:text-primary transition-colors">
               {digest.subject}
             </h4>
             <div className="mt-1 flex items-center gap-2 text-xs uppercase tracking-wider text-gray-500">
@@ -58,7 +58,7 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
             
             {/* Core Thesis (Weekly Only usually) */}
             {summary.core_thesis && (
-              <div className="rounded-lg bg-accent/10 border-l-2 border-accent p-4 italic text-white text-lg tracking-wide font-serif">
+              <div className="rounded-lg bg-primary/10 border-l-2 border-primary p-4 italic text-white text-lg tracking-wide font-serif">
                 "{summary.core_thesis}"
               </div>
             )}
@@ -66,13 +66,13 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
             {/* Industry News */}
             {summary.industry_news && summary.industry_news.length > 0 && (
               <section>
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent">
+                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
                   <Newspaper className="h-3 w-3" />
                   Industry News
                 </div>
                 <ul className="space-y-2">
                   {summary.industry_news.map((item, i) => (
-                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-accent/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-primary/50 transition-colors">
                       {item}
                     </li>
                   ))}
@@ -83,13 +83,13 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
             {/* New Tools */}
             {summary.new_tools && summary.new_tools.length > 0 && (
               <section>
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent">
+                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
                   <Lightbulb className="h-3 w-3" />
                   New Tools
                 </div>
                 <ul className="space-y-2">
                   {summary.new_tools.map((item, i) => (
-                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-accent/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-primary/50 transition-colors">
                       {item}
                     </li>
                   ))}
@@ -100,13 +100,13 @@ export default function NewsletterItem({ digest }: NewsletterItemProps) {
             {/* Insights */}
             {summary.insights && summary.insights.length > 0 && (
               <section>
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent">
+                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
                   <GraduationCap className="h-3 w-3" />
                   Strategic Insights
                 </div>
                 <ul className="space-y-2">
                   {summary.insights.map((item, i) => (
-                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-accent/50 transition-colors">
+                    <li key={i} className="text-base text-gray-300 leading-relaxed pl-4 relative border-l border-white/10 hover:border-primary/50 transition-colors">
                       {item}
                     </li>
                   ))}

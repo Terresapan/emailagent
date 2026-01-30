@@ -52,7 +52,7 @@ export function IntelligenceRail() {
         {/* Header / Brand */}
         <div className="flex h-32 flex-col justify-between p-6">
           <div className="flex items-center justify-between">
-            <div className={cn("h-8 w-1 bg-accent transition-all", isCollapsed ? "h-4" : "")} />
+            <div className={cn("h-8 w-1 bg-primary transition-all", isCollapsed ? "h-4" : "")} />
             <Button
               variant="ghost"
               size="icon"
@@ -87,12 +87,12 @@ export function IntelligenceRail() {
                     className={cn(
                       "group w-full justify-start gap-4 overflow-hidden rounded-none py-6 text-sm font-medium tracking-widest uppercase transition-all hover:bg-white/5",
                       isActive
-                        ? "text-accent hover:text-accent"
+                        ? "text-primary hover:text-primary"
                         : "text-muted-foreground hover:text-white",
                       isCollapsed && "justify-center px-0"
                     )}
                   >
-                    <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", isActive && "text-accent")} />
+                    <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", isActive && "text-primary")} />
                     <span className={cn(
                       "transition-all duration-300",
                       isCollapsed ? "w-0 opacity-0 translate-x-10 absolute" : "w-auto opacity-100 translate-x-0"
@@ -113,8 +113,8 @@ export function IntelligenceRail() {
             isCollapsed ? "hidden" : "block"
           )}>
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10">
-                <Zap className="h-4 w-4 text-accent animate-pulse" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                <Zap className="h-4 w-4 text-primary animate-pulse" />
               </div>
               <div>
                 <p className="status-label">System Status</p>

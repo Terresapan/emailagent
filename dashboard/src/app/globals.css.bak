@@ -33,53 +33,40 @@
   }
 
   .dark {
-    /* ========================================
-       NEU-EDITORIAL DESIGN SYSTEM THEME
-       ======================================== */
+    /* New Purple/Teal Theme */
+    --background: 240 21.3115% 11.9608%;
+    --foreground: 226.1538 63.9344% 88.0392%;
 
-    /* Background: Deep Cool Black #0F0F16 */
-    --background: 240 19% 7.25%;
+    --card: 240 21.0526% 14.9020%;
+    --card-foreground: 226.1538 63.9344% 88.0392%;
 
-    /* Foreground: Warm White #F2E9E4 (Was Cool White) */
-    --foreground: 22 33% 92%;
+    --popover: 234.2857 13.2075% 31.1765%;
+    --popover-foreground: 226.1538 63.9344% 88.0392%;
 
-    /* Surface/Card: #1A1A24 */
-    --card: 240 16% 12%;
-    --card-foreground: 22 33% 92%;
+    --primary: 189.1837 71.0145% 72.9412%;
+    /* Teal/Cyan */
+    --primary-foreground: 240 21.0526% 14.9020%;
 
-    --popover: 240 16% 12%;
-    --popover-foreground: 22 33% 92%;
-
-    /* Primary: Lavender #D8B4FE (Swapped from Teal) */
-    --primary: 269 97% 85%;
-    --primary-foreground: 240 19% 7.25%;
-
-    /* Secondaries */
     --secondary: 232.5000 12% 39.2157%;
-    --secondary-foreground: 22 33% 92%;
+    --secondary-foreground: 226.1538 63.9344% 88.0392%;
 
     --muted: 230.5263 18.8119% 19.8039%;
     --muted-foreground: 227.6471 23.6111% 71.7647%;
 
-    /* Accent: Teal #88E0EF (Swapped from Lavender) */
-    --accent: 189 78% 74%;
-    --accent-foreground: 240 19% 7.25%;
+    --accent: 267.4074 83.5052% 80.9804%;
+    /* Lavender Purple */
+    --accent-foreground: 240 21.0526% 14.9020%;
 
     --destructive: 343.2692 81.2500% 74.9020%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 240 21.0526% 14.9020%;
 
-    --border: 240 16% 18%;
-    /* Slightly lighter than card */
-    --input: 240 16% 18%;
+    --border: 236.8421 16.2393% 22.9412%;
+    --input: 236.8421 16.2393% 22.9412%;
 
-    --ring: 269 97% 85%;
-    /* Primary */
+    --ring: 267.4074 83.5052% 80.9804%;
 
-    /* Chart Colors (Aligned) */
-    --chart-1: 269 97% 85%;
-    /* Lavender */
-    --chart-2: 189 78% 74%;
-    /* Teal */
+    --chart-1: 267.4074 83.5052% 80.9804%;
+    --chart-2: 189.1837 71.0145% 72.9412%;
     --chart-3: 115.4545 54.0984% 76.0784%;
     --chart-4: 22.9565 92.0000% 75.4902%;
     --chart-5: 9.6000 55.5556% 91.1765%;
@@ -135,11 +122,6 @@
   .hover-glow:hover {
     box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.3);
     border-color: hsl(var(--primary) / 0.3);
-  }
-
-  .text-glow {
-    text-shadow: 0 0 15px rgba(216, 180, 254, 0.6);
-    color: #fff;
   }
 
   /* ===== ACCENT CONTROLS (New Theme) ===== */

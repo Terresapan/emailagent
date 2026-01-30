@@ -21,7 +21,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
       <Card className={cn("flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm border-white/5", className)}>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Newspaper className="h-5 w-5 text-accent" />
+            <Newspaper className="h-5 w-5 text-primary" />
             <CardTitle className="card-title">HackerNews</CardTitle>
           </div>
         </CardHeader>
@@ -35,13 +35,13 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
   return (
     <Card className={cn(
       "flex h-full min-h-[500px] flex-col bg-card/50 backdrop-blur-sm overflow-hidden transition-colors duration-500",
-      isWeekly ? "border-accent/30" : "border-white/5",
+      isWeekly ? "border-primary/30" : "border-white/5",
       className
     )}>
       <CardHeader className="border-b border-white/5 pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Newspaper className={cn("h-5 w-5", isWeekly ? "text-accent" : "text-accent")} />
+            <Newspaper className={cn("h-5 w-5", isWeekly ? "text-primary" : "text-primary")} />
             <CardTitle className="card-title">
               {isWeekly ? "Weekly HN Rewind" : "HackerNews"}
             </CardTitle>
@@ -57,7 +57,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {/* Developer Zeitgeist Summary */}
           {insight.summary && (
             <div>
-              <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-accent" : "text-white")}>
+              <h3 className={cn("font-serif text-lg tracking-wide mb-3", isWeekly ? "text-primary" : "text-white")}>
                 {isWeekly ? "Meta-Trend Synthesis" : "Developer Zeitgeist"}
               </h3>
               <p className="text-muted-foreground leading-relaxed hover:text-white transition-colors">
@@ -70,8 +70,8 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {insight.top_themes.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
-                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
+                <TrendingUp className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
+                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
                   Top Themes
                 </h3>
               </div>
@@ -92,8 +92,8 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
           {insight.stories.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <MessageSquare className={cn("h-4 w-4", isWeekly ? "text-accent" : "text-accent")} />
-                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-accent" : "text-white")}>
+                <MessageSquare className={cn("h-4 w-4", isWeekly ? "text-primary" : "text-primary")} />
+                <h3 className={cn("font-serif text-lg tracking-wide", isWeekly ? "text-primary" : "text-white")}>
                    {isWeekly ? "Most Discussed this Week" : "Top Stories"}
                 </h3>
               </div>
@@ -125,7 +125,7 @@ export default function HackerNewsCard({ insight, className }: HackerNewsCardPro
                             {story.sentiment && <span className="text-sm shrink-0 mt-0.5" aria-label="Sentiment">{story.sentiment}</span>}
                             {story.verdict && (
                               <p className="text-xs text-muted-foreground leading-snug hover:text-white transition-colors">
-                                <span className={cn("font-semibold", isWeekly ? "text-accent/80" : "text-accent/80")}>Verdict: </span>
+                                <span className={cn("font-semibold", isWeekly ? "text-primary/80" : "text-primary/80")}>Verdict: </span>
                                 {story.verdict}
                               </p>
                             )}

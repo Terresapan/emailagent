@@ -228,7 +228,7 @@ export default function DiscoveryPage() {
                             size="sm"
                             disabled={running}
                             onClick={handleRunDiscovery}
-                            className="gap-2 bg-accent hover:opacity-90 text-white border-0 shadow-lg shadow-accent/20"
+                            className="gap-2 bg-primary hover:opacity-90 text-primary-foreground border-0 shadow-lg shadow-primary/20"
                         >
                             <Rocket className={cn("h-3 w-3", running && "animate-bounce")} />
                             {running ? "Running..." : "Run Discovery"}

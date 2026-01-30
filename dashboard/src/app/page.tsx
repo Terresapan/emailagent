@@ -284,7 +284,7 @@ export default function Home() {
                   setProcessingType(null);
                 }
               }}
-              className="gap-2 bg-accent hover:opacity-90 text-white border-0 shadow-lg shadow-accent/20"
+              className="gap-2 bg-primary hover:opacity-90 text-primary-foreground border-0 shadow-lg shadow-primary/20"
             >
               <Play className={`h-3 w-3 ${processing ? "animate-spin" : ""}`} />
               {processing ? (
@@ -521,8 +521,7 @@ export default function Home() {
           {/* LinkedIn (Only on Daily) */}
           {currentDigest && activeView === "daily" && (
             <MotionItem>
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-accent to-primary opacity-20 blur transition group-hover:opacity-30 rounded-lg" />
+              <div className="relative group rounded-lg transition-all duration-300 hover:shadow-[0_0_20px_rgba(216,180,254,0.25)] hover:border-primary/30 border border-transparent">
                 <div className="relative">
                   <LinkedInCard content={currentDigest.linkedin_content} />
                 </div>
