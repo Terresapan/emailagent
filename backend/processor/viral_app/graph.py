@@ -207,7 +207,9 @@ class DiscoveryGraph:
         
         # Parallel extraction nodes
         workflow.add_node("extract_reddit", self.extract_reddit_node)
-        workflow.add_node("extract_twitter", self.extract_twitter_node)
+        # NOTE: Twitter/X disabled - Arcade API doesn't return engagement metrics (public_metrics)
+        # Re-enable when Arcade adds public_metrics support to X.SearchRecentTweetsByKeywords
+        # workflow.add_node("extract_twitter", self.extract_twitter_node)
         workflow.add_node("extract_youtube", self.extract_youtube_node)
         workflow.add_node("extract_producthunt", self.extract_producthunt_node)
         
@@ -222,13 +224,13 @@ class DiscoveryGraph:
         
         # Fan out to parallel extraction
         workflow.add_edge("collect_data", "extract_reddit")
-        workflow.add_edge("collect_data", "extract_twitter")
+        # workflow.add_edge("collect_data", "extract_twitter")  # Disabled - see note above
         workflow.add_edge("collect_data", "extract_youtube")
         workflow.add_edge("collect_data", "extract_producthunt")
         
         # Fan in to clustering
         workflow.add_edge("extract_reddit", "cluster_pain_points")
-        workflow.add_edge("extract_twitter", "cluster_pain_points")
+        # workflow.add_edge("extract_twitter", "cluster_pain_points")  # Disabled
         workflow.add_edge("extract_youtube", "cluster_pain_points")
         workflow.add_edge("extract_producthunt", "cluster_pain_points")
         
@@ -322,18 +324,18 @@ class DiscoveryGraph:
         api_usage["arcade"] = self.arcade_client.get_usage_stats()["total"]
         logger.info(f"Collected {len(reddit_comments)} Reddit comments")
         
-        # --- Twitter via Arcade (FIXED - keywords must be array) ---
+        # --- Twitter via Arcade ---
+        # DISABLED: Arcade's X API doesn't return engagement metrics (public_metrics)
+        # Without likes/retweets, Twitter pain points always score 0 and get filtered out.
+        # Re-enable when Arcade adds public_metrics support.
+        # See: Feature request sent to Arcade team
         tweets = []
-        
-        # Load Twitter queries from config
-        twitter_queries = load_twitter_queries()
-        
-        for query in twitter_queries:
-            results = self.arcade_client.search_tweets(query, max_results=20)
-            tweets.extend(results)
-        
-        api_usage["arcade"] += len(twitter_queries)  # Count Twitter calls
-        logger.info(f"Collected {len(tweets)} tweets from Twitter")
+        # twitter_queries = load_twitter_queries()
+        # for query in twitter_queries:
+        #     results = self.arcade_client.search_tweets(query, max_results=20)
+        #     tweets.extend(results)
+        # api_usage["arcade"] += len(twitter_queries)
+        logger.info("Twitter/X collection DISABLED (Arcade API lacks engagement metrics)")
         
         # --- YouTube (free - ~600 quota) ---
         youtube_videos = self.youtube_client.search_for_discovery(
