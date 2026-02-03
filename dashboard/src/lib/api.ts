@@ -2,7 +2,11 @@
  * API client for Content Agent backend.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Server-side uses Docker internal network (api service name), client-side uses localhost
+const isServer = typeof window === 'undefined';
+const API_URL = isServer
+  ? (process.env.API_URL_INTERNAL || "http://api:8000")
+  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
 export interface CategorySummary {
   industry_news: string[];
@@ -222,6 +226,85 @@ export interface ToolsInsight {
   content_angles: string[];
   period: "daily" | "weekly";
   created_at: string;
+}
+
+export interface PainPoint {
+  text: string;
+  problem: string;
+  source: string;
+  engagement: number;
+}
+
+export interface AppOpportunity {
+  problem: string;
+  app_idea: string;
+  demand_score: number;
+  virality_score: number;
+  buildability_score: number;
+  opportunity_score: number;
+  category?: string;
+  target_audience?: string;
+  pain_points: PainPoint[];
+  source_breakdown?: Record<string, number>;
+  similar_products?: string[];
+}
+
+export interface DiscoveryBriefing {
+  date: string;
+  top_opportunities: AppOpportunity[];
+  total_data_points: number;
+  total_pain_points_extracted: number;
+  total_candidates_filtered: number;
+  arcade_calls: number;
+  serpapi_calls: number;
+  youtube_quota: number;
+  llm_calls: number;
+  estimated_cost: number;
+}
+
+export interface VideoData {
+  id: string;
+  title: string;
+  views: number;
+  channel: string;
+  url: string;
+}
+
+/**
+ * Fetch discovery briefing.
+ */
+export async function fetchDiscoveryBriefing(): Promise<DiscoveryBriefing | null> {
+  const response = await fetch(`${API_URL}/api/discovery/briefing`, {
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+/**
+ * Fetch discovery videos.
+ */
+export async function fetchDiscoveryVideos(): Promise<{ videos: VideoData[] }> {
+  const response = await fetch(`${API_URL}/api/discovery/videos`, {
+    cache: "no-store",
+  });
+  if (!response.ok) return { videos: [] };
+  return response.json();
+}
+
+/**
+ * Run discovery process.
+ */
+export async function runDiscovery(): Promise<DiscoveryBriefing> {
+  const response = await fetch(`${API_URL}/api/discovery/run`, {
+    method: "POST",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Discovery failed");
+  }
+  return response.json();
 }
 
 /**

@@ -1,5 +1,3 @@
-"use client";
-
 import { Youtube, TrendingUp, Eye, ExternalLink, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -120,7 +118,7 @@ export default function YouTubeCard({ insight, className }: YouTubeCardProps) {
                                                 {/* Video Summary */}
                                                 {video.summary && (
                                                     <div className="mt-2 bg-white/5 rounded p-2 border border-white/5">
-                                                        <p className="text-xs text-muted-foreground leading-snug hover:text-white transition-colors">
+                                                        <p className="text-sm text-muted-foreground leading-snug hover:text-white transition-colors">
                                                             {video.summary}
                                                         </p>
                                                     </div>

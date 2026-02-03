@@ -28,25 +28,23 @@ export function IntelligenceRail() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsCollapsed(true);
-      } else {
-        setIsCollapsed(false);
-      }
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    
+    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsCollapsed(e.matches);
     };
 
     // Initial check
-    handleResize();
+    handleMediaChange(mediaQuery);
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    mediaQuery.addEventListener("change", handleMediaChange);
+    return () => mediaQuery.removeEventListener("change", handleMediaChange);
   }, []);
 
   return (
     <aside className={cn(
       "fixed left-0 top-0 z-40 h-screen border-r border-white/5 bg-card/50 backdrop-blur-xl transition-all duration-500 ease-out",
-      isCollapsed ? "w-20" : "w-80"
+      isCollapsed ? "w-16" : "w-72"
     )}>
       <div className="flex h-full flex-col">
         {/* Header / Brand */}

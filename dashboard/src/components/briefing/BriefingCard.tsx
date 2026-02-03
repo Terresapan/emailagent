@@ -1,5 +1,3 @@
-"use client";
-
 import { Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

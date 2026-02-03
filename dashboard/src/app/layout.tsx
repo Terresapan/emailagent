@@ -40,7 +40,7 @@ export default function RootLayout({
             Or we can use a wrapper that isn't connected to the internal rail state easily without context.
             For now, let's assume standard desktop view with padding-left-80. 
         */}
-        <main className="flex-1 pl-20 lg:pl-80 transition-all duration-500 will-change-[padding]">
+        <main className="flex-1 pl-16 lg:pl-72 transition-all duration-500 will-change-[padding]">
           <div className="mx-auto max-w-[1600px] px-6 py-12 lg:px-12">
             {children}
           </div>
