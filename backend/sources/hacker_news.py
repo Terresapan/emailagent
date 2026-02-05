@@ -220,7 +220,13 @@ class HackerNewsClient:
         ai_pattern = re.compile(
             r'\b(AI|LLM|GPT|ChatGPT|Claude|Gemini|Llama|Copilot|OpenAI|Anthropic|DeepMind|Mistral|'
             r'artificial\s+intelligence|machine\s+learning|deep\s+learning|neural\s+network|'
-            r'generative|transformer|diffusion|AGI)\b',
+            r'generative|transformer|diffusion|AGI|agents?|Claw)\b',
+            re.IGNORECASE
+        )
+        
+        # Additional pattern for GitHub URLs that indicate AI/agent projects
+        github_ai_pattern = re.compile(
+            r'(agent|llm|ai-|gpt|claude|openai|langchain|autogen|crew)',
             re.IGNORECASE
         )
         
@@ -228,9 +234,17 @@ class HackerNewsClient:
         for hit in all_hits:
             title = hit.get("title", "")
             url = hit.get("url", "") or ""
+            
             # Check title and URL for actual AI-related terms
             if ai_pattern.search(title) or ai_pattern.search(url):
                 filtered_hits.append(hit)
+            # Special case: Show HN posts with GitHub URLs - check URL path for AI terms
+            elif title.startswith("Show HN") and "github.com" in url:
+                if github_ai_pattern.search(url):
+                    logger.debug(f"Including Show HN via GitHub URL: {title[:50]}")
+                    filtered_hits.append(hit)
+                else:
+                    logger.debug(f"Filtered out Show HN (no AI in URL): {title[:50]}")
             else:
                 logger.debug(f"Filtered out non-AI story: {title[:50]}")
         
