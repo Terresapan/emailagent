@@ -74,7 +74,7 @@ ENGAGEMENT_THRESHOLDS = {
     "reddit": 100,      # 100 upvotes = max score
     "youtube": 50,      # 50 comment likes = max score
     "producthunt": 200, # 200 votes = max score
-    "twitter": 100,     # 100 likes = max score
+    "twitter": 200,     # 200 weighted score = max (accounts for likes×1 + retweets×2 + replies×1.5 + quotes×2.5 + bookmarks×1.5)
 }
 
 # Reasoning effort settings for GPT-5-mini

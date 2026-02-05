@@ -1,22 +1,42 @@
 [
     {
-        "query": "I wish there was an app",
+        "query": "solopreneur struggling with",
         "category": "pain-point"
     },
     {
-        "query": "frustrated with AI tool",
+        "query": "as a freelancer I wish",
+        "category": "wish"
+    },
+    {
+        "query": "one-person business pain",
+        "category": "pain-point"
+    },
+    {
+        "query": "indie hacker needs tool",
+        "category": "need"
+    },
+    {
+        "query": "small business owner frustrated",
         "category": "frustration"
     },
     {
-        "query": "why isn't there",
-        "category": "gap"
+        "query": "side project automation",
+        "category": "automation"
     },
     {
-        "query": "someone should build",
-        "category": "opportunity"
+        "query": "creator economy problem",
+        "category": "creator"
     },
     {
-        "query": "need an app that",
-        "category": "need"
+        "query": "client work nightmare",
+        "category": "freelance"
+    },
+    {
+        "query": "invoicing clients hate",
+        "category": "business"
+    },
+    {
+        "query": "solo founder building",
+        "category": "builder"
     }
 ]

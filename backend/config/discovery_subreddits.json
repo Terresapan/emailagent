@@ -1,33 +1,18 @@
 [
     {
-        "name": "podcasting",
-        "category": "creator",
-        "description": "Podcasters sharing pain points"
-    },
-    {
-        "name": "NewTubers",
-        "category": "creator",
-        "description": "Small YouTubers seeking tools"
-    },
-    {
-        "name": "photography",
-        "category": "creator",
-        "description": "Photographers with workflow issues"
-    },
-    {
-        "name": "Notion",
-        "category": "productivity",
-        "description": "Power users wanting automation"
-    },
-    {
-        "name": "nocode",
+        "name": "SideProject",
         "category": "builder",
-        "description": "No-code builders hitting limits"
+        "description": "Indie builders sharing what they're working on"
     },
     {
-        "name": "bookkeeping",
+        "name": "EntrepreneurRideAlong",
         "category": "business",
-        "description": "Small biz accounting pain"
+        "description": "Solopreneurs documenting their journey"
+    },
+    {
+        "name": "smallbusiness",
+        "category": "business",
+        "description": "Small biz owners with operational pain"
     },
     {
         "name": "freelance",
@@ -35,8 +20,33 @@
         "description": "Freelancers needing tools"
     },
     {
+        "name": "nocode",
+        "category": "builder",
+        "description": "No-code builders hitting limits"
+    },
+    {
         "name": "ecommerce",
         "category": "business",
         "description": "Online sellers with ops issues"
+    },
+    {
+        "name": "bookkeeping",
+        "category": "business",
+        "description": "Small biz accounting pain"
+    },
+    {
+        "name": "solopreneur",
+        "category": "business",
+        "description": "Direct target audience"
+    },
+    {
+        "name": "Entrepreneur",
+        "category": "business",
+        "description": "High-volume entrepreneur discussions"
+    },
+    {
+        "name": "indiehackers",
+        "category": "builder",
+        "description": "Core indie hacker community"
     }
 ]

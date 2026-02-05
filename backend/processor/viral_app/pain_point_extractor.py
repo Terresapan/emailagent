@@ -160,18 +160,49 @@ class PainPointExtractor:
         
         return "\n".join(lines), engagement_map
     
+    def _calculate_twitter_engagement(self, tweet: dict) -> int:
+        """Calculate weighted engagement score from public_metrics.
+        
+        Weights:
+        - Quotes: 2.5x (highest intent - adding own commentary)
+        - Retweets: 2.0x (amplification signal)
+        - Replies: 1.5x (discussion)
+        - Bookmarks: 1.5x (save for later intent)
+        - Likes: 1.0x (baseline agreement)
+        """
+        metrics = tweet.get("public_metrics", {})
+        
+        like_count = metrics.get("like_count", 0)
+        retweet_count = metrics.get("retweet_count", 0)
+        reply_count = metrics.get("reply_count", 0)
+        quote_count = metrics.get("quote_count", 0)
+        bookmark_count = metrics.get("bookmark_count", 0)
+        
+        score = int(
+            like_count * 1.0 +
+            retweet_count * 2.0 +
+            reply_count * 1.5 +
+            quote_count * 2.5 +
+            bookmark_count * 1.5
+        )
+        return score
+    
     def _format_twitter_data(self, tweets: list[dict]) -> tuple[str, dict]:
         """Format Twitter data for the prompt with indices for engagement lookup."""
         lines = []
-        engagement_map = {}  # index -> engagement score (likes)
+        engagement_map = {}  # index -> weighted engagement score
         idx = 1
         
         for tweet in tweets[:100]:
             text = tweet.get("text", "")[:280]
-            likes = tweet.get("likes", tweet.get("like_count", 0))
+            engagement = self._calculate_twitter_engagement(tweet)
             
-            lines.append(f"[#{idx}] [{likes} likes] {text}")
-            engagement_map[idx] = likes
+            # Show metrics breakdown for LLM context
+            metrics = tweet.get("public_metrics", {})
+            metrics_str = f"{metrics.get('like_count', 0)}♥ {metrics.get('retweet_count', 0)}🔁"
+            
+            lines.append(f"[#{idx}] [{metrics_str}] {text}")
+            engagement_map[idx] = engagement
             idx += 1
         
         return "\n".join(lines), engagement_map

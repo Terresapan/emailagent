@@ -207,9 +207,7 @@ class DiscoveryGraph:
         
         # Parallel extraction nodes
         workflow.add_node("extract_reddit", self.extract_reddit_node)
-        # NOTE: Twitter/X disabled - Arcade API doesn't return engagement metrics (public_metrics)
-        # Re-enable when Arcade adds public_metrics support to X.SearchRecentTweetsByKeywords
-        # workflow.add_node("extract_twitter", self.extract_twitter_node)
+        workflow.add_node("extract_twitter", self.extract_twitter_node)  # Re-enabled: Arcade now returns public_metrics
         workflow.add_node("extract_youtube", self.extract_youtube_node)
         workflow.add_node("extract_producthunt", self.extract_producthunt_node)
         
@@ -224,13 +222,13 @@ class DiscoveryGraph:
         
         # Fan out to parallel extraction
         workflow.add_edge("collect_data", "extract_reddit")
-        # workflow.add_edge("collect_data", "extract_twitter")  # Disabled - see note above
+        workflow.add_edge("collect_data", "extract_twitter")  # Re-enabled
         workflow.add_edge("collect_data", "extract_youtube")
         workflow.add_edge("collect_data", "extract_producthunt")
         
         # Fan in to clustering
         workflow.add_edge("extract_reddit", "cluster_pain_points")
-        # workflow.add_edge("extract_twitter", "cluster_pain_points")  # Disabled
+        workflow.add_edge("extract_twitter", "cluster_pain_points")  # Re-enabled
         workflow.add_edge("extract_youtube", "cluster_pain_points")
         workflow.add_edge("extract_producthunt", "cluster_pain_points")
         
@@ -303,8 +301,8 @@ class DiscoveryGraph:
         
         # Get comments from high-engagement posts
         # Test mode: only 5 posts (5 API calls)
-        # Full mode: up to 100 posts (100 API calls)
-        comment_limit = 5 if self.test_mode else 100
+        # Full mode: up to 50 posts (reduced from 100 to make room for Twitter)
+        comment_limit = 5 if self.test_mode else 50
         
         high_engagement_posts = [
             p for p in reddit_posts 
@@ -325,17 +323,14 @@ class DiscoveryGraph:
         logger.info(f"Collected {len(reddit_comments)} Reddit comments")
         
         # --- Twitter via Arcade ---
-        # DISABLED: Arcade's X API doesn't return engagement metrics (public_metrics)
-        # Without likes/retweets, Twitter pain points always score 0 and get filtered out.
-        # Re-enable when Arcade adds public_metrics support.
-        # See: Feature request sent to Arcade team
+        # RE-ENABLED: Arcade API now returns public_metrics (likes, retweets, etc.)
         tweets = []
-        # twitter_queries = load_twitter_queries()
-        # for query in twitter_queries:
-        #     results = self.arcade_client.search_tweets(query, max_results=20)
-        #     tweets.extend(results)
-        # api_usage["arcade"] += len(twitter_queries)
-        logger.info("Twitter/X collection DISABLED (Arcade API lacks engagement metrics)")
+        twitter_queries = load_twitter_queries()
+        for query in twitter_queries:
+            results = self.arcade_client.search_tweets(query, max_results=20)
+            tweets.extend(results)
+        api_usage["arcade"] = self.arcade_client.get_usage_stats()["total"]
+        logger.info(f"Collected {len(tweets)} tweets from {len(twitter_queries)} queries")
         
         # --- YouTube (free - ~600 quota) ---
         youtube_videos = self.youtube_client.search_for_discovery(
