@@ -83,5 +83,20 @@
     "name": "The Pragmatic Engineer",
     "type": "weeklydeepdives",
     "email": "pragmaticengineer@substack.com"
+  },
+  {
+    "name": "Ben Pouladian from BEP Research",
+    "type": "weeklydeepdives",
+    "email": "benitoz@substack.com"
+  },
+  {
+    "name": "SemiAnalysis",
+    "type": "weeklydeepdives",
+    "email": "semianalysis@substack.com"
+  },
+  {
+    "name": "Latent.Space",
+    "type": "weeklydeepdives",
+    "email": "swyx@substack.com"
   }
 ]
